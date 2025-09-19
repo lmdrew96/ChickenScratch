@@ -1,9 +1,13 @@
-import { EditorDashboard } from '@/components/editor/editor-dashboard';
+// EditorDashboard will be loaded dynamically below
 import { requireEditorProfile } from '@/lib/auth';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Profile, Submission } from '@/types/database';
 
 export default async function EditorPage() {
+  // Dynamically import the EditorDashboard component
+  const mod = await import('@/components/editor/editor-dashboard').catch(() => null as any);
+  const EditorDashboard = (mod?.default ?? (mod as any)?.EditorDashboard) as any;
+
   const { profile } = await requireEditorProfile();
   const supabase = await createSupabaseServerClient();
 
@@ -25,7 +29,7 @@ export default async function EditorPage() {
   const { data: editorsData } = await supabase
     .from('profiles')
     .select('id, name, email, role')
-    .in('role', ['editor', 'admin'])
+    .in('role', ['editor', 'admin', 'committee', 'editor_in_chief', 'submissions_coordinator', 'proofreader', 'circulation_curator'])
     .order('name');
 
   const editors = (editorsData ?? []) as Array<Pick<Profile, 'id' | 'name' | 'email' | 'role'>>;
@@ -38,16 +42,27 @@ export default async function EditorPage() {
           Review submissions, assign editors, and coordinate publication decisions. All updates are logged for auditing.
         </p>
       </header>
-      <EditorDashboard
-        submissions={submissions}
-        editors={editors.map((editor) => ({
-          id: editor.id,
-          name: editor.name,
-          email: editor.email,
-          role: editor.role,
-        }))}
-        viewerName={profile.name ?? profile.email ?? 'editor'}
-      />
+      {EditorDashboard ? (
+        <EditorDashboard
+          submissions={submissions}
+          editors={editors.map((editor) => ({
+            id: editor.id,
+            name: editor.name,
+            email: editor.email,
+            role: editor.role,
+          }))}
+          viewerName={profile.name ?? profile.email ?? 'editor'}
+        />
+      ) : (
+        <div className="rounded-md border border-rose-700/50 bg-rose-900/30 p-4 text-rose-200">
+          Editor dashboard component not found. Ensure it is exported as either default or
+          `export const EditorDashboard` from one of:
+          <ul className="list-disc pl-6">
+            <li><code>src/components/editor/editor-dashboard.tsx</code></li>
+            <li><code>src/components/editor/EditorDashboard.tsx</code></li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
