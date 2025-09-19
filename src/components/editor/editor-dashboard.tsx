@@ -1,398 +1,124 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
 
-import { StatusBadge } from '@/components/common/status-badge';
-import { useSupabase } from '@/components/providers/supabase-provider';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/components/ui/toast';
-import { EDITABLE_STATUSES, SUBMISSION_STATUSES, formatStatus } from '@/lib/constants';
-import type { Submission } from '@/types/database';
-
-const ART_BUCKET = 'art';
-
-export type EditorSubmission = Submission & {
-  art_files: string[];
-  owner: { id: string; name: string | null; email: string | null; role: string | null } | null;
-  assigned_editor_profile: { id: string | null; name: string | null; email: string | null } | null;
-};
-
-type EditorDashboardProps = {
-  submissions: EditorSubmission[];
-  editors: { id: string; name: string | null; email: string | null; role: string | null }[];
+export type EditorDashboardProps = {
+  submissions: Array<{
+    id: string;
+    title: string | null;
+    type?: string | null;
+    status?: string | null;
+    created_at?: string | null;
+    owner?: { name?: string | null; email?: string | null; role?: string | null } | null;
+  }>;
+  editors: Array<{ id: string; name: string | null; email: string | null; role: string | null }>;
   viewerName: string;
 };
 
 export function EditorDashboard({ submissions, editors, viewerName }: EditorDashboardProps) {
-  const [statusFilter, setStatusFilter] = useState<'all' | Submission['status']>('all');
-  const [selectedId, setSelectedId] = useState(submissions[0]?.id ?? null);
-  const supabase = useSupabase();
-  const { notify } = useToast();
-  const router = useRouter();
+  const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
+  const [selectedId, setSelectedId] = useState<string | null>(submissions?.[0]?.id ?? null);
 
-  const filteredSubmissions = useMemo(() => {
-    return submissions.filter((submission) => statusFilter === 'all' || submission.status === statusFilter);
+  const filtered = useMemo(() => {
+    if (!Array.isArray(submissions)) return [];
+    if (statusFilter === 'all') return submissions;
+    return submissions.filter((s) => (s.status ?? 'submitted') === statusFilter);
   }, [submissions, statusFilter]);
 
-  const selectedSubmission = useMemo(
-    () => submissions.find((submission) => submission.id === selectedId) ?? filteredSubmissions[0] ?? null,
-    [filteredSubmissions, selectedId, submissions]
-  );
+  const selected = useMemo(() => filtered.find((s) => s.id === selectedId) ?? filtered[0] ?? null, [filtered, selectedId]);
 
-  useEffect(() => {
-    if (filteredSubmissions.length > 0 && !filteredSubmissions.some((submission) => submission.id === selectedId)) {
-      setSelectedId(filteredSubmissions[0].id);
-    }
-  }, [filteredSubmissions, selectedId]);
-
-  const [notesDraft, setNotesDraft] = useState(selectedSubmission?.editor_notes ?? '');
-  const [assignedEditor, setAssignedEditor] = useState(selectedSubmission?.assigned_editor_profile?.id ?? '');
-  const [publishUrl, setPublishUrl] = useState(selectedSubmission?.published_url ?? '');
-  const [publishIssue, setPublishIssue] = useState(selectedSubmission?.issue ?? '');
-  const [published, setPublished] = useState(!!selectedSubmission?.published);
-
-  const canStudentEdit = selectedSubmission ? EDITABLE_STATUSES.includes(selectedSubmission.status) : false;
-
-  const filters = ['all', ...SUBMISSION_STATUSES] as const;
-
-  useEffect(() => {
-    if (!selectedSubmission) {
-      return;
-    }
-    setNotesDraft(selectedSubmission.editor_notes ?? '');
-    setAssignedEditor(selectedSubmission.assigned_editor_profile?.id ?? '');
-    setPublishUrl(selectedSubmission.published_url ?? '');
-    setPublishIssue(selectedSubmission.issue ?? '');
-    setPublished(!!selectedSubmission.published);
-  }, [selectedSubmission]);
-
-  if (!selectedSubmission) {
-    return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-sm text-white/70">
-        <p>No submissions yet. Once students begin submitting, items will appear here for review.</p>
-      </div>
-    );
-  }
-
-  async function mutate(endpoint: string, options: RequestInit, successMessage: string) {
-    const response = await fetch(endpoint, options);
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(result.error ?? 'Request failed.');
-    }
-    notify({ title: 'Updated', description: successMessage, variant: 'success' });
-    router.refresh();
-  }
-
-  async function handleAssign(editorId: string | null) {
-    if (!selectedSubmission) return;
-    try {
-      await mutate(
-        `/api/submissions/${selectedSubmission.id}/assign`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ editorId }),
-        },
-        editorId ? 'Editor assigned.' : 'Editor unassigned.'
-      );
-    } catch (error) {
-      notify({
-        title: 'Assignment failed',
-        description: error instanceof Error ? error.message : 'Unable to assign editor.',
-        variant: 'error',
-      });
-    }
-  }
-
-  async function handleStatusChange(status: Submission['status'], notes?: string) {
-    if (!selectedSubmission) return;
-    const payloadNotes = notes ?? notesDraft;
-    if (status === 'needs_revision' && !payloadNotes.trim()) {
-      notify({
-        title: 'Notes required',
-        description: 'Add editor notes before requesting revisions.',
-        variant: 'error',
-      });
-      return;
-    }
-    try {
-      await mutate(
-        `/api/submissions/${selectedSubmission.id}/status`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status, editorNotes: payloadNotes }),
-        },
-        `Status updated to ${formatStatus(status)}.`
-      );
-    } catch (error) {
-      notify({
-        title: 'Status update failed',
-        description: error instanceof Error ? error.message : 'Unable to update status.',
-        variant: 'error',
-      });
-    }
-  }
-
-  async function handleNotesSave() {
-    if (!selectedSubmission) return;
-    try {
-      await mutate(
-        `/api/submissions/${selectedSubmission.id}/notes`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ editorNotes: notesDraft }),
-        },
-        'Notes updated.'
-      );
-    } catch (error) {
-      notify({
-        title: 'Note update failed',
-        description: error instanceof Error ? error.message : 'Unable to update notes.',
-        variant: 'error',
-      });
-    }
-  }
-
-  async function handlePublishToggle() {
-    if (!selectedSubmission) return;
-    try {
-      await mutate(
-        `/api/submissions/${selectedSubmission.id}/publish`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            published,
-            publishedUrl: publishUrl || null,
-            issue: publishIssue || null,
-          }),
-        },
-        published ? 'Marked as published.' : 'Publication removed.'
-      );
-    } catch (error) {
-      notify({
-        title: 'Publish update failed',
-        description: error instanceof Error ? error.message : 'Unable to update publish state.',
-        variant: 'error',
-      });
-    }
-  }
-
-  async function downloadPath(path: string) {
-    const { data, error } = await supabase.storage.from(ART_BUCKET).createSignedUrl(path, 60 * 30);
-    if (error || !data?.signedUrl) {
-      notify({ title: 'Download failed', description: error?.message ?? 'Unable to generate link.', variant: 'error' });
-      return;
-    }
-    window.open(data.signedUrl, '_blank');
-  }
+  const statuses = ['all', 'submitted', 'in_review', 'needs_revision', 'accepted', 'declined', 'published'] as const;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-white/50">Signed in as</p>
-          <p className="text-sm font-semibold text-white">{viewerName}</p>
-        </div>
-        <div className="flex flex-wrap gap-2 text-sm">
-          {filters.map((filter) => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() => setStatusFilter(filter)}
-              className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
-                statusFilter === filter
-                  ? 'bg-amber-400 text-slate-900'
-                  : 'bg-white/10 text-white/70 hover:bg-white/15 hover:text-white'
-              }`}
-            >
-              {filter === 'all' ? 'All' : formatStatus(filter)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-white/10">
-        <table className="min-w-full divide-y divide-white/10 text-sm">
-          <thead className="bg-white/5 text-white/70">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold">Title</th>
-              <th className="px-4 py-3 text-left font-semibold">Owner</th>
-              <th className="px-4 py-3 text-left font-semibold">Type</th>
-              <th className="px-4 py-3 text-left font-semibold">Status</th>
-              <th className="px-4 py-3 text-left font-semibold">Updated</th>
-              <th className="px-4 py-3 text-left font-semibold">Assigned</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {filteredSubmissions.map((submission) => (
-              <tr
-                key={submission.id}
-                className={`cursor-pointer transition hover:bg-white/5 ${
-                  submission.id === selectedSubmission.id ? 'bg-amber-400/10' : ''
-                }`}
-                onClick={() => setSelectedId(submission.id)}
-              >
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-white">{submission.title}</p>
-                  <p className="text-xs text-white/50">{submission.summary?.slice(0, 80) ?? 'No summary'}</p>
-                </td>
-                <td className="px-4 py-3 text-white/70">
-                  {submission.owner?.name || submission.owner?.email || 'Unknown'}
-                </td>
-                <td className="px-4 py-3 text-white/70 capitalize">{submission.type}</td>
-                <td className="px-4 py-3 text-white/70">
-                  <StatusBadge status={submission.status} />
-                </td>
-                <td className="px-4 py-3 text-white/70">
-                  {submission.updated_at ? new Date(submission.updated_at).toLocaleString() : '—'}
-                </td>
-                <td className="px-4 py-3 text-white/70">
-                  {submission.assigned_editor_profile?.name || submission.assigned_editor_profile?.email || '—'}
-                </td>
-              </tr>
+    <div className="grid gap-4 md:grid-cols-[360px_1fr]">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-white/90">Hello, {viewerName}</h2>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
+          >
+            {statuses.map((s) => (
+              <option key={s} value={s} className="bg-slate-900">
+                {s.replace('_', ' ')}
+              </option>
             ))}
-          </tbody>
-        </table>
+          </select>
+        </div>
+        <ul className="divide-y divide-white/10 overflow-hidden rounded-lg border border-white/10">
+          {filtered.length === 0 && (
+            <li className="p-3 text-sm text-white/60">No submissions match that filter.</li>
+          )}
+          {filtered.map((s) => (
+            <li
+              key={s.id}
+              onClick={() => setSelectedId(s.id)}
+              className={`cursor-pointer p-3 transition hover:bg-white/5 ${selected?.id === s.id ? 'bg-white/10' : ''}`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-white">{s.title ?? '(untitled)'}</div>
+                  <div className="text-xs text-white/60">
+                    {(s.type ?? 'writing').toString()} • {(s.status ?? 'submitted').toString()}
+                  </div>
+                </div>
+                <div className="text-xs text-white/50 text-right">
+                  {s.owner?.name ?? s.owner?.email ?? 'unknown author'}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <section className="space-y-6 rounded-xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-black/30">
-        <header className="space-y-2">
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-2xl font-semibold text-white">{selectedSubmission.title}</h2>
-            <StatusBadge status={selectedSubmission.status} />
-            <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/60">
-              {selectedSubmission.owner?.email}
-            </span>
-          </div>
-          <p className="text-sm text-white/70">{selectedSubmission.summary ?? 'No summary provided.'}</p>
-        </header>
-
-        <dl className="grid gap-3 text-sm text-white/70 sm:grid-cols-2">
-          <div>
-            <dt className="font-medium text-white/80">Content warnings</dt>
-            <dd>{selectedSubmission.content_warnings || '—'}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-white/80">Genre</dt>
-            <dd>{selectedSubmission.genre || '—'}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-white/80">Assigned editor</dt>
-            <dd>{selectedSubmission.assigned_editor_profile?.name || selectedSubmission.assigned_editor_profile?.email || '—'}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-white/80">Student editing</dt>
-            <dd>{canStudentEdit ? 'Allowed' : 'Locked'}</dd>
-          </div>
-        </dl>
-
-        {selectedSubmission.type === 'writing' ? (
-          <article className="rounded-lg border border-white/10 bg-slate-900/40 p-4">
-            <p className="text-xs uppercase tracking-wide text-white/50">Manuscript</p>
-            <pre className="mt-2 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm text-white/80">
-              {selectedSubmission.text_body ?? ''}
-            </pre>
-          </article>
+      <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+        {!selected ? (
+          <p className="text-sm text-white/70">Select a submission to view details.</p>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs uppercase tracking-wide text-white/50">Attachments</p>
-            <ul className="space-y-2">
-              {selectedSubmission.art_files.map((path) => (
-                <li key={path} className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
-                  <span>{path.split('/').pop()}</span>
-                  <Button type="button" size="sm" variant="outline" onClick={() => downloadPath(path)}>
-                    Download
-                  </Button>
-                </li>
-              ))}
-              {selectedSubmission.art_files.length === 0 ? (
-                <li className="text-xs text-white/50">No attachments.</li>
-              ) : null}
-            </ul>
+            <h3 className="text-xl font-medium text-white">{selected.title ?? '(untitled)'}</h3>
+            <div className="text-xs text-white/70">
+              {(selected.type ?? 'writing').toString()} • {(selected.status ?? 'submitted').toString()}
+            </div>
+            <div className="text-sm text-white/80">
+              <span className="text-white/60">Author:</span> {selected.owner?.name ?? selected.owner?.email ?? 'unknown'}
+            </div>
+
+            <div className="mt-4 grid gap-2 md:grid-cols-2">
+              <button className="rounded-md border border-emerald-700/40 bg-emerald-900/30 px-3 py-2 text-sm text-emerald-200 hover:bg-emerald-900/40">
+                Accept
+              </button>
+              <button className="rounded-md border border-amber-700/40 bg-amber-900/30 px-3 py-2 text-sm text-amber-200 hover:bg-amber-900/40">
+                Needs revision
+              </button>
+              <button className="rounded-md border border-rose-700/40 bg-rose-900/30 px-3 py-2 text-sm text-rose-200 hover:bg-rose-900/40">
+                Decline
+              </button>
+              <button className="rounded-md border border-cyan-700/40 bg-cyan-900/30 px-3 py-2 text-sm text-cyan-200 hover:bg-cyan-900/40">
+                Assign editor
+              </button>
+            </div>
+
+            <div className="mt-4 text-xs text-white/60">
+              * Buttons are placeholders; we’ll wire them to server actions next.
+            </div>
+
+            <div className="mt-6">
+              <h4 className="mb-2 text-sm font-medium text-white">Editors</h4>
+              <ul className="grid gap-1">
+                {editors.map((e) => (
+                  <li key={e.id} className="text-xs text-white/70">
+                    {e.name ?? e.email} — {e.role}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label>Assign editor</Label>
-              <Select value={assignedEditor ?? ''} onChange={(event) => setAssignedEditor(event.target.value)}>
-                <option value="">Unassigned</option>
-                {editors.map((editor) => (
-                  <option key={editor.id} value={editor.id ?? ''}>
-                    {editor.name || editor.email}
-                  </option>
-                ))}
-              </Select>
-              <Button type="button" variant="outline" onClick={() => handleAssign(assignedEditor || null)}>
-                Save assignment
-              </Button>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Editor notes</Label>
-              <Textarea value={notesDraft} onChange={(event) => setNotesDraft(event.target.value)} rows={6} />
-              <Button type="button" variant="outline" onClick={handleNotesSave}>
-                Save notes
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Publish options</Label>
-              <div className="flex items-center gap-2 text-sm text-white/70">
-                <input
-                  id="published-toggle"
-                  type="checkbox"
-                  checked={published}
-                  onChange={(event) => setPublished(event.target.checked)}
-                />
-                <Label htmlFor="published-toggle" className="text-sm text-white/80">
-                  Published
-                </Label>
-              </div>
-              <Input
-                placeholder="Published URL"
-                value={publishUrl}
-                onChange={(event) => setPublishUrl(event.target.value)}
-              />
-              <Input placeholder="Issue (Spring 2025)" value={publishIssue} onChange={(event) => setPublishIssue(event.target.value)} />
-              <Button type="button" variant="outline" onClick={handlePublishToggle}>
-                Save publish settings
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Set status</Label>
-              <div className="flex flex-wrap gap-2">
-                {['in_review', 'needs_revision', 'accepted', 'declined'].map((status) => (
-                  <Button
-                    key={status}
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleStatusChange(status as Submission['status'])}
-                  >
-                    {formatStatus(status as Submission['status'])}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-white/50">
-                Needs Revision will email the student with the latest notes. Accepted or Declined will also send a summary.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      </div>
     </div>
   );
 }
+
+export default EditorDashboard;

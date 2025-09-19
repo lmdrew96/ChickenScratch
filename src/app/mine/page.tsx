@@ -1,4 +1,4 @@
-import { MineClient } from '@/components/mine/mine-client';
+import MineClient from '@/components/mine/mine-client';
 import { requireProfile } from '@/lib/auth';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Submission } from '@/types/database';
