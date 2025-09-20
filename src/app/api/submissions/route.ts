@@ -16,7 +16,7 @@ const submissionPayloadSchema = z.object({
   contentWarnings: z.string().max(500).optional().nullable(),
   wordCount: z.number().int().min(0).max(50000).optional().nullable(),
   textBody: z.string().max(50000).optional().nullable(),
-  artFiles: z.array(z.string()).optional(),
+  artFiles: z.array(z.string().min(1)).max(5).optional(),
   coverImage: z.string().optional().nullable(),
 });
 
