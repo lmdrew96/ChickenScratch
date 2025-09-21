@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { roleLandingPath } from '@/lib/auth';
 import { getAllowedDomains } from '@/lib/env';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServerActionClient } from '@/lib/supabase/server-action';
 import { getEmailDomain } from '@/lib/utils';
 import type { Database, Profile } from '@/types/database';
 import type { AuthFormState } from './auth-shared';
@@ -33,7 +33,7 @@ export async function signInAction(_: AuthFormState, formData: FormData): Promis
     };
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerActionClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error || !data.user) {
@@ -114,7 +114,7 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
     return { status: 'error', message: createError.message };
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerActionClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
@@ -145,7 +145,7 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
 }
 
 export async function signOutAction() {
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerActionClient();
   await supabase.auth.signOut();
   redirect('/login');
 }

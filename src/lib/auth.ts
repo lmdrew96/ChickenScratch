@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
 import type { Profile } from '@/types/database';
 import type { Session } from '@supabase/supabase-js';
 
@@ -10,7 +10,7 @@ export type SessionWithProfile = {
 };
 
 export async function getSessionWithProfile(): Promise<SessionWithProfile> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerReadOnlyClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();

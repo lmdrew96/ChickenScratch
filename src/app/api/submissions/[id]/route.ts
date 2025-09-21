@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { EDITABLE_STATUSES, SUBMISSION_TYPES } from '@/lib/constants';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
 import { assertUserOwnsPath } from '@/lib/storage';
 import type { Database, Submission } from '@/types/database';
 
@@ -31,7 +31,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid update payload.' }, { status: 400 });
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseRouteHandlerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -2,11 +2,11 @@ import Link from 'next/link';
 
 import { StatusBadge } from '@/components/common/status-badge';
 import { createSignedUrl } from '@/lib/storage';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
 import type { Submission } from '@/types/database';
 
 export default async function PublishedPage() {
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerReadOnlyClient();
   const { data } = await supabase
     .from('submissions')
     .select('id, title, summary, type, cover_image, published_url, issue, art_files, updated_at, created_at')

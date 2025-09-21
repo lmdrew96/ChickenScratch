@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
 import type { Database, Json, Profile } from '@/types/database';
 
 const notesSchema = z.object({
@@ -21,7 +21,7 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid notes payload.' }, { status: 400 });
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseRouteHandlerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { enforceSubmissionRateLimit, SubmissionRateLimitError } from '@/lib/rate-limit';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
 import { assertUserOwnsPath } from '@/lib/storage';
 import type { Database } from '@/types/database';
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid submission payload.' }, { status: 400 });
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseRouteHandlerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { sendSubmissionEmail } from '@/lib/email';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
 import type { Database, Json, Profile, Submission } from '@/types/database';
 
 const statusSchema = z.object({
@@ -23,7 +23,7 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid status payload.' }, { status: 400 });
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseRouteHandlerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
