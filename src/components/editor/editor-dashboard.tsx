@@ -26,9 +26,17 @@ type EditorDashboardProps = {
   submissions: EditorSubmission[];
   editors: { id: string; name: string | null; email: string | null; role: string | null }[];
   viewerName: string;
+  loadIssue?: boolean;
+  rosterLoadIssue?: boolean;
 };
 
-export function EditorDashboard({ submissions, editors, viewerName }: EditorDashboardProps) {
+export function EditorDashboard({
+  submissions,
+  editors,
+  viewerName,
+  loadIssue = false,
+  rosterLoadIssue = false,
+}: EditorDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | Submission['status']>('all');
   const [selectedId, setSelectedId] = useState(submissions[0]?.id ?? null);
   const supabase = useSupabase();
@@ -74,7 +82,13 @@ export function EditorDashboard({ submissions, editors, viewerName }: EditorDash
   if (!selectedSubmission) {
     return (
       <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-sm text-white/70">
-        <p>No submissions yet. Once students begin submitting, items will appear here for review.</p>
+        {loadIssue ? (
+          <p>
+            We couldn&apos;t load the submission list. Refresh the page to try again or check back later for updates.
+          </p>
+        ) : (
+          <p>No submissions yet. Once students begin submitting, items will appear here for review.</p>
+        )}
       </div>
     );
   }
@@ -90,7 +104,7 @@ export function EditorDashboard({ submissions, editors, viewerName }: EditorDash
   }
 
   async function handleAssign(editorId: string | null) {
-    if (!selectedSubmission) return;
+    if (!selectedSubmission || rosterLoadIssue) return;
     try {
       await mutate(
         `/api/submissions/${selectedSubmission.id}/assign`,
@@ -194,6 +208,8 @@ export function EditorDashboard({ submissions, editors, viewerName }: EditorDash
     }
     window.open(data.signedUrl, '_blank');
   }
+
+  const assignmentsDisabled = rosterLoadIssue || editors.length === 0;
 
   return (
     <div className="space-y-6">
@@ -325,7 +341,11 @@ export function EditorDashboard({ submissions, editors, viewerName }: EditorDash
           <div className="space-y-4">
             <div className="grid gap-2">
               <Label>Assign editor</Label>
-              <Select value={assignedEditor ?? ''} onChange={(event) => setAssignedEditor(event.target.value)}>
+              <Select
+                value={assignedEditor ?? ''}
+                onChange={(event) => setAssignedEditor(event.target.value)}
+                disabled={assignmentsDisabled}
+              >
                 <option value="">Unassigned</option>
                 {editors.map((editor) => (
                   <option key={editor.id} value={editor.id ?? ''}>
@@ -333,9 +353,19 @@ export function EditorDashboard({ submissions, editors, viewerName }: EditorDash
                   </option>
                 ))}
               </Select>
-              <Button type="button" variant="outline" onClick={() => handleAssign(assignedEditor || null)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleAssign(assignedEditor || null)}
+                disabled={assignmentsDisabled}
+              >
                 Save assignment
               </Button>
+              {assignmentsDisabled ? (
+                <p className="text-xs text-white/50">
+                  Editor assignments are temporarily disabled because the roster could not be loaded.
+                </p>
+              ) : null}
             </div>
 
             <div className="grid gap-2">
