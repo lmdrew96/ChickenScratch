@@ -1,6 +1,8 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { StatusBadge } from '@/components/common/status-badge';
+import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl, createSignedUrls } from '@/lib/storage';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
 import type { Submission } from '@/types/database';
@@ -8,16 +10,62 @@ import type { Submission } from '@/types/database';
 export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createSupabaseServerReadOnlyClient();
-  const { data } = await supabase
-    .from('submissions')
-    .select('id, title, summary, type, cover_image, content_warnings, art_files, text_body, published_url, issue, updated_at')
-    .eq('id', id)
-    .eq('published', true)
-    .maybeSingle();
+  let submission: PublishedDetailRow | null = null;
+  let encounteredLoadIssue = false;
 
-  const submission = data as PublishedDetailRow | null;
+  try {
+    const { data, error } = await supabase
+      .from('submissions')
+      .select(
+        'id, title, summary, type, cover_image, content_warnings, art_files, text_body, published_url, issue, updated_at'
+      )
+      .eq('id', id)
+      .eq('published', true)
+      .maybeSingle();
+
+    if (error) {
+      encounteredLoadIssue = true;
+      logHandledIssue('published:detail:query', {
+        reason: 'Supabase query for published submission failed',
+        context: {
+          submissionId: id,
+          supabaseMessage: error.message,
+          supabaseDetails: error.details,
+          supabaseHint: error.hint,
+          supabaseCode: error.code,
+        },
+      });
+    } else {
+      submission = (data as PublishedDetailRow | null) ?? null;
+    }
+  } catch (error) {
+    encounteredLoadIssue = true;
+    logHandledIssue('published:detail:unexpected', {
+      reason: 'Unexpected failure while loading published submission',
+      cause: error,
+      context: { submissionId: id },
+    });
+  }
 
   if (!submission) {
+    if (encounteredLoadIssue) {
+      return (
+        <div className="space-y-6">
+          <header className="space-y-3">
+            <h1 className="text-3xl font-semibold text-white">Published piece temporarily unavailable</h1>
+            <p className="text-sm text-white/70">
+              We couldn&apos;t load this work just now. Please refresh the page or return to the published gallery.
+            </p>
+          </header>
+          <Link
+            href="/published"
+            className="inline-flex w-fit items-center justify-center rounded-md border border-white/20 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-white/40 hover:text-white"
+          >
+            Back to published gallery
+          </Link>
+        </div>
+      );
+    }
     notFound();
   }
 

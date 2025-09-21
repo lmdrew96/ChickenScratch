@@ -1,19 +1,44 @@
 import Link from 'next/link';
 
 import { StatusBadge } from '@/components/common/status-badge';
+import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl } from '@/lib/storage';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
 import type { Submission } from '@/types/database';
 
 export default async function PublishedPage() {
   const supabase = await createSupabaseServerReadOnlyClient();
-  const { data } = await supabase
-    .from('submissions')
-    .select('id, title, summary, type, cover_image, published_url, issue, art_files, updated_at, created_at')
-    .eq('published', true)
-    .order('updated_at', { ascending: false });
+  let rawSubmissions: PublishedSubmissionRow[] = [];
+  let encounteredLoadIssue = false;
 
-  const rawSubmissions = (data ?? []) as unknown as PublishedSubmissionRow[];
+  try {
+    const { data, error } = await supabase
+      .from('submissions')
+      .select('id, title, summary, type, cover_image, published_url, issue, art_files, updated_at, created_at')
+      .eq('published', true)
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      encounteredLoadIssue = true;
+      logHandledIssue('published:index:query', {
+        reason: 'Supabase query for published submissions failed',
+        context: {
+          supabaseMessage: error.message,
+          supabaseDetails: error.details,
+          supabaseHint: error.hint,
+          supabaseCode: error.code,
+        },
+      });
+    } else {
+      rawSubmissions = (data ?? []) as unknown as PublishedSubmissionRow[];
+    }
+  } catch (error) {
+    encounteredLoadIssue = true;
+    logHandledIssue('published:index:unexpected', {
+      reason: 'Unexpected failure while loading published submissions',
+      cause: error,
+    });
+  }
   const submissions: PublishedSubmission[] = await Promise.all(
     rawSubmissions.map(async (submission) => ({
       ...submission,
@@ -79,7 +104,12 @@ export default async function PublishedPage() {
             </div>
           </article>
         ))}
-        {submissions.length === 0 ? (
+        {submissions.length === 0 && encounteredLoadIssue ? (
+          <p className="col-span-full rounded-xl border border-amber-500/40 bg-amber-500/10 p-6 text-center text-sm text-amber-100">
+            We couldn&apos;t reach the published gallery right now. Please try again in a few moments.
+          </p>
+        ) : null}
+        {submissions.length === 0 && !encounteredLoadIssue ? (
           <p className="col-span-full rounded-xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-sm text-white/60">
             No published work yet. Check back soon!
           </p>

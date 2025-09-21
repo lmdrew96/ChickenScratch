@@ -21,9 +21,10 @@ type MineSubmission = Submission & {
 type MineClientProps = {
   submissions: MineSubmission[];
   viewerName: string;
+  loadIssue?: boolean;
 };
 
-export function MineClient({ submissions, viewerName }: MineClientProps) {
+export function MineClient({ submissions, viewerName, loadIssue = false }: MineClientProps) {
   const supabase = useSupabase();
   const { notify } = useToast();
   const [selectedId, setSelectedId] = useState(submissions[0]?.id ?? null);
@@ -37,7 +38,13 @@ export function MineClient({ submissions, viewerName }: MineClientProps) {
   if (!selectedSubmission) {
     return (
       <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-sm text-white/70">
-        <p>No submissions yet. Once you share work it will appear here for tracking and revisions.</p>
+        {loadIssue ? (
+          <p>
+            We had trouble loading your submissions. Refresh the page or try again later to see your latest work.
+          </p>
+        ) : (
+          <p>No submissions yet. Once you share work it will appear here for tracking and revisions.</p>
+        )}
       </div>
     );
   }

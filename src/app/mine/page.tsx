@@ -1,18 +1,45 @@
 import { MineClient } from '@/components/mine/mine-client';
 import { requireProfile } from '@/lib/auth';
+import { logHandledIssue } from '@/lib/logging';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
 import type { Submission } from '@/types/database';
 
 export default async function MinePage() {
   const { profile } = await requireProfile();
   const supabase = await createSupabaseServerReadOnlyClient();
-  const { data } = await supabase
-    .from('submissions')
-    .select('*, assigned_editor_profile:profiles!submissions_assigned_editor_fkey(name,email)')
-    .eq('owner_id', profile.id)
-    .order('created_at', { ascending: false });
+  let rawSubmissions: MineSubmissionRow[] = [];
+  let encounteredLoadIssue = false;
 
-  const rawSubmissions = (data ?? []) as unknown as MineSubmissionRow[];
+  try {
+    const { data, error } = await supabase
+      .from('submissions')
+      .select('*, assigned_editor_profile:profiles!submissions_assigned_editor_fkey(name,email)')
+      .eq('owner_id', profile.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      encounteredLoadIssue = true;
+      logHandledIssue('mine:query', {
+        reason: 'Supabase query for personal submissions failed',
+        context: {
+          supabaseMessage: error.message,
+          supabaseDetails: error.details,
+          supabaseHint: error.hint,
+          supabaseCode: error.code,
+          ownerId: profile.id,
+        },
+      });
+    } else {
+      rawSubmissions = (data ?? []) as unknown as MineSubmissionRow[];
+    }
+  } catch (error) {
+    encounteredLoadIssue = true;
+    logHandledIssue('mine:unexpected', {
+      reason: 'Unexpected failure while loading personal submissions',
+      cause: error,
+      context: { ownerId: profile.id },
+    });
+  }
   const submissions: MineSubmission[] = rawSubmissions.map((submission) => ({
     ...submission,
     art_files: Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [],
@@ -27,7 +54,11 @@ export default async function MinePage() {
           Needs Revision.
         </p>
       </header>
-      <MineClient submissions={submissions} viewerName={profile.name ?? profile.email ?? 'student'} />
+      <MineClient
+        submissions={submissions}
+        viewerName={profile.name ?? profile.email ?? 'student'}
+        loadIssue={encounteredLoadIssue}
+      />
     </div>
   );
 }

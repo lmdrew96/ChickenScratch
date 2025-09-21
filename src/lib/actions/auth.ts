@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
 import { roleLandingPath } from '@/lib/auth';
+import { logHandledIssue } from '@/lib/logging';
 import { getAllowedDomains } from '@/lib/env';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerActionClient } from '@/lib/supabase/server-action';
@@ -80,7 +81,10 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
   try {
     admin = createSupabaseAdminClient();
   } catch (error) {
-    console.error('Supabase service role unavailable while registering', error);
+    logHandledIssue('auth:register:service-role', {
+      reason: 'Supabase service role client unavailable during registration',
+      cause: error,
+    });
     return {
       status: 'error',
       message: 'Registration is temporarily unavailable. Ask an administrator to configure the service role key.',
@@ -88,7 +92,10 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
   }
   const existingUsers = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
   if (existingUsers.error) {
-    console.error('Failed to list users when registering', existingUsers.error);
+    logHandledIssue('auth:register:list-users', {
+      reason: 'Failed to list Supabase users during registration',
+      cause: existingUsers.error,
+    });
     return {
       status: 'error',
       message: 'Unable to validate your account at this time. Please try again.',

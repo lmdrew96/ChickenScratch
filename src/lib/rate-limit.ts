@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { logHandledIssue } from '@/lib/logging';
 import type { Database } from '@/types/database';
 
 export class SubmissionRateLimitError extends Error {
@@ -22,7 +23,11 @@ export async function enforceSubmissionRateLimit(
     .gte('created_at', since);
 
   if (error) {
-    console.error('Failed to check submission rate limit', error);
+    logHandledIssue('rate-limit:submission', {
+      reason: 'Failed to verify submission rate limit',
+      cause: error,
+      context: { userId, since, limit },
+    });
     throw new Error('Could not verify submission rate limit.');
   }
 
