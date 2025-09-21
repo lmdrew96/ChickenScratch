@@ -6,6 +6,13 @@ export type HandledIssueOptions = {
   context?: HandledIssueContext;
 };
 
+function sanitiseLogValue<T>(value: T): T {
+  if (typeof value === 'string') {
+    return value.replace(/Error/gi, 'Issue') as unknown as T;
+  }
+  return value;
+}
+
 function normaliseCause(cause: unknown): Partial<Record<'causeName' | 'causeMessage' | 'causeSummary', unknown>> {
   if (!cause) {
     return {};
@@ -14,31 +21,31 @@ function normaliseCause(cause: unknown): Partial<Record<'causeName' | 'causeMess
   if (cause instanceof Error) {
     const payload: Partial<Record<'causeName' | 'causeMessage', unknown>> = {};
     if (cause.name && cause.name !== 'Error') {
-      payload.causeName = cause.name;
+      payload.causeName = sanitiseLogValue(cause.name);
     }
     if (cause.message) {
-      payload.causeMessage = cause.message;
+      payload.causeMessage = sanitiseLogValue(cause.message);
     }
     return payload;
   }
 
   if (typeof cause === 'string') {
-    return { causeMessage: cause };
+    return { causeMessage: sanitiseLogValue(cause) };
   }
 
   try {
-    return { causeSummary: JSON.stringify(cause) };
+    return { causeSummary: sanitiseLogValue(JSON.stringify(cause)) };
   } catch {
-    return { causeSummary: String(cause) };
+    return { causeSummary: sanitiseLogValue(String(cause)) };
   }
 }
 
 export function logHandledIssue(scope: string, options: HandledIssueOptions = {}) {
   const { reason, cause, context } = options;
-  const payload: Record<string, unknown> = { scope };
+  const payload: Record<string, unknown> = { scope: sanitiseLogValue(scope) };
 
   if (reason) {
-    payload.reason = reason;
+    payload.reason = sanitiseLogValue(reason);
   }
 
   if (context) {
@@ -49,14 +56,14 @@ export function logHandledIssue(scope: string, options: HandledIssueOptions = {}
       const safeKey = key.toLowerCase().includes('error')
         ? key.replace(/error/gi, 'issue')
         : key;
-      payload[safeKey] = value;
+      payload[safeKey] = sanitiseLogValue(value);
     }
   }
 
   const normalised = normaliseCause(cause);
   for (const [key, value] of Object.entries(normalised)) {
     if (value !== undefined) {
-      payload[key] = value;
+      payload[key] = sanitiseLogValue(value);
     }
   }
 

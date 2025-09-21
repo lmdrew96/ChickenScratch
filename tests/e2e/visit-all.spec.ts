@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import type { ConsoleMessage, Page, Request } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -140,22 +141,22 @@ test.describe('route manifest crawl', () => {
   for (const route of manifest.routes) {
     for (const entry of route.entries) {
       const title = `${entry.path} [${entry.source ?? route.kind}]`;
-      test(title, async ({ page }) => {
+      test(title, async ({ page }: { page: Page }) => {
         const consoleErrors: string[] = [];
         const pageErrors: string[] = [];
         const requestFailures: Array<{ url: string; failure: string | null | undefined }> = [];
 
-        page.on('console', (msg) => {
+        page.on('console', (msg: ConsoleMessage) => {
           if (msg.type() === 'error') {
             consoleErrors.push(`${msg.text()} @ ${JSON.stringify(msg.location())}`);
           }
         });
 
-        page.on('pageerror', (error) => {
+        page.on('pageerror', (error: Error) => {
           pageErrors.push(error instanceof Error ? error.stack ?? error.message : String(error));
         });
 
-        page.on('requestfailed', (request) => {
+        page.on('requestfailed', (request: Request) => {
           const failure = request.failure();
           if (isIgnorableRequestFailure(request.url(), failure?.errorText)) {
             return;

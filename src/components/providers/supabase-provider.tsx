@@ -1,11 +1,19 @@
 'use client';
 
 import { createContext, useContext, useMemo, useState } from 'react';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
 import type { Database } from '@/types/database';
 
-type SupabaseContextType = SupabaseClient<Database>;
+function initBrowserClient(url: string, anonKey: string) {
+  return createBrowserClient<Database>(url, anonKey, {
+    auth: {
+      persistSession: true,
+    },
+  });
+}
+
+type SupabaseContextType = ReturnType<typeof initBrowserClient>;
 
 const SupabaseContext = createContext<SupabaseContextType | null>(null);
 
@@ -17,13 +25,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     throw new Error('Supabase environment variables are missing. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
   }
 
-  const [client] = useState(() =>
-    createClient<Database>(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-      },
-    })
-  );
+  const [client] = useState(() => initBrowserClient(supabaseUrl, supabaseAnonKey));
 
   const value = useMemo(() => client, [client]);
 
