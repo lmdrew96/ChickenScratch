@@ -2,12 +2,12 @@ import { notFound } from 'next/navigation';
 
 import { StatusBadge } from '@/components/common/status-badge';
 import { createSignedUrl, createSignedUrls } from '@/lib/storage';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
 import type { Submission } from '@/types/database';
 
 export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerReadOnlyClient();
   const { data } = await supabase
     .from('submissions')
     .select('id, title, summary, type, cover_image, content_warnings, art_files, text_body, published_url, issue, updated_at')

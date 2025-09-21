@@ -1,11 +1,11 @@
 import { EditorDashboard } from '@/components/editor/editor-dashboard';
 import { requireEditorProfile } from '@/lib/auth';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
 import type { Profile, Submission } from '@/types/database';
 
 export default async function EditorPage() {
   const { profile } = await requireEditorProfile();
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerReadOnlyClient();
 
   const { data: submissionsData } = await supabase
     .from('submissions')

@@ -1,11 +1,11 @@
 import { MineClient } from '@/components/mine/mine-client';
 import { requireProfile } from '@/lib/auth';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
 import type { Submission } from '@/types/database';
 
 export default async function MinePage() {
   const { profile } = await requireProfile();
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerReadOnlyClient();
   const { data } = await supabase
     .from('submissions')
     .select('*, assigned_editor_profile:profiles!submissions_assigned_editor_fkey(name,email)')
