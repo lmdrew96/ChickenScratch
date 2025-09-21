@@ -1,8 +1,8 @@
 'use client';
 
-import { useActionState } from 'react';
-import { authInitialState } from '@/lib/auth-shared';
-import { registerAction, signInAction } from '@/lib/actions/auth';
+import { useFormState } from 'react-dom';
+
+import { authInitialState, registerAction, signInAction } from '@/lib/actions/auth';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +13,9 @@ type LoginFormProps = {
 };
 
 export function LoginForm({ allowedDomains }: LoginFormProps) {
-  const [signInState, signInDispatch] = useActionState(signInAction, authInitialState);
-  const [registerState, registerDispatch] = useActionState(registerAction, authInitialState);
+  const [signInState, signInDispatch] = useFormState(signInAction, authInitialState);
+  const [registerState, registerDispatch] = useFormState(registerAction, authInitialState);
+
   return (
     <div className="grid gap-10 rounded-2xl border border-white/10 bg-white/5 p-8 shadow-lg shadow-black/30 md:grid-cols-2">
       <section className="space-y-4">
@@ -40,7 +41,7 @@ export function LoginForm({ allowedDomains }: LoginFormProps) {
             <Label htmlFor="signin-password">Password</Label>
             <Input id="signin-password" name="password" type="password" required autoComplete="current-password" />
           </div>
-          {signInState?.message ? <p className="text-xs text-rose-300">{signInState.message}</p> : null}
+          {signInState.message ? <p className="text-xs text-rose-300">{signInState.message}</p> : null}
           <Button type="submit">Sign in</Button>
         </form>
 
@@ -59,7 +60,7 @@ export function LoginForm({ allowedDomains }: LoginFormProps) {
             <Input id="register-password" name="password" type="password" required autoComplete="new-password" />
             <p className="text-xs text-white/50">Choose a strong password. You can reset it from Supabase if needed.</p>
           </div>
-          {registerState?.message ? (
+          {registerState.message ? (
             <p className={registerState.status === 'success' ? 'text-xs text-emerald-300' : 'text-xs text-rose-300'}>
               {registerState.message}
             </p>

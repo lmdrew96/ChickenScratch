@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const DEFAULT_ALLOWED_DOMAINS = ['udel.edu', 'dtcc.edu'];
+
 const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
@@ -22,7 +24,11 @@ if (!parsed.success) {
 export const env = parsed.data;
 
 export function getAllowedDomains() {
-  return (env.ALLOWED_DOMAINS ?? '')
+  const raw = env.ALLOWED_DOMAINS && env.ALLOWED_DOMAINS.trim().length > 0
+    ? env.ALLOWED_DOMAINS
+    : DEFAULT_ALLOWED_DOMAINS.join(',');
+
+  return raw
     .split(',')
     .map((domain) => domain.trim().toLowerCase())
     .filter(Boolean);
