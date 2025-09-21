@@ -1,4 +1,4 @@
-import MineClient from '@/components/mine/mine-client';
+import { MineClient } from '@/components/mine/mine-client';
 import { requireProfile } from '@/lib/auth';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Submission } from '@/types/database';
@@ -9,6 +9,7 @@ export default async function MinePage() {
   const { data } = await supabase
     .from('submissions')
     .select('*, assigned_editor_profile:profiles!submissions_assigned_editor_fkey(name,email)')
+    .eq('owner_id', profile.id)
     .order('created_at', { ascending: false });
 
   const rawSubmissions = (data ?? []) as unknown as MineSubmissionRow[];

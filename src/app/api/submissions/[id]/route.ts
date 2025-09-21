@@ -71,7 +71,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (parsed.data.wordCount !== undefined) updates.word_count = parsed.data.wordCount;
   if (parsed.data.textBody !== undefined) updates.text_body = parsed.data.textBody;
 
-  if (parsed.data.artFiles) {
+  if (parsed.data.artFiles !== undefined) {
+    if (parsed.data.artFiles.length > 5) {
+      return NextResponse.json(
+        { error: 'Visual submissions can include up to five files.' },
+        { status: 400 }
+      );
+    }
     for (const path of parsed.data.artFiles) {
       assertUserOwnsPath(user.id, path);
     }

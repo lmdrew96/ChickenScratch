@@ -1,4 +1,5 @@
 'use server';
+
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
@@ -8,7 +9,13 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getEmailDomain } from '@/lib/utils';
 import type { Database, Profile } from '@/types/database';
-import type { AuthFormState } from '@/lib/auth-shared';
+
+export type AuthFormState = {
+  status: 'idle' | 'error' | 'success';
+  message?: string;
+};
+
+export const authInitialState: AuthFormState = { status: 'idle' };
 
 const signInSchema = z.object({
   email: z.string().email(),
