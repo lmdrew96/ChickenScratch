@@ -11,7 +11,11 @@ const publishSchema = z.object({
   issue: z.string().max(120).optional().nullable(),
 });
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   const body = await request.json().catch(() => null);
   const parsed = publishSchema.safeParse(body);
 
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { error } = await supabase
     .from('submissions')
     .update(updates)
-    .eq('id', params.id);
+    .eq('id', id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
@@ -64,7 +68,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   ) as Json;
 
   await supabase.from('audit_log').insert({
-    submission_id: params.id,
+    submission_id: id,
     actor_id: user.id,
     action: 'publish',
     details: auditDetails,

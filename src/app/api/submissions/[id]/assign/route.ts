@@ -9,7 +9,11 @@ const assignSchema = z.object({
   editorId: z.string().uuid().nullable(),
 });
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   const body = await request.json().catch(() => null);
   const parsed = assignSchema.safeParse(body);
 
@@ -45,7 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { error } = await supabase
     .from('submissions')
     .update(updatePayload)
-    .eq('id', params.id);
+    .eq('id', id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
@@ -56,7 +60,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   };
 
   await supabase.from('audit_log').insert({
-    submission_id: params.id,
+    submission_id: id,
     actor_id: user.id,
     action: 'assign',
     details: auditDetails,

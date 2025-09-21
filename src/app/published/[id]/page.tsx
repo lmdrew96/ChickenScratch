@@ -5,12 +5,13 @@ import { createSignedUrl, createSignedUrls } from '@/lib/storage';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Submission } from '@/types/database';
 
-export default async function PublishedDetailPage({ params }: { params: { id: string } }) {
+export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from('submissions')
     .select('id, title, summary, type, cover_image, content_warnings, art_files, text_body, published_url, issue, updated_at')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('published', true)
     .maybeSingle();
 
@@ -22,7 +23,7 @@ export default async function PublishedDetailPage({ params }: { params: { id: st
 
   const artFiles = Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [];
   const coverUrl = submission.cover_image ? await createSignedUrl(submission.cover_image) : null;
-  const assetUrls = await createSignedUrls(artFiles);
+  const assetEntries = await createSignedUrls(artFiles);
 
   return (
     <div className="space-y-6">
@@ -67,15 +68,22 @@ export default async function PublishedDetailPage({ params }: { params: { id: st
         <section className="space-y-4">
           <p className="text-sm text-white/70">Download attachments to view the full-resolution work.</p>
           <ul className="space-y-2">
-            {assetUrls.map((url, index) => (
-              <li key={artFiles[index]} className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
-                <span>{artFiles[index].split('/').pop()}</span>
-                <a href={url} target="_blank" rel="noopener noreferrer" className="text-amber-200 hover:text-amber-100">
-                  Download
-                </a>
+            {assetEntries.map(({ path, signedUrl }) => (
+              <li
+                key={path}
+                className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
+              >
+                <span>{path.split('/').pop()}</span>
+                {signedUrl ? (
+                  <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="text-amber-200 hover:text-amber-100">
+                    Download
+                  </a>
+                ) : (
+                  <span className="text-xs text-white/50">Link unavailable</span>
+                )}
               </li>
             ))}
-            {assetUrls.length === 0 ? (
+            {assetEntries.length === 0 ? (
               <li className="text-xs text-white/50">No attachments available.</li>
             ) : null}
           </ul>

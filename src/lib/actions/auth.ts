@@ -9,13 +9,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getEmailDomain } from '@/lib/utils';
 import type { Database, Profile } from '@/types/database';
-
-export type AuthFormState = {
-  status: 'idle' | 'error' | 'success';
-  message?: string;
-};
-
-export const authInitialState: AuthFormState = { status: 'idle' };
+import type { AuthFormState } from './auth-shared';
 
 const signInSchema = z.object({
   email: z.string().email(),
@@ -82,7 +76,16 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
     };
   }
 
-  const admin = createSupabaseAdminClient();
+  let admin: ReturnType<typeof createSupabaseAdminClient>;
+  try {
+    admin = createSupabaseAdminClient();
+  } catch (error) {
+    console.error('Supabase service role unavailable while registering', error);
+    return {
+      status: 'error',
+      message: 'Registration is temporarily unavailable. Ask an administrator to configure the service role key.',
+    };
+  }
   const existingUsers = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
   if (existingUsers.error) {
     console.error('Failed to list users when registering', existingUsers.error);

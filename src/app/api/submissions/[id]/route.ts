@@ -19,7 +19,11 @@ const updateSchema = z.object({
   coverImage: z.string().optional().nullable(),
 });
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   const body = await request.json().catch(() => null);
   const parsed = updateSchema.safeParse(body);
 
@@ -39,7 +43,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const { data: submissionData, error: fetchError } = await supabase
     .from('submissions')
     .select('id, owner_id, status')
-    .eq('id', params.id)
+    .eq('id', id)
     .maybeSingle();
 
   const submission = submissionData as Pick<Submission, 'id' | 'owner_id' | 'status'> | null;
@@ -96,7 +100,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const { error } = await supabase
     .from('submissions')
     .update(updates)
-    .eq('id', params.id);
+    .eq('id', id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

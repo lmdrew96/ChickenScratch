@@ -11,7 +11,11 @@ const statusSchema = z.object({
   editorNotes: z.string().max(4000).optional().nullable(),
 });
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   const body = await request.json().catch(() => null);
   const parsed = statusSchema.safeParse(body);
 
@@ -43,7 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { data: submissionData, error: fetchError } = await supabase
     .from('submissions')
     .select('id, title, status, owner_id, editor_notes')
-    .eq('id', params.id)
+    .eq('id', id)
     .maybeSingle();
 
   const submission = submissionData as Pick<
@@ -78,7 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { error: updateError } = await supabase
     .from('submissions')
     .update(updates)
-    .eq('id', params.id);
+    .eq('id', id);
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 400 });
@@ -90,7 +94,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   };
 
   await supabase.from('audit_log').insert({
-    submission_id: params.id,
+    submission_id: id,
     actor_id: user.id,
     action: 'status_change',
     details: statusDetails,

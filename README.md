@@ -10,8 +10,8 @@ Chicken Scratch is a Supabase-backed Next.js application for collecting, reviewi
 - Comprehensive Row Level Security (RLS) policies to enforce per-role access.
 
 ## Tech stack
-- [Next.js 15](https://nextjs.org/) (App Router) with TypeScript
-- Tailwind CSS v4 for styling
+- [Next.js 14](https://nextjs.org/) (App Router) with TypeScript
+- Tailwind CSS v3 for styling
 - Supabase Auth, Postgres, and Storage
 - pnpm for dependency management
 - Vitest for unit testing
@@ -38,8 +38,10 @@ cp .env.example .env.local
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (used client-side) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (required for seeding and server-only actions) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (required for registration, seeding, and server-only actions) |
 | `ALLOWED_DOMAINS` | Comma-separated list of permitted signup domains (defaults to UD + DTCC) |
+
+If the service role key is omitted, account registration will be disabled and published art downloads fall back to placeholder text until the key is provided.
 
 ### Database migrations
 Migrations live in `supabase/migrations`. Apply them in order with the Supabase CLI or SQL editor:

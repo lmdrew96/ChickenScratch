@@ -2,7 +2,8 @@
 
 import { useFormState } from 'react-dom';
 
-import { authInitialState, registerAction, signInAction } from '@/lib/actions/auth';
+import { registerAction, signInAction } from '@/lib/actions/auth';
+import { authInitialState } from '@/lib/actions/auth-shared';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
