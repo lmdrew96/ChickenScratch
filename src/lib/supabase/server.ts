@@ -1,25 +1,27 @@
 import { createServerClient } from '@supabase/ssr';
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 
-export function createClient() {
-  const cookieStore = cookies();
-  const hdrs = headers();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
-    {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-        set: () => {},
-        remove: () => {}
+/** Canonical getter */
+export function getSupabaseServerClient() {
+  const store = cookies();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  return createServerClient(url, key, {
+    cookies: {
+      get(name: string) {
+        return store.get(name)?.value;
       },
-      headers: {
-        get: (name: string) => hdrs.get(name) ?? undefined
-      }
-    }
-  );
+      set(name: string, value: string, options: any) {
+        store.set({ name, value, ...options });
+      },
+      remove(name: string, options: any) {
+        store.set({ name, value: '', ...options, maxAge: 0 });
+      },
+    },
+  });
 }
 
-export function createSupabaseServerClient() { return createClient(); }
-export const createServerSupabaseClient = createSupabaseServerClient;
-export default createClient;
+/** Back-compat aliases so all import styles work */
+export const createServerSupabaseClient = getSupabaseServerClient;
+/** This is the one your code is importing in errors */
+export const createSupabaseServerClient = getSupabaseServerClient;

@@ -7,7 +7,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Database, Json, Profile, Submission } from '@/types/database';
 
 const statusSchema = z.object({
-  status: z.enum(['in_review', 'needs_revision', 'accepted', 'declined']),
+  status: z.enum(['under_review', 'needs_revision', 'approved', 'declined']),
   editorNotes: z.string().max(4000).optional().nullable(),
 });
 
@@ -71,7 +71,7 @@ export async function POST(
     status: parsed.data.status,
   };
 
-  if (['accepted', 'declined', 'needs_revision'].includes(parsed.data.status)) {
+  if (['approved', 'declined', 'needs_revision'].includes(parsed.data.status)) {
     updates.decision_date = new Date().toISOString();
   }
 
@@ -110,9 +110,7 @@ export async function POST(
 
   const ownerEmail = ownerProfile?.email;
   if (ownerEmail) {
-    const template = parsed.data.status === 'accepted'
-      ? 'accepted'
-      : parsed.data.status === 'declined'
+    const template = parsed.data.status === 'approved' ? 'accepted' : parsed.data.status === 'declined'
         ? 'declined'
         : parsed.data.status === 'needs_revision'
           ? 'needs_revision'

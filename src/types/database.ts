@@ -47,9 +47,9 @@ export interface Database {
           cover_image: string | null;
           status:
             | 'submitted'
-            | 'in_review'
+            | 'under_review'
             | 'needs_revision'
-            | 'accepted'
+            | 'approved'
             | 'declined'
             | 'published';
           assigned_editor: string | null;

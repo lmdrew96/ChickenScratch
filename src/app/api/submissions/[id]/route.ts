@@ -1,4 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
+
+function mapCategory(t: unknown): 'visual' | 'writing' {
+  const visual = new Set<string>(['art','visual_art','photography','comics','comic']);
+  return visual.has(String(t)) ? 'visual' : 'writing';
+}
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -67,7 +72,7 @@ export async function PATCH(
   const updates: Database['public']['Tables']['submissions']['Update'] = {};
 
   if (parsed.data.title) updates.title = parsed.data.title;
-  if (parsed.data.type) updates.type = parsed.data.type;
+  if (parsed.data.type) updates.type = mapCategory((parsed.data as any).type);
   if (parsed.data.genre !== undefined) updates.genre = parsed.data.genre;
   if (parsed.data.summary !== undefined) updates.summary = parsed.data.summary;
   if (parsed.data.contentWarnings !== undefined)

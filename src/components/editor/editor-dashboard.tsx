@@ -375,7 +375,7 @@ export function EditorDashboard({ submissions, editors, viewerName }: EditorDash
             <div className="space-y-2">
               <Label>Set status</Label>
               <div className="flex flex-wrap gap-2">
-                {['in_review', 'needs_revision', 'accepted', 'declined'].map((status) => (
+                {['under_review','needs_revision','approved','declined'].map((status) => (
                   <Button
                     key={status}
                     type="button"

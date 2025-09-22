@@ -1,93 +1,49 @@
 'use client';
-
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { clsx } from 'clsx';
-
-export type ToastVariant = 'success' | 'error' | 'info';
-
-type ToastRecord = {
-  id: string;
-  title: string;
-  description?: string;
-  variant: ToastVariant;
+import * as React from 'react';
+export type ToastLevel = 'info' | 'success' | 'error';
+type Toast = { id: string; title?: string; description?: string; level: ToastLevel; };
+export type ToastContextValue = {
+  toasts: Toast[];
+  push: (t: Omit<Toast,'id'> | string) => void;
+  notify: (t: Omit<Toast,'id'> | string) => void;
+  success: (t: Omit<Toast,'id'> | string) => void;
+  error: (t: Omit<Toast,'id'> | string) => void;
+  dismiss: (id: string) => void;
 };
-
-type ToastContextValue = {
-  notify: (toast: Omit<ToastRecord, 'id'>) => void;
-};
-
-const ToastContext = createContext<ToastContextValue | null>(null);
-const DEFAULT_DURATION = 6000;
-
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<ToastRecord[]>([]);
-
-  const dismiss = useCallback((id: string) => {
-    setToasts((current) => current.filter((toast) => toast.id !== id));
-  }, []);
-
-  const notify = useCallback(
-    ({ title, description, variant }: Omit<ToastRecord, 'id'>) => {
-      const id = crypto.randomUUID();
-      setToasts((current) => [...current, { id, title, description, variant }]);
-      setTimeout(() => dismiss(id), DEFAULT_DURATION);
-    },
-    [dismiss]
-  );
-
-  const value = useMemo(() => ({ notify }), [notify]);
-
-  return (
-    <ToastContext.Provider value={value}>
-      {children}
-      <ToastViewport toasts={toasts} onDismiss={dismiss} />
-    </ToastContext.Provider>
-  );
+const ToastContext = React.createContext<ToastContextValue | null>(null);
+function asToast(input: Omit<Toast,'id'> | string, level?: ToastLevel): Omit<Toast,'id'> {
+  if (typeof input === 'string') return { title: input, level: level || 'info' };
+  return { level: input.level || level || 'info', title: input.title, description: input.description };
 }
-
-export function useToast() {
-  const ctx = useContext(ToastContext);
-  if (!ctx) {
-    throw new Error('Toast context unavailable. Wrap components with <ToastProvider>.');
-  }
+export function useToast(){
+  const ctx = React.useContext(ToastContext);
+  if (!ctx) throw new Error('useToast must be used within <Toaster/>');
   return ctx;
 }
-
-type ToastViewportProps = {
-  toasts: ToastRecord[];
-  onDismiss: (id: string) => void;
-};
-
-function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
+export default function Toaster({ children }:{ children?: React.ReactNode }){
+  const [toasts, setToasts] = React.useState<Toast[]>([]);
+  const dismiss = (id:string)=> setToasts(xs=>xs.filter(t=>t.id!==id));
+  const pushBase = (t: Omit<Toast,'id'>)=> {
+    const id = crypto.randomUUID(); setToasts(xs=>[...xs,{...t,id}]);
+    setTimeout(()=>dismiss(id), 4000);
+  };
+  const push = (t: Omit<Toast,'id'> | string)=> pushBase(asToast(t));
+  const notify = (t: Omit<Toast,'id'> | string)=> pushBase(asToast(t,'info'));
+  const success = (t: Omit<Toast,'id'> | string)=> pushBase(asToast(t,'success'));
+  const error = (t: Omit<Toast,'id'> | string)=> pushBase(asToast(t,'error'));
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4 sm:items-end sm:px-6">
-      {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          className={clsx(
-            'pointer-events-auto w-full max-w-sm rounded-md border px-4 py-3 shadow-lg backdrop-blur-sm sm:w-auto',
-            toast.variant === 'success' && 'border-emerald-400/60 bg-emerald-900/70 text-emerald-50',
-            toast.variant === 'error' && 'border-rose-400/60 bg-rose-900/70 text-rose-50',
-            toast.variant === 'info' && 'border-sky-400/60 bg-sky-900/70 text-sky-50'
-          )}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-semibold leading-tight">{toast.title}</p>
-              {toast.description ? (
-                <p className="mt-1 text-sm leading-snug text-white/80">{toast.description}</p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={() => onDismiss(toast.id)}
-              className="rounded px-2 py-1 text-xs font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
-            >
-              Close
-            </button>
+    <ToastContext.Provider value={{ toasts, push, notify, success, error, dismiss }}>
+      {children}
+      <div className="fixed bottom-4 right-4 space-y-2 z-50">
+        {toasts.map(t=>(
+          <div key={t.id} className="rounded border p-3 max-w-sm
+            bg-black/80 text-white border-white/20">
+            {t.title ? <div className="font-medium">{t.title}</div> : null}
+            {t.description ? <div className="text-sm opacity-90">{t.description}</div> : null}
+            <button className="text-xs underline mt-1" onClick={()=>dismiss(t.id)}>dismiss</button>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
   );
 }
