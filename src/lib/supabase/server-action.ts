@@ -1,3 +1,4 @@
+'use server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies, headers } from 'next/headers';
 
@@ -10,8 +11,12 @@ export function createClient() {
     {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
-        set: () => {},
-        remove: () => {}
+        set: (name: string, value: string, options?: any) => {
+          cookieStore.set({ name, value, ...(options || {}) });
+        },
+        remove: (name: string, options?: any) => {
+          cookieStore.set({ name, value: '', ...(options || {}), maxAge: 0 });
+        }
       },
       headers: {
         get: (name: string) => hdrs.get(name) ?? undefined
