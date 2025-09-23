@@ -16,7 +16,11 @@
     "prod:crawl": "node scripts/prod-crawl.mjs",
     "verify:dev": "pnpm route:manifest && pnpm dev:crawl",
     "verify:prod": "pnpm route:manifest && pnpm prod:crawl",
-    "verify:all": "pnpm typecheck && pnpm lint && pnpm verify:dev && pnpm verify:prod"
+    "verify:all": "pnpm typecheck && pnpm lint && pnpm verify:dev && pnpm verify:prod",
+    "enforce:ui": "node scripts/enforce-ui.mjs",
+    "predev": "node scripts/enforce-ui.mjs",
+    "prebuild": "node scripts/enforce-ui.mjs",
+    "smoke:ui": "node scripts/smoke-ui.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.5.2",
@@ -30,6 +34,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
     "@playwright/test": "^1.55.0",
+    "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "20.19.17",
     "@types/react": "19.1.13",
     "@types/react-dom": "19.1.9",

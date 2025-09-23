@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState } from 'react-dom';
+import { useActionState } from 'react';
 
 import { registerAction, signInAction } from '@/lib/actions/auth';
 import { authInitialState } from '@/lib/actions/auth-shared';
@@ -14,8 +14,8 @@ type LoginFormProps = {
 };
 
 export function LoginForm({ allowedDomains }: LoginFormProps) {
-  const [signInState, signInDispatch] = useFormState(signInAction, authInitialState);
-  const [registerState, registerDispatch] = useFormState(registerAction, authInitialState);
+  const [signInState, signInDispatch] = useActionState(signInAction, authInitialState);
+  const [registerState, registerDispatch] = useActionState(registerAction, authInitialState);
 
   return (
     <div className="grid gap-10 rounded-2xl border border-white/10 bg-white/5 p-8 shadow-lg shadow-black/30 md:grid-cols-2">

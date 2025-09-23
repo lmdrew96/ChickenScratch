@@ -1,0 +1,19 @@
+:root{
+  --brand:#00539f;
+  --accent:#ffd200;
+  --bg:#0b1220;
+  --panel:#0f172a;
+  --line:rgba(255,255,255,.12);
+  --text:#e5e7eb;
+  --muted:#94a3b8;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text)}
+.card,.form-card{background:var(--panel);border:1px solid var(--line);border-radius:1rem}
+.btn-accent{background:var(--accent);border-color:#cca800;color:#0b1220}
+.btn-brand{background:var(--brand);border-color:#0b1220;color:#fff}
+.pill--active{background:var(--accent);border-color:#cca800;color:#00539f}
+
+img[src="/logo.png"], img[src="/1.png"], img[src="/2.png"]{width:40px;height:40px;object-fit:cover;border-radius:.5rem}
+
+.old-top-links, header.site-top, nav.site-top{display:none!important}

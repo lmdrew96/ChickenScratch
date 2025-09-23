@@ -25,30 +25,8 @@ export function SiteHeader({ profile }: { profile: Profile | null }) {
         >
           Chicken Scratch
         </Link>
-        <nav className="flex items-center gap-4 text-sm font-medium text-white/70">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} className="transition hover:text-white">
-              {link.label}
-            </Link>
-          ))}
-          {profile ? (
-            <form action={signOutAction}>
-              <button
-                type="submit"
-                className="rounded-md border border-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition hover:border-white/40 hover:bg-white/10"
-              >
-                Sign out
-              </button>
-            </form>
-          ) : (
-            <Link
-              href="/login"
-              className="rounded-md border border-amber-400/60 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/10"
-            >
-              Log in
-            </Link>
-          )}
-        </nav>
+        
+
       </div>
     </header>
   );
