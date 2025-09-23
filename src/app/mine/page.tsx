@@ -1,74 +1,136 @@
-import { MineClient } from '@/components/mine/mine-client';
-import { requireProfile } from '@/lib/auth';
-import { logHandledIssue } from '@/lib/logging';
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
-import type { Submission } from '@/types/database';
+import { cookies, headers } from 'next/headers';
+
+import PageHeader from '@/components/shell/page-header';
+import { requireUser } from '@/lib/auth/guards';
+
+type SubmissionListItem = {
+  id?: string | null;
+  title?: string | null;
+  status?: string | null;
+  updated_at?: string | null;
+  updatedAt?: string | null;
+  created_at?: string | null;
+  createdAt?: string | null;
+};
 
 export default async function MinePage() {
-  const { profile } = await requireProfile();
-  const supabase = await createSupabaseServerReadOnlyClient();
-  let rawSubmissions: MineSubmissionRow[] = [];
-  let encounteredLoadIssue = false;
+  await requireUser('/mine');
 
-  try {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select('*, assigned_editor_profile:profiles!submissions_assigned_editor_fkey(name,email)')
-      .eq('owner_id', profile.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      encounteredLoadIssue = true;
-      logHandledIssue('mine:query', {
-        reason: 'Supabase query for personal submissions failed',
-        context: {
-          supabaseMessage: error.message,
-          supabaseDetails: error.details,
-          supabaseHint: error.hint,
-          supabaseCode: error.code,
-          ownerId: profile.id,
-        },
-      });
-    } else {
-      rawSubmissions = (data ?? []) as unknown as MineSubmissionRow[];
-    }
-  } catch (error) {
-    encounteredLoadIssue = true;
-    logHandledIssue('mine:unexpected', {
-      reason: 'Unexpected failure while loading personal submissions',
-      cause: error,
-      context: { ownerId: profile.id },
-    });
-  }
-  const submissions: MineSubmission[] = rawSubmissions.map((submission) => ({
-    ...submission,
-    art_files: Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [],
-  }));
+  const submissions = await loadMineSubmissions();
 
   return (
     <div className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold text-white">My submissions</h1>
-        <p className="text-sm text-white/70">
-          Track your pieces, upload revisions, and see editorial notes. You can edit while the status is Submitted or
-          Needs Revision.
-        </p>
-      </header>
-      <MineClient
-        submissions={submissions}
-        viewerName={profile.name ?? profile.email ?? 'student'}
-        loadIssue={encounteredLoadIssue}
-      />
+      <PageHeader title="My Submissions" ctaHref="/submit" ctaLabel="Submit new" />
+      {submissions.length === 0 ? (
+        <div className="rounded-xl border border-white/15 bg-white/5 p-6 text-slate-300">No submissions yet.</div>
+      ) : (
+        <ul className="space-y-4">
+          {submissions.map((submission, index) => {
+            const key = submission.id ?? `submission-${index}`;
+            const title = (submission.title ?? '').trim() || 'Untitled submission';
+            const status = formatStatus(submission.status);
+            const updated = formatDate(
+              submission.updated_at ?? submission.updatedAt ?? submission.created_at ?? submission.createdAt
+            );
+
+            return (
+              <li key={key}>
+                <article className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h2 className="text-lg font-semibold text-[var(--text)]">{title}</h2>
+                      <p className="text-sm text-slate-400">Updated {updated}</p>
+                    </div>
+                    <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100">
+                      {status}
+                    </span>
+                  </div>
+                </article>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
 
-type MineSubmission = Submission & {
-  art_files: string[];
-  assigned_editor_profile: { name: string | null; email: string | null } | null;
-};
+async function loadMineSubmissions(): Promise<SubmissionListItem[]> {
+  try {
+    const headerList = await headers();
+    const protocol = headerList.get('x-forwarded-proto') ?? 'http';
+    const host = headerList.get('x-forwarded-host') ?? headerList.get('host');
 
-type MineSubmissionRow = Submission & {
-  art_files: Submission['art_files'];
-  assigned_editor_profile: { name: string | null; email: string | null } | null;
-};
+    if (!host) {
+      return [];
+    }
+
+    const baseUrl = `${protocol}://${host}`;
+    const cookieStore = cookies();
+    const cookieHeader = cookieStore.toString();
+
+    const response = await fetch(`${baseUrl}/api/submissions?mine=1`, {
+      method: 'GET',
+      headers: {
+        ...(cookieHeader ? { cookie: cookieHeader } : {}),
+      },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload = await response.json().catch(() => null);
+
+    if (!payload) {
+      return [];
+    }
+
+    if (Array.isArray(payload)) {
+      return payload as SubmissionListItem[];
+    }
+
+    if (Array.isArray(payload.data)) {
+      return payload.data as SubmissionListItem[];
+    }
+
+    if (Array.isArray(payload.submissions)) {
+      return payload.submissions as SubmissionListItem[];
+    }
+
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function formatStatus(status?: string | null) {
+  if (!status) {
+    return 'Submitted';
+  }
+
+  return status
+    .toLowerCase()
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ');
+}
+
+function formatDate(value?: string | null) {
+  if (!value) {
+    return '—';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
