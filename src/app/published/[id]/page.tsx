@@ -1,9 +1,12 @@
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 import { notFound } from 'next/navigation';
 
 import { StatusBadge } from '@/components/common/status-badge';
 import { createSignedUrl, createSignedUrls } from '@/lib/storage';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Submission } from '@/types/database';
+import PageHeader from '@/components/shell/page-header';
 
 export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -37,7 +40,7 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/60">{submission.issue}</span>
           ) : null}
         </div>
-        <h1 className="text-4xl font-semibold text-white">{submission.title}</h1>
+        <PageHeader title="{submission.title}" />
         <p className="text-sm text-white/70">{submission.summary ?? 'No summary provided.'}</p>
         {submission.content_warnings ? (
           <p className="text-xs uppercase tracking-wide text-amber-200">Content warnings: {submission.content_warnings}</p>

@@ -1,7 +1,10 @@
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 import { MineClient } from '@/components/mine/mine-client';
 import { requireProfile } from '@/lib/auth';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Submission } from '@/types/database';
+import PageHeader from '@/components/shell/page-header';
 
 export default async function MinePage() {
   const { profile } = await requireProfile();
@@ -21,7 +24,7 @@ export default async function MinePage() {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold text-white">My submissions</h1>
+        <PageHeader title="My Submissions" ctaHref="/submit" ctaLabel="Submit new" />
         <p className="text-sm text-white/70">
           Track your pieces, upload revisions, and see editorial notes. You can edit while the status is Submitted or
           Needs Revision.

@@ -1,27 +1,32 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-/** Canonical getter */
-export function getSupabaseServerClient() {
-  const store = cookies();
+export async function getSupabaseServerClient() {
+  let c: Awaited<ReturnType<typeof cookies>> | null = null;
+  try {
+    c = await cookies();
+  } catch {
+    c = null; // outside a request (build/static) -> noop adapter
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  return createServerClient(url, key, {
-    cookies: {
-      get(name: string) {
-        return store.get(name)?.value;
-      },
-      set(name: string, value: string, options: any) {
-        store.set({ name, value, ...options });
-      },
-      remove(name: string, options: any) {
-        store.set({ name, value: '', ...options, maxAge: 0 });
-      },
+
+  const adapter = {
+    get(name: string) {
+      return c?.get(name)?.value;
     },
-  });
+    set(name: string, value: string, options: any) {
+      try { c?.set({ name, value, ...options }); } catch {}
+    },
+    remove(name: string, options: any) {
+      try { c?.set({ name, value: '', ...options, maxAge: 0 }); } catch {}
+    },
+  };
+
+  return createServerClient(url, key, { cookies: adapter });
 }
 
-/** Back-compat aliases so all import styles work */
+// keep all legacy names used around the app
 export const createServerSupabaseClient = getSupabaseServerClient;
-/** This is the one your code is importing in errors */
 export const createSupabaseServerClient = getSupabaseServerClient;

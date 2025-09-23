@@ -14,7 +14,8 @@
     "build": "next build",
     "start": "cross-env PORT=4000 next start",
     "lint": "next lint",
-    "smoke:run": "node scripts/smoke-run.mjs"
+    "smoke:run": "node scripts/smoke-run.mjs",
+    "verify": "pnpm build && pnpm run smoke:run"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.13",

@@ -1,34 +1,25 @@
-import Providers from './providers';
-
-import type { Metadata } from 'next';
-import { SiteFooter } from '@/components/layout/site-footer';
-import { SiteHeader } from '@/components/layout/site-header';
-import { getSessionWithProfile } from '@/lib/auth';
-
 import './globals.css';
+import type { Metadata } from 'next';
+import Providers from './providers';
+import Sidebar from '@/components/shell/sidebar';
 
 export const metadata: Metadata = {
   title: 'Chicken Scratch Zine Portal',
-  description: 'Submit, review, and publish work for Chicken Scratch.',
+  description: 'Submissions & publishing portal for Chicken Scratch',
 };
 
-export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  const { profile } = await getSessionWithProfile();
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body suppressHydrationWarning className="bg-slate-950 text-slate-100 antialiased font-sans">
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <Providers>
-          <div className="flex min-h-screen flex-col">
-            <SiteHeader profile={profile} />
-            <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
-              {children}
-            </main>
-            <SiteFooter />
+          <Sidebar />
+          {/* Reserve space for the fixed sidebar on large screens */}
+          <div className="min-h-screen lg:ml-[18rem] content-shell">
+            <main className="container py-8">{children}</main>
+            <footer className="container py-12 border-t border-white/10 text-sm text-slate-400">
+              Chicken Scratch is a student-run zine for the UD and DTCC community.
+            </footer>
           </div>
         </Providers>
       </body>

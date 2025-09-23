@@ -1,7 +1,10 @@
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 import { EditorDashboard } from '@/components/editor/editor-dashboard';
 import { requireEditorProfile } from '@/lib/auth';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Profile, Submission } from '@/types/database';
+import PageHeader from '@/components/shell/page-header';
 
 export default async function EditorPage() {
   const { profile } = await requireEditorProfile();
@@ -33,7 +36,7 @@ export default async function EditorPage() {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold text-white">Editorial dashboard</h1>
+        <PageHeader title="Editorial Dashboard" />
         <p className="text-sm text-white/70">
           Review submissions, assign editors, and coordinate publication decisions. All updates are logged for auditing.
         </p>
