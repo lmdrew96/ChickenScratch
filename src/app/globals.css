@@ -25,3 +25,31 @@ a {
   color: inherit;
   text-decoration: none;
 }
+/* BRAND SHELL START */
+:root{--brand:#00539f;--accent:#ffd200;--bg:#0b1220;--text:#e5e7eb}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
+a{color:#cbd5e1;text-decoration:none}
+a:hover{text-decoration:underline}
+.app-shell{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+.sidebar{position:sticky;top:0;height:100dvh;background:var(--brand);color:#fff;padding:16px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.brand-badge{width:40px;height:40px;border-radius:12px;display:block;object-fit:contain;background:none}
+.nav{display:grid;gap:6px}
+.nav a{display:block;padding:8px 10px;border-radius:8px;color:#fff}
+.nav a:hover{background:rgba(255,255,255,.12)}
+.nav a.active{background:var(--accent);color:#003b72;font-weight:700}
+.main{padding:24px}
+.container{max-width:1100px;margin:0 auto}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.25)}
+.btn-accent{background:var(--accent);border-color:#cca800;color:#003b72;font-weight:600}
+h1{margin:0 0 8px;font-size:28px}
+p{margin:0 0 12px}
+/* BRAND SHELL END */
+/* ACCOUNT BADGE START */
+.account-badge{position:fixed;top:12px;right:12px;z-index:60;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:9999px;background:var(--accent);color:#003b72;border:1px solid #cca800;box-shadow:0 10px 20px rgba(0,0,0,.25)}
+.account-badge:hover{filter:brightness(0.97)}
+.account-badge svg{width:22px;height:22px}
+@media (max-width:768px){.account-badge{top:10px;right:10px}}
+/* ACCOUNT BADGE END */

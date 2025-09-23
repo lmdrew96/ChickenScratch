@@ -1,30 +1,25 @@
+
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
-import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { env } from '@/lib/env';
-import type { Database } from '@/types/database';
+export async function createSupabaseServerReadOnlyClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local');
+  }
 
-let hasLoggedMutationWarning = false;
-
-export async function createSupabaseServerReadOnlyClient(): Promise<SupabaseClient<Database>> {
+  // Next.js 15+ requires awaiting cookies()
   const cookieStore = await cookies();
 
-  return createServerClient<Database, 'public'>(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll: async () => cookieStore.getAll(),
-        setAll: async () => {
-          if (process.env.NODE_ENV !== 'production' && !hasLoggedMutationWarning) {
-            hasLoggedMutationWarning = true;
-            console.warn(
-              'Supabase attempted to mutate cookies via the read-only helper. Ensure mutations happen in a server action or route handler instead.'
-            );
-          }
-        },
-      },
-    }
-  ) as unknown as SupabaseClient<Database>;
+  const supabase = createServerClient(url, anon, {
+    cookies: {
+      get: (name: string) => cookieStore.get(name)?.value,
+      // read-only client: ignore writes on the server path
+      set: () => {},
+      remove: () => {},
+    },
+  });
+
+  return supabase;
 }

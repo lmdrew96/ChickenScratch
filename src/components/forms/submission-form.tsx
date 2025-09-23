@@ -7,6 +7,28 @@ import {
   type FormEvent,
 } from 'react';
 
+
+const WRITING_CATEGORIES = [
+  'Poetry',
+  'Vignette',
+  'Flash fiction',
+  'Essay',
+  'Opinion piece',
+  'Free write',
+  'Interview',
+  'Colwell in Context',
+  'Keeping Up with Keegan',
+  'Literary Recommendation',
+  'Other Writing',
+] as const;
+
+const VISUAL_CATEGORIES = [
+  'Drawing',
+  'Painting',
+  'Photography',
+  'Digital art',
+  'Other Visual Art',
+] as const;
 type SubmissionKind = 'visual' | 'writing';
 
 type FormErrors = {
@@ -28,6 +50,7 @@ const CATEGORY_OPTIONS = ['Photography', 'Illustration', 'Comics', 'Mixed media'
 export function SubmissionForm(props: SubmissionFormProps = {}) {
   void props;
   const [kind, setKind] = useState<SubmissionKind>('visual');
+const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGORIES;
   const [category, setCategory] = useState('');
   const [preferredName, setPreferredName] = useState('');
   const [title, setTitle] = useState('');
@@ -208,15 +231,12 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             onChange={handleCategoryChange}
             className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
           >
-            <option value="" disabled>
-              Select a category
-            </option>
-            {CATEGORY_OPTIONS.map((option) => (
-              <option key={option} value={option} className="bg-[#0b1220] text-slate-200">
-                {option}
-              </option>
-            ))}
-          </select>
+      <option value="" disabled className="bg-slate-900">Select Category</option>
+      {categoryOptions.map((opt) => (
+        <option key={opt} value={opt as string} className="bg-slate-900">{opt}</option>
+      ))}
+    
+</select>
           {errors.category ? <p className="text-sm text-red-400">{errors.category}</p> : null}
         </div>
 

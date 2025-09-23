@@ -1,36 +1,39 @@
-import type { Metadata } from 'next';
-import { Providers } from '@/components/providers';
-import { SiteFooter } from '@/components/layout/site-footer';
-import { SiteHeader } from '@/components/layout/site-header';
-import { getSessionWithProfile } from '@/lib/auth';
+import './globals.css'
+import AccountBadge from '@/components/account-badge';
+import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly'
+import Sidebar from '@/components/shell/sidebar'
 
-import './globals.css';
+export const metadata = { title: 'Hen & Ink Portal', description: 'Submission portal' }
 
-export const metadata: Metadata = {
-  title: 'Chicken Scratch Zine Portal',
-  description: 'Submit, review, and publish work for Chicken Scratch.',
-};
-
-export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  const { profile } = await getSessionWithProfile();
-
-  return (
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  
+  const supabase = await createSupabaseServerReadOnlyClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const signedIn = !!user
+return (
     <html lang="en">
-      <body className="bg-slate-950 text-slate-100 antialiased font-sans">
-        <Providers>
-          <div className="flex min-h-screen flex-col">
-            <SiteHeader profile={profile} />
-            <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
-              {children}
-            </main>
-            <SiteFooter />
-          </div>
-        </Providers>
+      
+<body>
+      <AccountBadge />
+
+  {/* account badge */}
+  
+
+  {/* account badge */}
+  
+
+{/* account badge stays as-is if present */}
+
+
+                {/* account badge stays as-is if present */}
+
+        <div className="app-shell">
+          <Sidebar signedIn={signedIn} />
+          <main className="main">
+            <div className="container">{children}</div>
+          </main>
+        </div>
       </body>
     </html>
-  );
+  )
 }

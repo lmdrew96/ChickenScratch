@@ -1,0 +1,38 @@
+import { redirect } from 'next/navigation';
+import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import PageHeader from '@/components/shell/page-header';
+import AccountEditor from '@/components/account/account-editor';
+
+export const metadata = { title: 'Your account' };
+
+export default async function AccountPage() {
+  const supabase = await createSupabaseServerReadOnlyClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login?next=/account');
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    await supabase.from('profiles').upsert({ id: user.id });
+  }
+
+  const fullName = profile?.full_name ?? user.user_metadata?.full_name ?? null;
+  const avatarUrl = profile?.avatar_url ?? null;
+
+  return (
+    <>
+      <PageHeader title="Your account" />
+      <div className="container">
+        <AccountEditor
+          userId={user.id}
+          defaultName={fullName}
+          defaultAvatar={avatarUrl}
+        />
+      </div>
+    </>
+  );
+}
