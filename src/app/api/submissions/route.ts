@@ -1,407 +1,156 @@
-'use client';
+import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseServerClient } from '@/lib/supabase/server-client';
 
-import React, { useMemo, useRef, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+const WRITING_CANON = [
+  'poetry',
+  'vignette',
+  'flash fiction',
+  'essay',
+  'opinion piece',
+  'free write',
+  'interview',
+  'colwell in context',
+  'keeping up with keegan',
+  'literary recommendation',
+  'other writing',
+];
 
-type Kind = 'writing' | 'visual';
+const VISUAL_CANON = [
+  'drawing',
+  'painting',
+  'photography',
+  'digital art',
+  'other visual art',
+];
 
-const WRITING_CATEGORIES = [
-  'Poetry',
-  'Vignette',
-  'Flash fiction',
-  'Essay',
-  'Opinion piece',
-  'Free write',
-  'Interview',
-  'Colwell in Context',
-  'Keeping Up with Keegan',
-  'Literary Recommendation',
-  'Other Writing',
-] as const;
-
-const VISUAL_CATEGORIES = [
-  'Drawing',
-  'Painting',
-  'Photography',
-  'Digital art',
-  'Other Visual Art',
-] as const;
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const SUBMISSIONS_BUCKET = process.env.NEXT_PUBLIC_SUBMISSIONS_BUCKET || 'submissions';
-
-function Pill({
-  active,
-  onClick,
-  children,
-}: {
-  active?: boolean;
-  onClick?: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="px-3 py-1.5 rounded-full text-sm border transition"
-      style={
-        active
-          ? { background: '#ffd500', borderColor: '#cca800', color: '#00539f' }
-          : { background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.15)', color: 'white' }
-      }
-    >
-      {children}
-    </button>
-  );
+function canonize(s?: string | null) {
+  return (s ?? '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-function Field({
-  htmlFor,
-  label,
-  required,
-  icon,
-}: {
-  htmlFor?: string;
-  label: string;
-  required?: boolean;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <div className="mb-2 flex items-center gap-2">
-      {icon ? <span className="opacity-80" aria-hidden="true">{icon}</span> : null}
-      <label htmlFor={htmlFor} className="text-sm font-medium" style={{ color: '#ffd500' }}>
-        {label}
-        {required ? <span className="ml-1 text-red-500" aria-hidden="true">*</span> : null}
-      </label>
-    </div>
-  );
+function normalizeCategory(type: 'writing' | 'visual', raw: string | null) {
+  const v = canonize(raw);
+  if (type === 'writing') {
+    // accept common variants
+    const map: Record<string, string> = {
+      'poetry': 'poetry',
+      'vignette': 'vignette',
+      'flash fiction': 'flash fiction',
+      'flash-fiction': 'flash fiction',
+      'essay': 'essay',
+      'opinion piece': 'opinion piece',
+      'opinion': 'opinion piece',
+      'free write': 'free write',
+      'freewrite': 'free write',
+      'interview': 'interview',
+      'colwell in context': 'colwell in context',
+      'keeping up with keegan': 'keeping up with keegan',
+      'literary recommendation': 'literary recommendation',
+      'other writing': 'other writing',
+      'other': 'other writing',
+    };
+    const out = map[v];
+    return out && WRITING_CANON.includes(out) ? out : null;
+  } else {
+    const map: Record<string, string> = {
+      'drawing': 'drawing',
+      'paint': 'painting',
+      'painting': 'painting',
+      'photography': 'photography',
+      'photo': 'photography',
+      'digital art': 'digital art',
+      'digital-art': 'digital art',
+      'other visual art': 'other visual art',
+      'other visual': 'other visual art',
+      'other': 'other visual art',
+      'digital art ': 'digital art',
+    };
+    const out = map[v] ?? v;
+    return VISUAL_CANON.includes(out) ? out : null;
+  }
 }
 
-export default function SubmissionForm() {
-  const [kind, setKind] = useState<Kind>('visual');
-  const [category, setCategory] = useState<string>('');
-  const [preferredName, setPreferredName] = useState('');
-  const [title, setTitle] = useState('');
-  const [summary, setSummary] = useState('');
-  const [contentWarnings, setContentWarnings] = useState('');
-  const [textBody, setTextBody] = useState('');
-  const [wordCount, setWordCount] = useState<number | ''>('');
-
-  const [files, setFiles] = useState<FileList | null>(null);
-  const [cover, setCover] = useState<File | null>(null);
-
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const supabase = useMemo(() => {
-    try {
-      return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } catch {
-      return null;
-    }
-  }, []);
-
-  function computeWordCount(s: string) {
-    const count = s.trim().length === 0 ? 0 : s.trim().split(/\s+/).length;
-    setWordCount(count);
+export async function POST(req: NextRequest) {
+  const supabase = createSupabaseServerClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const currentCategories =
-    kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGORIES;
+  const form = await req.formData();
 
-  async function uploadVisuals(userId: string, submissionId: string) {
-    if (!supabase) throw new Error('Supabase client not available');
-    const uploadedPaths: string[] = [];
+  const typeRaw = (form.get('kind') ?? form.get('type')) as string | null;
+  const type = ((): 'writing' | 'visual' | null => {
+    const v = canonize(typeRaw);
+    if (v === 'writing') return 'writing';
+    if (v === 'visual' || v === 'visual art' || v === 'art') return 'visual';
+    return null;
+  })();
 
-    if (files && files.length > 0) {
-      const limit = Math.min(files.length, 5);
-      for (let i = 0; i < limit; i++) {
-        const f = files.item(i)!;
-        const path = `user/${userId}/submissions/${submissionId}/${encodeURIComponent(f.name)}`;
-        const { error } = await supabase.storage.from(SUBMISSIONS_BUCKET).upload(path, f, {
-          upsert: true,
-          cacheControl: '3600',
-        });
-        if (error) throw new Error(`Upload failed for ${f.name}: ${error.message}`);
-        uploadedPaths.push(path);
-      }
-    }
+  const category = normalizeCategory(type as any, (form.get('category') as string | null) ?? null);
+  const preferred_name = (form.get('preferred_name') as string | null)?.toString().trim() || null;
+  const title = (form.get('title') as string | null)?.toString().trim() || null;
+  const summary = (form.get('summary') as string | null)?.toString().trim() || null;
+  const content_warnings = (form.get('content_warnings') as string | null)?.toString().trim() || null;
+  const text = (form.get('text') as string | null)?.toString().trim() || null;
 
-    let coverImage: string | null = null;
-    if (cover) {
-      const cpath = `user/${userId}/submissions/${submissionId}/cover-${encodeURIComponent(cover.name)}`;
-      const { error } = await supabase.storage.from(SUBMISSIONS_BUCKET).upload(cpath, cover, {
-        upsert: true,
-        cacheControl: '3600',
-      });
-      if (error) throw new Error(`Cover upload failed: ${error.message}`);
-      coverImage = cpath;
-    }
+  const file = form.get('file') as File | null;
 
-    return { artFiles: uploadedPaths, coverImage };
+  const errs: string[] = [];
+  if (!type) errs.push('type');
+  if (!category) errs.push('category');
+  if (type === 'writing' && !text) errs.push('text');
+  if (type === 'visual' && !file) errs.push('file');
+  if (!preferred_name) errs.push('preferred_name');
+  if (errs.length) {
+    return NextResponse.json({ error: 'Invalid submission payload.', fields: errs }, { status: 400 });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setMessage(null);
-    setSubmitting(true);
+  // pull author name from profile (optional)
+  let author_name: string | null = null;
+  const { data: prof, error: profErr } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (!profErr && prof?.full_name) author_name = prof.full_name;
 
-    try {
-      // Ensure auth
-      if (!supabase) throw new Error('Supabase client not available');
-      const {
-        data: { user },
-        error: uerr,
-      } = await supabase.auth.getUser();
-      if (uerr) throw uerr;
-      if (!user) throw new Error('You must be signed in to submit.');
-
-      const submissionId = crypto.randomUUID();
-
-      let artFiles: string[] = [];
-      let coverImage: string | null = null;
-
-      if (kind === 'visual') {
-        const uploaded = await uploadVisuals(user.id, submissionId);
-        artFiles = uploaded.artFiles;
-        coverImage = uploaded.coverImage;
-        if (artFiles.length === 0) {
-          throw new Error('Please attach at least one file for visual submissions.');
-        }
-      }
-
-      const payload = {
-        id: submissionId,
-        title: title || 'Untitled',
-        type: kind,
-        genre: category || null,
-        summary: summary || null,
-        contentWarnings: contentWarnings || null,
-        wordCount: typeof wordCount === 'number' ? wordCount : null,
-        textBody: kind === 'writing' ? (textBody || null) : null,
-        artFiles,
-        coverImage,
-      };
-
-      const res = await fetch('/api/submissions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const issues = (data && data.issues) ? `\n${JSON.stringify(data.issues)}` : '';
-        throw new Error(data.error || `Submission failed.${issues}`);
-      }
-
-      setMessage({ tone: 'ok', text: 'Submitted! You can find it under “My Submissions”.' });
-      // Reset lightweight fields (don’t clear files so a user can resubmit quickly)
-      setTitle('');
-      setSummary('');
-      setContentWarnings('');
-      setTextBody('');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch (err: any) {
-      setMessage({ tone: 'err', text: err?.message || 'Something went wrong.' });
-    } finally {
-      setSubmitting(false);
+  // optional storage upload (visual only)
+  let file_path: string | null = null;
+  if (type === 'visual' && file) {
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+    const key = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const up = await supabase.storage.from('submissions').upload(key, file, {
+      contentType: file.type || undefined,
+      upsert: false,
+    });
+    if (up.error) {
+      return NextResponse.json({ error: `upload: ${up.error.message}` }, { status: 500 });
     }
+    file_path = up.data.path;
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="mx-auto w-full" style={{ maxWidth: 'min(56rem, 100%)' }}>
-      <div className="rounded-2xl border" style={{ borderColor: 'rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', padding: '2rem' }}>
-        <div className="space-y-2">
-          <h2 className="text-2xl font-semibold" style={{ color: '#ffd500' }}>Creative Work Submission Form</h2>
-          <p className="text-slate-300">
-            Please upload only <strong>ONE</strong> file per submission. There is no limit on number of submissions.
-          </p>
-        </div>
+  const row = {
+    user_id: user.id,
+    owner_id: user.id, // keep in sync with legacy constraint
+    type,
+    category,
+    preferred_name,
+    author_name,
+    title,
+    summary,
+    content_warnings,
+    text: type === 'writing' ? text : null,
+    file_path,
+  };
 
-        <div className="mt-8 grid gap-8">
-          <div className="space-y-4 max-w-2xl">
-            <Field label="Type" required />
-            <div className="flex flex-wrap gap-4">
-              <Pill active={kind === 'visual'} onClick={() => setKind('visual')}>Visual Art</Pill>
-              <Pill active={kind === 'writing'} onClick={() => setKind('writing')}>Writing</Pill>
-            </div>
-          </div>
+  const { error } = await supabase.from('submissions').insert(row);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-          <div className="space-y-3 max-w-2xl">
-            <Field label="Category" required icon={<span aria-hidden>🧭</span>} />
-            <select
-              required
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl border bg-transparent px-3 py-2 outline-none"
-              style={{ borderColor: '#cca800' }}
-            >
-              <option value="" disabled className="bg-slate-900">Select Category</option>
-              {(currentCategories as readonly string[]).map((opt) => (
-                <option key={opt} value={opt} className="bg-slate-900">
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-3 max-w-2xl">
-            <Field htmlFor="preferredName" label="Preferred Name for Publishing" required icon={<span aria-hidden>👤</span>} />
-            <input
-              id="preferredName"
-              required
-              value={preferredName}
-              onChange={(e) => setPreferredName(e.target.value)}
-              className="w-full rounded-xl border bg-transparent px-3 py-2 outline-none"
-              style={{ borderColor: '#407cb3' }}
-              placeholder="How should we credit you?"
-              name="preferred_name"
-            />
-          </div>
-
-          <div className="space-y-3 max-w-2xl">
-            <Field htmlFor="workTitle" label="Work Title" icon={<span aria-hidden>❓</span>} />
-            <input
-              id="workTitle"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-xl border bg-transparent px-3 py-2 outline-none"
-              style={{ borderColor: '#407cb3' }}
-              placeholder=""
-              name="title"
-            />
-          </div>
-
-          {kind === 'writing' && (
-            <>
-              <div className="space-y-3 max-w-2xl">
-                <Field htmlFor="summary" label="Summary / Blurb" icon={<span aria-hidden>💬</span>} />
-                <textarea
-                  id="summary"
-                  rows={4}
-                  value={summary}
-                  onChange={(e) => setSummary(e.target.value)}
-                  className="w-full rounded-xl border bg-transparent px-3 py-2 outline-none"
-                  style={{ borderColor: '#407cb3' }}
-                  placeholder="Give readers a quick description."
-                />
-              </div>
-
-              <div className="space-y-3 max-w-2xl">
-                <Field htmlFor="textBody" label="Text (required for Writing)" required icon={<span aria-hidden>✍️</span>} />
-                <textarea
-                  id="textBody"
-                  rows={12}
-                  value={textBody}
-                  onChange={(e) => {
-                    setTextBody(e.target.value);
-                    computeWordCount(e.target.value);
-                  }}
-                  className="w-full rounded-xl border bg-transparent px-3 py-2 outline-none"
-                  style={{ borderColor: '#407cb3' }}
-                  placeholder="Paste or type your piece here."
-                  required={kind === 'writing'}
-                />
-                <div className="text-xs text-slate-400">Word count: {typeof wordCount === 'number' ? wordCount : 0}</div>
-              </div>
-
-              <div className="space-y-3 max-w-2xl">
-                <Field htmlFor="warnings" label="Content Warnings" icon={<span aria-hidden>⚠️</span>} />
-                <input
-                  id="warnings"
-                  value={contentWarnings}
-                  onChange={(e) => setContentWarnings(e.target.value)}
-                  className="w-full rounded-xl border bg-transparent px-3 py-2 outline-none"
-                  style={{ borderColor: '#407cb3' }}
-                  placeholder="List anything sensitive so readers can prepare."
-                  name="content_warnings"
-                />
-              </div>
-            </>
-          )}
-
-          {kind === 'visual' && (
-            <>
-              <div className="space-y-3 max-w-2xl">
-                <Field htmlFor="file" label="File Upload" required />
-                <div
-                  className="flex items-center justify-between gap-3 rounded-xl border px-4 py-5"
-                  style={{ borderColor: '#407cb3', background: 'rgba(255,255,255,0.02)' }}
-                >
-                  <div className="text-sm text-slate-300">
-                    Attach up to <span className="font-medium text-slate-200">5 files</span>. Accepted:{' '}
-                    <span className="font-medium text-slate-200">image/*,application/pdf</span>
-                  </div>
-                  <label className="btn btn-brand cursor-pointer" style={{ background: '#ffd500', borderColor: '#cca800', color: '#0b1220' }}>
-                    Browse…
-                    <input
-                      id="file"
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*,application/pdf"
-                      multiple
-                      onChange={(e) => setFiles(e.currentTarget.files)}
-                      className="sr-only"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-3 max-w-2xl">
-                <Field htmlFor="cover" label="Cover Image (optional)" />
-                <input
-                  id="cover"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setCover(e.currentTarget.files?.[0] ?? null)}
-                  className="block w-full text-sm text-slate-300 file:mr-4 file:rounded-lg file:border file:px-3 file:py-1.5"
-                />
-              </div>
-
-              <div className="space-y-3 max-w-2xl">
-                <Field htmlFor="warnings-v" label="Content Warnings" icon={<span aria-hidden>⚠️</span>} />
-                <input
-                  id="warnings-v"
-                  value={contentWarnings}
-                  onChange={(e) => setContentWarnings(e.target.value)}
-                  className="w-full rounded-xl border bg-transparent px-3 py-2 outline-none"
-                  style={{ borderColor: '#407cb3' }}
-                  placeholder="List anything sensitive so readers can prepare."
-                  name="content_warnings"
-                />
-              </div>
-            </>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn"
-              style={{
-                background: '#ffd500',
-                borderColor: '#cca800',
-                color: '#0b1220',
-                opacity: submitting ? 0.7 : 1,
-                pointerEvents: submitting ? 'none' : 'auto',
-              }}
-            >
-              {submitting ? 'Submitting…' : 'Submit'}
-            </button>
-          </div>
-
-          {message ? (
-            <p className={`text-sm ${message.tone === 'ok' ? 'text-green-400' : 'text-red-400'}`}>{message.text}</p>
-          ) : null}
-        </div>
-      </div>
-    </form>
-  );
+  return NextResponse.json({ ok: true }, { status: 201 });
 }
 
-// Also export a named export to satisfy any imports that expect it.
-export { SubmissionForm };
+export async function GET() {
+  return NextResponse.json({ ok: false, error: 'Method not allowed' }, { status: 405 });
+}
+
+export const dynamic = 'force-dynamic';

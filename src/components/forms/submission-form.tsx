@@ -36,6 +36,7 @@ type FormErrors = {
   category?: string;
   preferredName?: string;
   file?: string;
+  text?: string;
 };
 
 type SubmissionFormProps = {
@@ -56,6 +57,7 @@ const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGOR
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [contentWarnings, setContentWarnings] = useState('');
+  const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -122,12 +124,20 @@ const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGOR
     }
 
     const pendingFiles = fileInputRef.current?.files;
-    if (pendingFiles && pendingFiles.length > 1) {
-      validationErrors.file = 'Only one file can be uploaded.';
+
+    if (kind === 'visual') {
+      if (pendingFiles && pendingFiles.length > 1) {
+        validationErrors.file = 'Only one file can be uploaded.';
+      }
+      if (!file) {
+        validationErrors.file = validationErrors.file ?? 'Add the piece you want to share.';
+      }
     }
 
-    if (!file) {
-      validationErrors.file = validationErrors.file ?? 'Add the piece you want to share.';
+    if (kind === 'writing') {
+      if (!text.trim()) {
+        validationErrors.text = 'Please paste your writing.';
+      }
     }
 
     if (Object.keys(validationErrors).length > 0) {
@@ -147,8 +157,11 @@ const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGOR
       formData.append('summary', summary.trim());
       formData.append('content_warnings', contentWarnings.trim());
 
-      if (file) {
+      if (kind === 'visual' && file) {
         formData.append('file', file);
+      }
+      if (kind === 'writing' && text.trim()) {
+        formData.append('text', text.trim());
       }
 
       const response = await fetch('/api/submissions', {
@@ -182,6 +195,7 @@ const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGOR
   return (
     <form
       onSubmit={handleSubmit}
+      encType="multipart/form-data"
       className="form-card mx-auto w-full max-w-2xl rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg md:max-w-3xl md:p-8"
     >
       <div className="space-y-6">
@@ -294,47 +308,53 @@ const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGOR
           />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="content_warnings" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-            Content Warnings
-          </label>
-          <input
-            id="content_warnings"
-            name="content_warnings"
-            type="text"
-            value={contentWarnings}
-            onChange={(event) => {
-              setContentWarnings(event.target.value);
-              resetFeedback();
-            }}
-            className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
-          />
-        </div>
+        {kind === 'writing' ? (
+          <div className="space-y-2">
+            <label htmlFor="text" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+              Your Writing
+              <span className="ml-1 text-red-500" aria-hidden="true">*</span>
+            </label>
+            <textarea
+              id="text"
+              name="text"
+              rows={12}
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                resetFeedback();
+              }}
+              className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
+            />
+            {errors.text ? <p className="text-sm text-red-400">{errors.text}</p> : null}
+          </div>
+        ) : null}
 
-        <div className="space-y-2">
-          <label htmlFor="file" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-            File Upload
-            <span className="ml-1 text-red-500" aria-hidden="true">
-              *
-            </span>
-          </label>
-          <input
-            id="file"
-            name="file"
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,application/pdf"
-            aria-required="true"
-            onChange={handleFileChange}
-            className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-200 focus:border-[var(--accent)]"
-          />
-          {file ? (
-            <p className="text-xs text-slate-300">Selected: {file.name}</p>
-          ) : (
-            <p className="text-xs text-slate-400">Accepted formats: images or PDF, one file only.</p>
-          )}
-          {errors.file ? <p className="text-sm text-red-400">{errors.file}</p> : null}
-        </div>
+        {kind === 'visual' ? (
+          <div className="space-y-2">
+            <label htmlFor="file" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+              File Upload
+              <span className="ml-1 text-red-500" aria-hidden="true">
+                *
+              </span>
+            </label>
+            <input
+              id="file"
+              name="file"
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              aria-required="true"
+              onChange={handleFileChange}
+              className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-200 focus:border-[var(--accent)]"
+            />
+            {file ? (
+              <p className="text-xs text-slate-300">Selected: {file.name}</p>
+            ) : (
+              <p className="text-xs text-slate-400">Accepted formats: images or PDF, one file only.</p>
+            )}
+            {errors.file ? <p className="text-sm text-red-400">{errors.file}</p> : null}
+          </div>
+        ) : null}
 
         <div className="space-y-3">
           <button type="submit" className="btn btn-accent" disabled={isSubmitting}>
