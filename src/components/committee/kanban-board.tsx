@@ -142,8 +142,78 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
   };
 
   const handleAction = async (submission: Submission, action: string) => {
-    // TODO: Implement API calls for workflow actions
-    console.log(`Action: ${action} on submission:`, submission.id);
+    try {
+      let payload: any = {
+        submissionId: submission.id,
+        action: action === 'primary' ? getPrimaryAction(submission) : action,
+      };
+
+      // Handle specific actions
+      if (action === 'open_docs' || action === 'canva_link') {
+        const url = prompt(
+          action === 'open_docs' 
+            ? 'Enter Google Docs link:' 
+            : 'Enter Canva share link:'
+        );
+        if (!url) return;
+        payload.action = 'commit';
+        payload.linkUrl = url;
+      } else if (action === 'decline' || action === 'final_decline') {
+        const comment = prompt('Enter decline reason (required):');
+        if (!comment) return;
+        payload.comment = comment;
+        payload.action = action.includes('final') ? 'decline' : 'decline';
+      }
+
+      const response = await fetch('/api/committee-workflow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to process action');
+      }
+
+      // Refresh the page to show updated data
+      window.location.reload();
+    } catch (error) {
+      console.error('Action failed:', error);
+      alert(`Action failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const getActionLabel = (role: string, submission: Submission): string => {
+    switch (role) {
+      case 'submissions_coordinator':
+        return 'Review';
+      case 'proofreader':
+        return 'Edit Docs';
+      case 'lead_design':
+        return 'Add to Canva';
+      case 'editor_in_chief':
+        return 'Final Review';
+      default:
+        return 'View';
+    }
+  };
+
+  const getPrimaryAction = (submission: Submission): string => {
+    switch (userRole) {
+      case 'submissions_coordinator':
+        return 'approve';
+      case 'proofreader':
+        return 'commit';
+      case 'lead_design':
+        return 'commit';
+      case 'editor_in_chief':
+        return 'approve';
+      default:
+        return 'view';
+    }
   };
 
   return (
@@ -199,7 +269,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                             handleAction(submission, 'primary');
                           }}
                         >
-                          Action
+                          {getActionLabel(userRole, submission)}
                         </button>
                       )}
                     </div>
