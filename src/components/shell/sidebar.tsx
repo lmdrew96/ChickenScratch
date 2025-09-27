@@ -16,8 +16,9 @@ export default function Sidebar({ signedIn = false }: { signedIn?: boolean }) {
         <Link href="/submit" className={is('/submit') ? 'active' : ''}>Submit</Link>
         <Link href="/mine" className={is('/mine') ? 'active' : ''}>My Submissions</Link>
         <Link href="/published" className={is('/published') ? 'active' : ''}>Published</Link>
-        <Link href="/editor" className={is('/editor') ? 'active' : ''}>Editor</Link>
+        <Link href="/officers" className={is('/officers') ? 'active' : ''}>Officers</Link>
         <Link href="/committee" className={is('/committee') ? 'active' : ''}>Committee</Link>
+        <Link href="/editor" className={is('/editor') ? 'active' : ''}>Editor</Link>
       </nav>
       <div style={{ marginTop: 'auto' }}>
         {signedIn ? (
