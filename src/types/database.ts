@@ -14,20 +14,20 @@ export interface Database {
           id: string;
           email: string | null;
           name: string | null;
-          role: 'student' | 'editor' | 'admin';
+          role: 'student' | 'editor' | 'admin' | 'bbeg' | 'dictator_in_chief' | 'scroll_gremlin' | 'chief_hoarder' | 'pr_nightmare' | 'editor_in_chief' | 'submissions_coordinator' | 'proofreader' | 'lead_design';
           created_at: string | null;
         };
         Insert: {
           id: string;
           email?: string | null;
           name?: string | null;
-          role?: 'student' | 'editor' | 'admin';
+          role?: 'student' | 'editor' | 'admin' | 'bbeg' | 'dictator_in_chief' | 'scroll_gremlin' | 'chief_hoarder' | 'pr_nightmare' | 'editor_in_chief' | 'submissions_coordinator' | 'proofreader' | 'lead_design';
           created_at?: string | null;
         };
         Update: {
           email?: string | null;
           name?: string | null;
-          role?: 'student' | 'editor' | 'admin';
+          role?: 'student' | 'editor' | 'admin' | 'bbeg' | 'dictator_in_chief' | 'scroll_gremlin' | 'chief_hoarder' | 'pr_nightmare' | 'editor_in_chief' | 'submissions_coordinator' | 'proofreader' | 'lead_design';
           created_at?: string | null;
         };
         Relationships: [];
@@ -60,6 +60,24 @@ export interface Database {
           issue: string | null;
           created_at: string | null;
           updated_at: string | null;
+          // Committee workflow fields
+          committee_status: 'pending_coordinator' | 'with_coordinator' | 'coordinator_approved' | 'coordinator_declined' | 'with_proofreader' | 'proofreader_committed' | 'with_lead_design' | 'lead_design_committed' | 'with_editor_in_chief' | 'editor_approved' | 'editor_declined' | 'final_committee_review' | null;
+          google_docs_link: string | null;
+          lead_design_commit_link: string | null;
+          committee_comments: Json;
+          workflow_step: string | null;
+          decline_reason: string | null;
+          original_files: Json;
+          current_version: number | null;
+          version_history: Json;
+          assigned_coordinator: string | null;
+          assigned_proofreader: string | null;
+          assigned_lead_design: string | null;
+          assigned_editor_in_chief: string | null;
+          coordinator_reviewed_at: string | null;
+          proofreader_committed_at: string | null;
+          lead_design_committed_at: string | null;
+          editor_reviewed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -82,6 +100,24 @@ export interface Database {
           issue?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
+          // Committee workflow fields
+          committee_status?: Database['public']['Tables']['submissions']['Row']['committee_status'];
+          google_docs_link?: string | null;
+          lead_design_commit_link?: string | null;
+          committee_comments?: Json;
+          workflow_step?: string | null;
+          decline_reason?: string | null;
+          original_files?: Json;
+          current_version?: number | null;
+          version_history?: Json;
+          assigned_coordinator?: string | null;
+          assigned_proofreader?: string | null;
+          assigned_lead_design?: string | null;
+          assigned_editor_in_chief?: string | null;
+          coordinator_reviewed_at?: string | null;
+          proofreader_committed_at?: string | null;
+          lead_design_committed_at?: string | null;
+          editor_reviewed_at?: string | null;
         };
         Update: {
           title?: string;
@@ -98,10 +134,28 @@ export interface Database {
           editor_notes?: string | null;
           decision_date?: string | null;
           published?: boolean | null;
-          published_url?: string | null;
+          published_url?: string | null;  
           issue?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
+          // Committee workflow fields
+          committee_status?: Database['public']['Tables']['submissions']['Row']['committee_status'];
+          google_docs_link?: string | null;
+          lead_design_commit_link?: string | null;
+          committee_comments?: Json;
+          workflow_step?: string | null;
+          decline_reason?: string | null;
+          original_files?: Json;
+          current_version?: number | null;
+          version_history?: Json;
+          assigned_coordinator?: string | null;
+          assigned_proofreader?: string | null;
+          assigned_lead_design?: string | null;
+          assigned_editor_in_chief?: string | null;
+          coordinator_reviewed_at?: string | null;
+          proofreader_committed_at?: string | null;
+          lead_design_committed_at?: string | null;
+          editor_reviewed_at?: string | null;
         };
         Relationships: [];
       };
@@ -136,7 +190,7 @@ export interface Database {
     Functions: {
       current_app_role: {
         Args: Record<string, never>;
-        Returns: 'student' | 'editor' | 'admin' | null;
+        Returns: 'student' | 'editor' | 'admin' | 'bbeg' | 'dictator_in_chief' | 'scroll_gremlin' | 'chief_hoarder' | 'pr_nightmare' | 'editor_in_chief' | 'submissions_coordinator' | 'proofreader' | 'lead_design' | null;
       };
     };
     Enums: Record<string, never>;
