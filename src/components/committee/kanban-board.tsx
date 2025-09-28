@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { LoadingSpinner, LoadingState } from '@/components/shared/loading-states';
 import type { Submission } from '@/types/database';
 
 interface KanbanBoardProps {
@@ -17,6 +18,8 @@ interface KanbanColumn {
 
 export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps) {
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Define columns based on user role
   const getColumns = (): KanbanColumn[] => {
@@ -135,6 +138,18 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
     }
   };
 
+  // Filter submissions based on search term
+  const filteredSubmissions = useMemo(() => {
+    if (!searchTerm.trim()) return submissions;
+    
+    const term = searchTerm.toLowerCase();
+    return submissions.filter(submission => 
+      submission.title.toLowerCase().includes(term) ||
+      submission.genre?.toLowerCase().includes(term) ||
+      submission.type.toLowerCase().includes(term)
+    );
+  }, [submissions, searchTerm]);
+
   const columns = getColumns();
 
   const handleSubmissionClick = (submission: Submission) => {
@@ -143,6 +158,8 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
 
   const handleAction = async (submission: Submission, action: string) => {
     try {
+      setIsProcessing(submission.id);
+      
       let payload: any = {
         submissionId: submission.id,
         action: action === 'primary' ? getPrimaryAction(submission) : action,
@@ -155,12 +172,18 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             ? 'Enter Google Docs link:' 
             : 'Enter Canva share link:'
         );
-        if (!url) return;
+        if (!url) {
+          setIsProcessing(null);
+          return;
+        }
         payload.action = 'commit';
         payload.linkUrl = url;
       } else if (action === 'decline' || action === 'final_decline') {
         const comment = prompt('Enter decline reason (required):');
-        if (!comment) return;
+        if (!comment) {
+          setIsProcessing(null);
+          return;
+        }
         payload.comment = comment;
         payload.action = action.includes('final') ? 'decline' : 'decline';
       }
@@ -183,6 +206,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
     } catch (error) {
       console.error('Action failed:', error);
       alert(`Action failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsProcessing(null);
     }
   };
 
@@ -227,6 +251,23 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             Manage submissions in your role-specific workflow
           </p>
         </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search submissions..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="form-input w-64"
+            />
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+              <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -263,13 +304,21 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                       </span>
                       {column.canInteract && (
                         <button
-                          className="text-[var(--accent)] hover:underline"
+                          className="text-[var(--accent)] hover:underline disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleAction(submission, 'primary');
                           }}
+                          disabled={isProcessing === submission.id}
                         >
-                          {getActionLabel(userRole, submission)}
+                          {isProcessing === submission.id ? (
+                            <>
+                              <LoadingSpinner size="sm" />
+                              Processing...
+                            </>
+                          ) : (
+                            getActionLabel(userRole, submission)
+                          )}
                         </button>
                       )}
                     </div>

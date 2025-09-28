@@ -3,9 +3,12 @@
 import {
   useRef,
   useState,
+  useEffect,
+  useCallback,
   type ChangeEvent,
   type FormEvent,
 } from 'react';
+import { LoadingSpinner } from '@/components/shared/loading-states';
 
 
 const WRITING_CATEGORIES = [
@@ -51,7 +54,7 @@ const CATEGORY_OPTIONS = ['Photography', 'Illustration', 'Comics', 'Mixed media'
 export function SubmissionForm(props: SubmissionFormProps = {}) {
   void props;
   const [kind, setKind] = useState<SubmissionKind>('visual');
-const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGORIES;
+  const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGORIES;
   const [category, setCategory] = useState('');
   const [preferredName, setPreferredName] = useState('');
   const [title, setTitle] = useState('');
@@ -62,7 +65,65 @@ const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGOR
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Auto-save functionality
+  const autoSave = useCallback(async () => {
+    if (!title.trim() || !preferredName.trim()) return;
+    
+    try {
+      setIsAutoSaving(true);
+      const formData = {
+        kind,
+        category,
+        preferredName,
+        title,
+        summary,
+        contentWarnings,
+        text
+      };
+      
+      localStorage.setItem('submission-draft', JSON.stringify(formData));
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [kind, category, preferredName, title, summary, contentWarnings, text]);
+
+  // Load saved draft on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('submission-draft');
+      if (saved) {
+        const draft = JSON.parse(saved);
+        setKind(draft.kind || 'visual');
+        setCategory(draft.category || '');
+        setPreferredName(draft.preferredName || '');
+        setTitle(draft.title || '');
+        setSummary(draft.summary || '');
+        setContentWarnings(draft.contentWarnings || '');
+        setText(draft.text || '');
+        setLastSaved(new Date());
+      }
+    } catch (error) {
+      console.error('Failed to load draft:', error);
+    }
+  }, []);
+
+  // Auto-save when content changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      autoSave();
+    }, 2000); // Auto-save after 2 seconds of inactivity
+
+    return () => clearTimeout(timeoutId);
+  }, [autoSave]);
 
   function handleKindChange(next: SubmissionKind) {
     setKind(next);
@@ -305,7 +366,32 @@ const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGOR
               resetFeedback();
             }}
             className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
+            placeholder="Brief description of your work..."
           />
+          <div className="text-xs text-slate-400 text-right">
+            {summary.length}/500 characters
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="contentWarnings" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+            Content Warnings
+          </label>
+          <textarea
+            id="contentWarnings"
+            name="content_warnings"
+            rows={2}
+            value={contentWarnings}
+            onChange={(event) => {
+              setContentWarnings(event.target.value);
+              resetFeedback();
+            }}
+            className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
+            placeholder="Any content warnings for sensitive topics..."
+          />
+          <div className="text-xs text-slate-400 text-right">
+            {contentWarnings.length}/300 characters
+          </div>
         </div>
 
         {kind === 'writing' ? (
@@ -325,6 +411,10 @@ const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGOR
               }}
               className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
             />
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>Characters: {text.length.toLocaleString()}</span>
+              <span>Words: {text.trim().split(/\s+/).filter(Boolean).length.toLocaleString()}</span>
+            </div>
             {errors.text ? <p className="text-sm text-red-400">{errors.text}</p> : null}
           </div>
         ) : null}
@@ -348,18 +438,64 @@ const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGOR
               className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-200 focus:border-[var(--accent)]"
             />
             {file ? (
-              <p className="text-xs text-slate-300">Selected: {file.name}</p>
+              <div className="space-y-2">
+                <p className="text-xs text-slate-300">Selected: {file.name}</p>
+                <div className="text-xs text-slate-400">
+                  Size: {(file.size / 1024 / 1024).toFixed(2)} MB
+                </div>
+                {isUploading && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span>Uploading...</span>
+                      <span>{Math.round(uploadProgress)}%</span>
+                    </div>
+                    <div className="w-full bg-slate-700 rounded-full h-1.5">
+                      <div 
+                        className="bg-[var(--accent)] h-1.5 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
-              <p className="text-xs text-slate-400">Accepted formats: images or PDF, one file only.</p>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-400">Accepted formats: images or PDF, one file only.</p>
+                <p className="text-xs text-slate-500">Maximum file size: 10 MB</p>
+              </div>
             )}
             {errors.file ? <p className="text-sm text-red-400">{errors.file}</p> : null}
           </div>
         ) : null}
 
         <div className="space-y-3">
-          <button type="submit" className="btn btn-accent" disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting…' : 'Submit'}
-          </button>
+          <div className="flex items-center justify-between">
+            <button type="submit" className="btn btn-accent" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  Submitting…
+                </>
+              ) : (
+                'Submit'
+              )}
+            </button>
+            
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              {isAutoSaving && (
+                <>
+                  <LoadingSpinner size="sm" />
+                  <span>Saving...</span>
+                </>
+              )}
+              {lastSaved && !isAutoSaving && (
+                <span>
+                  Last saved: {lastSaved.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          </div>
+          
           {feedback ? (
             <p className={`text-sm ${feedback.type === 'error' ? 'text-red-400' : 'text-emerald-300'}`}>
               {feedback.message}

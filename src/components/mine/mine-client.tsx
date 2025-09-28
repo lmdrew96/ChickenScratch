@@ -7,6 +7,7 @@ import { SubmissionForm } from '@/components/forms/submission-form';
 import { useSupabase } from '@/components/providers/supabase-provider';
 import { StatusBadge } from '@/components/common/status-badge';
 import { Button } from '@/components/ui/button';
+import { LoadingState } from '@/components/shared/loading-states';
 import { EDITABLE_STATUSES, formatStatus } from '@/lib/constants';
 import type { Submission } from '@/types/database';
 import { useToast } from '@/components/ui/toast';
@@ -28,6 +29,7 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
   const supabase = useSupabase();
   const { notify } = useToast();
   const [selectedId, setSelectedId] = useState(submissions[0]?.id ?? null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const router = useRouter();
 
   const selectedSubmission = useMemo(

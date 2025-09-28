@@ -45,7 +45,6 @@ export default async function AccountBadge() {
       href="/account"
       aria-label="Your account"
       className="account-badge"
-      style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 50 }}
       prefetch={false}
     >
       <span className="sr-only">Your account</span>
@@ -53,10 +52,9 @@ export default async function AccountBadge() {
         <img
           src={avatarUrl}
           alt=""
-          className="h-8 w-8 rounded-full ring-2 ring-[--accent] object-cover"
         />
       ) : (
-        <span className="h-8 w-8 rounded-full grid place-items-center font-semibold bg-[--accent] text-[--brand]">
+        <span>
           {initials}
         </span>
       )}
