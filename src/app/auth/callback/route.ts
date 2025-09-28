@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
     }
   )
 
-  const { error } = await supabase.auth.exchangeCodeForSession(url.searchParams)
+  const code = url.searchParams.get('code')
+  const { error } = code ? await supabase.auth.exchangeCodeForSession(code) : { error: new Error('No code provided') }
   const dest = new URL(error ? '/login' : next, req.url)
   if (error) dest.searchParams.set('error', error.message)
   return NextResponse.redirect(dest, { status: 303 })
