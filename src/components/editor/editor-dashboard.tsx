@@ -11,7 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import { ConfirmModal } from '@/components/ui/modal';
 import { LoadingSpinner } from '@/components/shared/loading-states';
+import { useConfirmation } from '@/hooks/use-confirmation';
 import { EDITABLE_STATUSES, SUBMISSION_STATUSES, formatStatus } from '@/lib/constants';
 import type { Submission } from '@/types/database';
 
@@ -51,6 +53,7 @@ export function EditorDashboard({
   const { notify } = useToast();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const confirmation = useConfirmation();
 
   // Separate loading states for each action
   const [loadingState, setLoadingState] = useState<LoadingState>({
@@ -211,6 +214,27 @@ export function EditorDashboard({
       });
       return;
     }
+
+    // Confirmation for destructive actions
+    if (status === 'declined') {
+      confirmation.confirm({
+        title: 'Decline Submission',
+        message: 'Are you sure you want to decline this submission? The author will be notified via email.',
+        confirmText: 'Decline',
+        cancelText: 'Cancel',
+        variant: 'danger',
+        onConfirm: async () => {
+          await performStatusChange(status, payloadNotes);
+        }
+      });
+      return;
+    }
+
+    await performStatusChange(status, payloadNotes);
+  }
+
+  async function performStatusChange(status: Submission['status'], payloadNotes: string) {
+    if (!selectedSubmission) return;
 
     // Optimistic update
     setOptimisticSubmissions((prev) =>
@@ -633,6 +657,20 @@ export function EditorDashboard({
           </div>
         </div>
       </section>
+
+      {/* Confirmation Dialog */}
+      {confirmation.options && (
+        <ConfirmModal
+          isOpen={confirmation.isOpen}
+          onClose={confirmation.handleCancel}
+          onConfirm={confirmation.handleConfirm}
+          title={confirmation.options.title}
+          message={confirmation.options.message}
+          confirmText={confirmation.options.confirmText}
+          cancelText={confirmation.options.cancelText}
+          variant={confirmation.options.variant}
+        />
+      )}
     </div>
   );
 }

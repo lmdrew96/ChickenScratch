@@ -2,6 +2,8 @@
 
 import * as React from 'react'
 import { useSearchParams } from 'next/navigation'
+import { ErrorMessage, SuccessMessage, FieldError } from '@/components/ui/feedback'
+import { LoadingSpinner } from '@/components/shared/loading-states'
 
 export default function LoginForm() {
   const params = useSearchParams()
@@ -12,13 +14,46 @@ export default function LoginForm() {
 
   const [email, setEmail] = React.useState(emailPrefill)
   const [password, setPassword] = React.useState('')
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [isMagicLink, setIsMagicLink] = React.useState(false)
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement
+    setIsMagicLink(submitter?.formAction?.includes('magic-link') || false)
+    setIsSubmitting(true)
+  }
 
   return (
-    <form method="post" action="/api/auth/signin" className="rounded-2xl border border-white/10 bg-white/5 p-6 md:p-8 shadow-lg max-w-md">
+    <form 
+      method="post" 
+      action="/api/auth/signin" 
+      className="rounded-2xl border border-white/10 bg-white/5 p-6 md:p-8 shadow-lg max-w-md"
+      onSubmit={handleSubmit}
+    >
       <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--accent)' }}>Sign in</h2>
 
-      {sent ? <p className="mb-3 text-sm text-slate-300">We emailed a sign-in link to <span className="font-medium text-white">{emailPrefill}</span>.</p> : null}
-      {error ? <p className="mb-3 text-sm text-red-400">{error}</p> : null}
+      {sent && (
+        <SuccessMessage
+          title="Check your email"
+          message={`We sent a sign-in link to ${emailPrefill}. Click the link in the email to sign in.`}
+          className="mb-4"
+        />
+      )}
+      
+      {error && (
+        <ErrorMessage
+          title="Sign in failed"
+          message={error}
+          className="mb-4"
+          actions={[
+            {
+              label: 'Try Again',
+              onClick: () => window.location.href = '/login',
+              variant: 'primary'
+            }
+          ]}
+        />
+      )}
 
       <input type="hidden" name="next" value={next} />
 
@@ -56,8 +91,35 @@ export default function LoginForm() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <button type="submit" className="btn btn-accent">Sign in</button>
-        <button type="submit" formAction="/api/auth/magic-link" className="btn">Email me a magic link</button>
+        <button 
+          type="submit" 
+          className="btn btn-accent" 
+          disabled={isSubmitting && !isMagicLink}
+        >
+          {isSubmitting && !isMagicLink ? (
+            <>
+              <LoadingSpinner size="sm" />
+              Signing in...
+            </>
+          ) : (
+            'Sign in'
+          )}
+        </button>
+        <button 
+          type="submit" 
+          formAction="/api/auth/magic-link" 
+          className="btn"
+          disabled={isSubmitting && isMagicLink}
+        >
+          {isSubmitting && isMagicLink ? (
+            <>
+              <LoadingSpinner size="sm" />
+              Sending...
+            </>
+          ) : (
+            'Email me a magic link'
+          )}
+        </button>
         <a href="/signup" className="btn">Sign up</a>
       </div>
 

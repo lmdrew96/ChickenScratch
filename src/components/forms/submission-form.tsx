@@ -9,6 +9,8 @@ import {
   type FormEvent,
 } from 'react';
 import { LoadingSpinner } from '@/components/shared/loading-states';
+import { ErrorMessage, SuccessMessage, FieldError, InlineLoading } from '@/components/ui/feedback';
+import { useFeedback } from '@/hooks/use-feedback';
 
 
 const WRITING_CATEGORIES = [
@@ -64,7 +66,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const { feedback, showSuccess, showError, clearFeedback } = useFeedback();
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -141,7 +143,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    setFeedback(null);
+    clearFeedback();
     const files = event.target.files;
 
     if (!files || files.length === 0) {
@@ -162,13 +164,9 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
     setErrors((prev) => ({ ...prev, file: undefined }));
   }
 
-  function resetFeedback() {
-    setFeedback(null);
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    resetFeedback();
+    clearFeedback();
 
     const validationErrors: FormErrors = {};
 
@@ -240,14 +238,23 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
         } catch {
           // ignore JSON parsing issues
         }
-        setFeedback({ type: 'error', message });
+        showError(message, 'Submission Failed');
         return;
       }
 
-      setFeedback({ type: 'success', message: 'Submission received! Redirecting…' });
-      window.location.href = '/mine';
-    } catch {
-      setFeedback({ type: 'error', message: 'Network error: unable to submit right now.' });
+      // Clear draft on successful submission
+      localStorage.removeItem('submission-draft');
+      showSuccess('Your submission has been received and will be reviewed by our editorial team.', 'Submission Successful', true);
+      
+      // Redirect after showing success message
+      setTimeout(() => {
+        window.location.href = '/mine';
+      }, 2000);
+    } catch (error) {
+      showError(
+        'Unable to connect to the server. Please check your internet connection and try again.',
+        'Network Error'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -288,7 +295,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
               );
             })}
           </div>
-          {errors.kind ? <p className="text-sm text-red-400">{errors.kind}</p> : null}
+          <FieldError error={errors.kind} />
         </fieldset>
 
         <div className="space-y-2">
@@ -312,7 +319,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
       ))}
     
 </select>
-          {errors.category ? <p className="text-sm text-red-400">{errors.category}</p> : null}
+          <FieldError error={errors.category} />
         </div>
 
         <div className="space-y-2">
@@ -329,10 +336,10 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             aria-required="true"
             value={preferredName}
             onChange={handlePreferredNameChange}
-            onFocus={resetFeedback}
+            onFocus={clearFeedback}
             className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
           />
-          {errors.preferredName ? <p className="text-sm text-red-400">{errors.preferredName}</p> : null}
+          <FieldError error={errors.preferredName} />
         </div>
 
         <div className="space-y-2">
@@ -346,7 +353,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             value={title}
             onChange={(event) => {
               setTitle(event.target.value);
-              resetFeedback();
+              clearFeedback();
             }}
             className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
           />
@@ -363,7 +370,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             value={summary}
             onChange={(event) => {
               setSummary(event.target.value);
-              resetFeedback();
+              clearFeedback();
             }}
             className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
             placeholder="Brief description of your work..."
@@ -384,7 +391,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             value={contentWarnings}
             onChange={(event) => {
               setContentWarnings(event.target.value);
-              resetFeedback();
+              clearFeedback();
             }}
             className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
             placeholder="Any content warnings for sensitive topics..."
@@ -407,7 +414,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
-                resetFeedback();
+                clearFeedback();
               }}
               className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
             />
@@ -415,7 +422,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
               <span>Characters: {text.length.toLocaleString()}</span>
               <span>Words: {text.trim().split(/\s+/).filter(Boolean).length.toLocaleString()}</span>
             </div>
-            {errors.text ? <p className="text-sm text-red-400">{errors.text}</p> : null}
+            <FieldError error={errors.text} />
           </div>
         ) : null}
 
@@ -464,11 +471,39 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
                 <p className="text-xs text-slate-500">Maximum file size: 10 MB</p>
               </div>
             )}
-            {errors.file ? <p className="text-sm text-red-400">{errors.file}</p> : null}
+            <FieldError error={errors.file} />
           </div>
         ) : null}
 
         <div className="space-y-3">
+          {/* Feedback Messages */}
+          {feedback.type === 'success' && (
+            <SuccessMessage
+              title={feedback.title}
+              message={feedback.message}
+              onDismiss={clearFeedback}
+            />
+          )}
+          
+          {feedback.type === 'error' && (
+            <ErrorMessage
+              title={feedback.title}
+              message={feedback.message}
+              actions={[
+                {
+                  label: 'Try Again',
+                  onClick: () => {
+                    clearFeedback();
+                    // Optionally scroll to top of form
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  },
+                  variant: 'primary'
+                }
+              ]}
+              onDismiss={clearFeedback}
+            />
+          )}
+          
           <div className="flex items-center justify-between">
             <button type="submit" className="btn btn-accent" disabled={isSubmitting}>
               {isSubmitting ? (
@@ -482,12 +517,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             </button>
             
             <div className="flex items-center gap-2 text-sm text-slate-400">
-              {isAutoSaving && (
-                <>
-                  <LoadingSpinner size="sm" />
-                  <span>Saving...</span>
-                </>
-              )}
+              {isAutoSaving && <InlineLoading message="Saving draft..." size="sm" />}
               {lastSaved && !isAutoSaving && (
                 <span>
                   Last saved: {lastSaved.toLocaleTimeString()}
@@ -495,12 +525,6 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
               )}
             </div>
           </div>
-          
-          {feedback ? (
-            <p className={`text-sm ${feedback.type === 'error' ? 'text-red-400' : 'text-emerald-300'}`}>
-              {feedback.message}
-            </p>
-          ) : null}
         </div>
       </div>
     </form>
