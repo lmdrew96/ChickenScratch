@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { Submission } from '@/types/database';
 import { StatusBadge } from '@/components/common/status-badge';
+import { LoadingSkeleton } from '@/components/shared/loading-states';
 
 interface SubmissionCardProps {
   submission: Submission & {
@@ -23,6 +24,7 @@ export function SubmissionCard({
   size = 'md'
 }: SubmissionCardProps) {
   const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
   
   const sizeClasses = {
     sm: 'h-48',
@@ -32,6 +34,11 @@ export function SubmissionCard({
 
   const handleImageError = () => {
     setImageError(true);
+    setImageLoading(false);
+  };
+
+  const handleImageLoad = () => {
+    setImageLoading(false);
   };
 
   const getPreviewImage = () => {
@@ -50,12 +57,20 @@ export function SubmissionCard({
     >
       <div className="submission-card-image">
         {previewImage && !imageError ? (
-          <img
-            src={previewImage}
-            alt={submission.title}
-            onError={handleImageError}
-            className="submission-image"
-          />
+          <>
+            {imageLoading && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <LoadingSkeleton className="w-full h-full" variant="rectangular" />
+              </div>
+            )}
+            <img
+              src={previewImage}
+              alt={submission.title}
+              onError={handleImageError}
+              onLoad={handleImageLoad}
+              className={`submission-image ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+            />
+          </>
         ) : (
           <div className="submission-placeholder">
             <div className="submission-placeholder-icon">

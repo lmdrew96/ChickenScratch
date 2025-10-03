@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { StatusBadge } from '@/components/common/status-badge';
@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import { LoadingSpinner } from '@/components/shared/loading-states';
 import { EDITABLE_STATUSES, SUBMISSION_STATUSES, formatStatus } from '@/lib/constants';
 import type { Submission } from '@/types/database';
 
@@ -30,6 +31,13 @@ type EditorDashboardProps = {
   rosterLoadIssue?: boolean;
 };
 
+type LoadingState = {
+  assignment: boolean;
+  notes: boolean;
+  status: boolean;
+  publish: boolean;
+};
+
 export function EditorDashboard({
   submissions,
   editors,
@@ -42,14 +50,31 @@ export function EditorDashboard({
   const supabase = useSupabase();
   const { notify } = useToast();
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  // Separate loading states for each action
+  const [loadingState, setLoadingState] = useState<LoadingState>({
+    assignment: false,
+    notes: false,
+    status: false,
+    publish: false,
+  });
+
+  // Optimistic state for UI updates
+  const [optimisticSubmissions, setOptimisticSubmissions] = useState<EditorSubmission[]>(submissions);
+
+  // Update optimistic state when props change
+  useEffect(() => {
+    setOptimisticSubmissions(submissions);
+  }, [submissions]);
 
   const filteredSubmissions = useMemo(() => {
-    return submissions.filter((submission) => statusFilter === 'all' || submission.status === statusFilter);
-  }, [submissions, statusFilter]);
+    return optimisticSubmissions.filter((submission) => statusFilter === 'all' || submission.status === statusFilter);
+  }, [optimisticSubmissions, statusFilter]);
 
   const selectedSubmission = useMemo(
-    () => submissions.find((submission) => submission.id === selectedId) ?? filteredSubmissions[0] ?? null,
-    [filteredSubmissions, selectedId, submissions]
+    () => optimisticSubmissions.find((submission) => submission.id === selectedId) ?? filteredSubmissions[0] ?? null,
+    [filteredSubmissions, selectedId, optimisticSubmissions]
   );
 
   useEffect(() => {
@@ -93,123 +118,257 @@ export function EditorDashboard({
     );
   }
 
-  async function mutate(endpoint: string, options: RequestInit, successMessage: string) {
-    const response = await fetch(endpoint, options);
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(result.error ?? 'Request failed.');
+  async function mutate(
+    endpoint: string,
+    options: RequestInit,
+    successMessage: string,
+    loadingKey: keyof LoadingState
+  ): Promise<boolean> {
+    setLoadingState((prev) => ({ ...prev, [loadingKey]: true }));
+    try {
+      const response = await fetch(endpoint, options);
+      const result = await response.json().catch(() => ({}));
+      
+      if (!response.ok) {
+        const errorMessage = result.error ?? `Request failed with status ${response.status}`;
+        throw new Error(errorMessage);
+      }
+      
+      notify({ title: 'Success', description: successMessage, variant: 'success' });
+      
+      // Use startTransition for router refresh to avoid blocking UI
+      startTransition(() => {
+        router.refresh();
+      });
+      
+      return true;
+    } catch (error) {
+      notify({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'error',
+      });
+      return false;
+    } finally {
+      setLoadingState((prev) => ({ ...prev, [loadingKey]: false }));
     }
-    notify({ title: 'Updated', description: successMessage, variant: 'success' });
-    router.refresh();
   }
 
   async function handleAssign(editorId: string | null) {
     if (!selectedSubmission || rosterLoadIssue) return;
-    try {
-      await mutate(
-        `/api/submissions/${selectedSubmission.id}/assign`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ editorId }),
-        },
-        editorId ? 'Editor assigned.' : 'Editor unassigned.'
-      );
-    } catch (error) {
+
+    // Validation
+    if (editorId && !editors.some((e) => e.id === editorId)) {
       notify({
-        title: 'Assignment failed',
-        description: error instanceof Error ? error.message : 'Unable to assign editor.',
+        title: 'Invalid editor',
+        description: 'Please select a valid editor from the list.',
         variant: 'error',
       });
+      return;
+    }
+
+    // Optimistic update
+    const assignedEditorProfile = editorId 
+      ? editors.find((e) => e.id === editorId) ?? null
+      : null;
+
+    setOptimisticSubmissions((prev) =>
+      prev.map((sub) =>
+        sub.id === selectedSubmission.id
+          ? { ...sub, assigned_editor_profile: assignedEditorProfile }
+          : sub
+      )
+    );
+
+    const success = await mutate(
+      `/api/submissions/${selectedSubmission.id}/assign`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ editorId }),
+      },
+      editorId ? 'Editor assigned successfully.' : 'Editor unassigned successfully.',
+      'assignment'
+    );
+
+    // Revert optimistic update on failure
+    if (!success) {
+      setOptimisticSubmissions(submissions);
     }
   }
 
   async function handleStatusChange(status: Submission['status'], notes?: string) {
     if (!selectedSubmission) return;
+
     const payloadNotes = notes ?? notesDraft;
+
+    // Validation
     if (status === 'needs_revision' && !payloadNotes.trim()) {
       notify({
         title: 'Notes required',
-        description: 'Add editor notes before requesting revisions.',
+        description: 'Please add editor notes before requesting revisions.',
         variant: 'error',
       });
       return;
     }
-    try {
-      await mutate(
-        `/api/submissions/${selectedSubmission.id}/status`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status, editorNotes: payloadNotes }),
-        },
-        `Status updated to ${formatStatus(status)}.`
-      );
-    } catch (error) {
-      notify({
-        title: 'Status update failed',
-        description: error instanceof Error ? error.message : 'Unable to update status.',
-        variant: 'error',
-      });
+
+    // Optimistic update
+    setOptimisticSubmissions((prev) =>
+      prev.map((sub) =>
+        sub.id === selectedSubmission.id
+          ? { 
+              ...sub, 
+              status, 
+              editor_notes: payloadNotes,
+              decision_date: ['accepted', 'declined', 'needs_revision'].includes(status)
+                ? new Date().toISOString()
+                : sub.decision_date
+            }
+          : sub
+      )
+    );
+
+    const success = await mutate(
+      `/api/submissions/${selectedSubmission.id}/status`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, editorNotes: payloadNotes }),
+      },
+      `Status updated to ${formatStatus(status)} successfully.`,
+      'status'
+    );
+
+    // Revert optimistic update on failure
+    if (!success) {
+      setOptimisticSubmissions(submissions);
     }
   }
 
   async function handleNotesSave() {
     if (!selectedSubmission) return;
-    try {
-      await mutate(
-        `/api/submissions/${selectedSubmission.id}/notes`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ editorNotes: notesDraft }),
-        },
-        'Notes updated.'
-      );
-    } catch (error) {
+
+    // Validation
+    if (notesDraft.length > 4000) {
       notify({
-        title: 'Note update failed',
-        description: error instanceof Error ? error.message : 'Unable to update notes.',
+        title: 'Notes too long',
+        description: 'Editor notes must be 4000 characters or less.',
         variant: 'error',
       });
+      return;
+    }
+
+    // Optimistic update
+    setOptimisticSubmissions((prev) =>
+      prev.map((sub) =>
+        sub.id === selectedSubmission.id
+          ? { ...sub, editor_notes: notesDraft }
+          : sub
+      )
+    );
+
+    const success = await mutate(
+      `/api/submissions/${selectedSubmission.id}/notes`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ editorNotes: notesDraft }),
+      },
+      'Notes updated successfully.',
+      'notes'
+    );
+
+    // Revert optimistic update on failure
+    if (!success) {
+      setOptimisticSubmissions(submissions);
     }
   }
 
   async function handlePublishToggle() {
     if (!selectedSubmission) return;
+
+    // Validation
+    if (published && publishUrl && !isValidUrl(publishUrl)) {
+      notify({
+        title: 'Invalid URL',
+        description: 'Please enter a valid URL for the published work.',
+        variant: 'error',
+      });
+      return;
+    }
+
+    if (publishIssue && publishIssue.length > 120) {
+      notify({
+        title: 'Issue name too long',
+        description: 'Issue name must be 120 characters or less.',
+        variant: 'error',
+      });
+      return;
+    }
+
+    // Optimistic update
+    setOptimisticSubmissions((prev) =>
+      prev.map((sub) =>
+        sub.id === selectedSubmission.id
+          ? {
+              ...sub,
+              published,
+              published_url: publishUrl || null,
+              issue: publishIssue || null,
+              status: published ? 'published' : sub.status,
+            }
+          : sub
+      )
+    );
+
+    const success = await mutate(
+      `/api/submissions/${selectedSubmission.id}/publish`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          published,
+          publishedUrl: publishUrl || null,
+          issue: publishIssue || null,
+        }),
+      },
+      published ? 'Marked as published successfully.' : 'Publication status removed successfully.',
+      'publish'
+    );
+
+    // Revert optimistic update on failure
+    if (!success) {
+      setOptimisticSubmissions(submissions);
+    }
+  }
+
+  async function downloadPath(path: string) {
     try {
-      await mutate(
-        `/api/submissions/${selectedSubmission.id}/publish`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            published,
-            publishedUrl: publishUrl || null,
-            issue: publishIssue || null,
-          }),
-        },
-        published ? 'Marked as published.' : 'Publication removed.'
-      );
+      const { data, error } = await supabase.storage.from(ART_BUCKET).createSignedUrl(path, 60 * 30);
+      if (error || !data?.signedUrl) {
+        throw new Error(error?.message ?? 'Unable to generate download link.');
+      }
+      window.open(data.signedUrl, '_blank');
     } catch (error) {
       notify({
-        title: 'Publish update failed',
-        description: error instanceof Error ? error.message : 'Unable to update publish state.',
+        title: 'Download failed',
+        description: error instanceof Error ? error.message : 'Unable to download file.',
         variant: 'error',
       });
     }
   }
 
-  async function downloadPath(path: string) {
-    const { data, error } = await supabase.storage.from(ART_BUCKET).createSignedUrl(path, 60 * 30);
-    if (error || !data?.signedUrl) {
-      notify({ title: 'Download failed', description: error?.message ?? 'Unable to generate link.', variant: 'error' });
-      return;
+  function isValidUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
     }
-    window.open(data.signedUrl, '_blank');
   }
 
   const assignmentsDisabled = rosterLoadIssue || editors.length === 0;
+  const isAnyLoading = Object.values(loadingState).some((loading) => loading) || isPending;
 
   return (
     <div className="space-y-6">
@@ -344,7 +503,7 @@ export function EditorDashboard({
               <Select
                 value={assignedEditor ?? ''}
                 onChange={(event) => setAssignedEditor(event.target.value)}
-                disabled={assignmentsDisabled}
+                disabled={assignmentsDisabled || isAnyLoading}
               >
                 <option value="">Unassigned</option>
                 {editors.map((editor) => (
@@ -357,9 +516,16 @@ export function EditorDashboard({
                 type="button"
                 variant="outline"
                 onClick={() => handleAssign(assignedEditor || null)}
-                disabled={assignmentsDisabled}
+                disabled={assignmentsDisabled || loadingState.assignment || isAnyLoading}
               >
-                Save assignment
+                {loadingState.assignment ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    <span className="ml-2">Saving...</span>
+                  </>
+                ) : (
+                  'Save assignment'
+                )}
               </Button>
               {assignmentsDisabled ? (
                 <p className="text-xs text-white/50">
@@ -369,10 +535,33 @@ export function EditorDashboard({
             </div>
 
             <div className="grid gap-2">
-              <Label>Editor notes</Label>
-              <Textarea value={notesDraft} onChange={(event) => setNotesDraft(event.target.value)} rows={6} />
-              <Button type="button" variant="outline" onClick={handleNotesSave}>
-                Save notes
+              <Label>
+                Editor notes
+                <span className="ml-2 text-xs text-white/50">
+                  ({notesDraft.length}/4000 characters)
+                </span>
+              </Label>
+              <Textarea 
+                value={notesDraft} 
+                onChange={(event) => setNotesDraft(event.target.value)} 
+                rows={6}
+                maxLength={4000}
+                disabled={isAnyLoading}
+              />
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleNotesSave} 
+                disabled={loadingState.notes || isAnyLoading}
+              >
+                {loadingState.notes ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    <span className="ml-2">Saving...</span>
+                  </>
+                ) : (
+                  'Save notes'
+                )}
               </Button>
             </div>
           </div>
@@ -386,6 +575,7 @@ export function EditorDashboard({
                   type="checkbox"
                   checked={published}
                   onChange={(event) => setPublished(event.target.checked)}
+                  disabled={isAnyLoading}
                 />
                 <Label htmlFor="published-toggle" className="text-sm text-white/80">
                   Published
@@ -395,10 +585,29 @@ export function EditorDashboard({
                 placeholder="Published URL"
                 value={publishUrl}
                 onChange={(event) => setPublishUrl(event.target.value)}
+                disabled={isAnyLoading}
               />
-              <Input placeholder="Issue (Spring 2025)" value={publishIssue} onChange={(event) => setPublishIssue(event.target.value)} />
-              <Button type="button" variant="outline" onClick={handlePublishToggle}>
-                Save publish settings
+              <Input 
+                placeholder="Issue (Spring 2025)" 
+                value={publishIssue} 
+                onChange={(event) => setPublishIssue(event.target.value)}
+                maxLength={120}
+                disabled={isAnyLoading}
+              />
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handlePublishToggle} 
+                disabled={loadingState.publish || isAnyLoading}
+              >
+                {loadingState.publish ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    <span className="ml-2">Saving...</span>
+                  </>
+                ) : (
+                  'Save publish settings'
+                )}
               </Button>
             </div>
 
@@ -411,6 +620,7 @@ export function EditorDashboard({
                     type="button"
                     variant="outline"
                     onClick={() => handleStatusChange(status as Submission['status'])}
+                    disabled={loadingState.status || isAnyLoading}
                   >
                     {formatStatus(status as Submission['status'])}
                   </Button>

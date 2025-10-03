@@ -61,64 +61,98 @@ a:hover{text-decoration:underline}
     grid-template-rows: auto 1fr;
   }
   
+  /* Hamburger Menu Sidebar */
   .sidebar {
     position: static;
     height: auto;
-    padding: 8px 12px;
+    padding: 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    overflow-x: auto;
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-wrap: nowrap;
+    gap: 12px;
   }
   
   .brand {
     margin-bottom: 0;
     flex-shrink: 0;
-    order: 1;
   }
   
+  /* Hide navigation by default on mobile, show via toggle */
   .nav {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    background: var(--brand);
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    z-index: 50;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+  
+  .nav.mobile-open {
     display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding: 0;
-    flex: 1;
-    min-width: 0;
-    order: 2;
   }
   
   .nav a {
     white-space: nowrap;
-    font-size: 13px;
-    padding: 4px 8px;
-    flex-shrink: 0;
+    font-size: 14px;
+    padding: 12px 16px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    border-radius: 8px;
   }
   
   .sidebar-auth {
     margin-top: 0;
     flex-shrink: 0;
-    order: 3;
   }
   
   .auth-form {
     margin-top: 0;
   }
   
+  /* Hamburger button */
+  .mobile-menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+  }
+  
+  .mobile-menu-toggle:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  .mobile-menu-toggle svg {
+    width: 24px;
+    height: 24px;
+    color: white;
+  }
+  
+  /* Touch target sizes */
   .btn {
-    font-size: 13px;
-    padding: 8px 12px;
-    min-height: 44px; /* Touch target minimum */
+    font-size: 14px;
+    padding: 12px 16px;
+    min-height: 44px;
+    min-width: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-  }
-  
-  .nav a {
-    min-height: 44px; /* Touch target minimum */
-    display: flex;
-    align-items: center;
   }
   
   .main {
@@ -127,6 +161,134 @@ a:hover{text-decoration:underline}
   
   .container {
     padding: 0 8px;
+  }
+  
+  /* Table horizontal scrolling */
+  .overflow-hidden {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  table {
+    min-width: 800px;
+  }
+  
+  /* Form adjustments for mobile */
+  .form-card {
+    padding: 20px !important;
+  }
+  
+  .space-y-6 > * + * {
+    margin-top: 20px;
+  }
+  
+  .space-y-4 > * + * {
+    margin-top: 16px;
+  }
+  
+  .space-y-3 > * + * {
+    margin-top: 12px;
+  }
+  
+  .space-y-2 > * + * {
+    margin-top: 8px;
+  }
+  
+  /* Form inputs touch targets */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="file"],
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 12px;
+  }
+  
+  /* File input button */
+  input[type="file"]::file-selector-button {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+  
+  /* Select dropdowns */
+  select {
+    padding: 12px;
+    background-position: right 12px center;
+  }
+  
+  /* Checkbox and radio touch targets */
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 24px;
+    min-height: 24px;
+    cursor: pointer;
+  }
+  
+  /* Button groups */
+  .flex.flex-wrap.gap-3 button,
+  .flex.flex-wrap.gap-2 button {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+  
+  /* Modal adjustments */
+  .modal-overlay {
+    padding: 12px;
+  }
+  
+  .modal-content {
+    max-height: 95vh;
+  }
+  
+  /* Editor dashboard specific */
+  .grid.gap-6.lg\\:grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Submission grid */
+  .submission-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .sidebar {
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .brand-badge {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .mobile-menu-toggle {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .btn {
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+  
+  .main {
+    padding: 12px;
+  }
+  
+  .form-card {
+    padding: 16px !important;
+  }
+  
+  h1, .page-title {
+    font-size: 1.5rem;
+  }
+  
+  h2 {
+    font-size: 1.25rem;
   }
 }
 .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.25);transition:all 0.2s ease;outline:none;text-decoration:none;cursor:pointer;background:none;font:inherit}
