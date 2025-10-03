@@ -1,28 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { logHandledIssue } from '@/lib/logging'
 
 export async function POST(req: NextRequest) {
-  const form = await req.formData()
-  const email = String(form.get('email') || '')
-  const password = String(form.get('password') || '')
-  const next = String(form.get('next') || '/mine')
+  try {
+    const form = await req.formData()
+    const email = String(form.get('email') || '')
+    const password = String(form.get('password') || '')
+    const next = String(form.get('next') || '/mine')
 
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) { return cookieStore.get(name)?.value },
-        set(name: string, value: string, options: any) { cookieStore.set({ name, value, ...options }) },
-        remove(name: string, options: any) { cookieStore.set({ name, value: '', ...options, expires: new Date(0) }) },
-      },
+    // Validate required fields
+    if (!email || !password) {
+      const dest = new URL('/login', req.url)
+      dest.searchParams.set('error', 'Email and password are required.')
+      return NextResponse.redirect(dest, { status: 303 })
     }
-  )
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
-  const dest = new URL(error ? '/login' : next, req.url)
-  if (error) dest.searchParams.set('error', error.message)
-  return NextResponse.redirect(dest, { status: 303 })
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) { return cookieStore.get(name)?.value },
+          set(name: string, value: string, options: any) { cookieStore.set({ name, value, ...options }) },
+          remove(name: string, options: any) { cookieStore.set({ name, value: '', ...options, expires: new Date(0) }) },
+        },
+      }
+    )
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    
+    if (error) {
+      logHandledIssue('auth:signin:failed', {
+        reason: 'Failed to sign in with password',
+        cause: error,
+        context: { email },
+      })
+      
+      const dest = new URL('/login', req.url)
+      dest.searchParams.set('error', error.message || 'Invalid email or password.')
+      return NextResponse.redirect(dest, { status: 303 })
+    }
+
+    // Success - redirect to intended destination
+    const dest = new URL(next, req.url)
+    return NextResponse.redirect(dest, { status: 303 })
+  } catch (err) {
+    logHandledIssue('auth:signin:unexpected-error', {
+      reason: 'Unexpected error during sign in',
+      cause: err,
+    })
+    
+    const dest = new URL('/login', req.url)
+    dest.searchParams.set('error', 'An unexpected error occurred. Please try again.')
+    return NextResponse.redirect(dest, { status: 303 })
+  }
 }

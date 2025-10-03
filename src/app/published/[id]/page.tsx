@@ -5,7 +5,7 @@ import { StatusBadge } from '@/components/common/status-badge';
 import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl, createSignedUrls } from '@/lib/storage';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
-import type { Submission } from '@/types/database';
+import type { PublishedDetailRow } from '@/types/database';
 
 export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -150,18 +150,3 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
     </div>
   );
 }
-
-type PublishedDetailRow = Pick<
-  Submission,
-  | 'id'
-  | 'title'
-  | 'summary'
-  | 'type'
-  | 'cover_image'
-  | 'content_warnings'
-  | 'art_files'
-  | 'text_body'
-  | 'published_url'
-  | 'issue'
-  | 'updated_at'
->;

@@ -201,3 +201,38 @@ export interface Database {
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Submission = Database['public']['Tables']['submissions']['Row'];
 export type AuditLog = Database['public']['Tables']['audit_log']['Row'];
+
+// Published submission types for the public gallery
+export type PublishedSubmissionRow = Pick<
+  Submission,
+  | 'id'
+  | 'title'
+  | 'summary'
+  | 'type'
+  | 'cover_image'
+  | 'published_url'
+  | 'issue'
+  | 'art_files'
+  | 'updated_at'
+  | 'created_at'
+>;
+
+export type PublishedSubmission = Omit<PublishedSubmissionRow, 'art_files'> & {
+  art_files: string[];
+  coverSignedUrl: string | null;
+};
+
+export type PublishedDetailRow = Pick<
+  Submission,
+  | 'id'
+  | 'title'
+  | 'summary'
+  | 'type'
+  | 'cover_image'
+  | 'content_warnings'
+  | 'art_files'
+  | 'text_body'
+  | 'published_url'
+  | 'issue'
+  | 'updated_at'
+>;

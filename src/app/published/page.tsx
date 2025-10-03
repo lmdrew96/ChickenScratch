@@ -4,7 +4,7 @@ import { StatusBadge } from '@/components/common/status-badge';
 import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl } from '@/lib/storage';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
-import type { Submission } from '@/types/database';
+import type { PublishedSubmissionRow, PublishedSubmission } from '@/types/database';
 
 export default async function PublishedPage() {
   const supabase = await createSupabaseServerReadOnlyClient();
@@ -118,22 +118,3 @@ export default async function PublishedPage() {
     </div>
   );
 }
-
-type PublishedSubmissionRow = Pick<
-  Submission,
-  | 'id'
-  | 'title'
-  | 'summary'
-  | 'type'
-  | 'cover_image'
-  | 'published_url'
-  | 'issue'
-  | 'art_files'
-  | 'updated_at'
-  | 'created_at'
->;
-
-type PublishedSubmission = Omit<PublishedSubmissionRow, 'art_files'> & {
-  art_files: string[];
-  coverSignedUrl: string | null;
-};
