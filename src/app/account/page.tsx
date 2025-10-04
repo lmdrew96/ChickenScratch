@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
-import PageHeader from '@/components/shell/page-header';
+import { PageHeader } from '@/components/navigation';
 import AccountEditor from '@/components/account/account-editor';
 
 export const metadata = { title: 'Your account' };
@@ -25,7 +25,11 @@ export default async function AccountPage() {
 
   return (
     <>
-      <PageHeader title="Your account" />
+      <PageHeader 
+        title="Your account" 
+        description="Manage your profile and account settings"
+        showBackButton={true}
+      />
       <div className="container">
         <AccountEditor
           userId={user.id}

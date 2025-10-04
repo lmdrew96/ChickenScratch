@@ -11,6 +11,16 @@ import {
 import { LoadingSpinner } from '@/components/shared/loading-states';
 import { ErrorMessage, SuccessMessage, FieldError, InlineLoading } from '@/components/ui/feedback';
 import { useFeedback } from '@/hooks/use-feedback';
+import {
+  CharacterCount,
+  WordCount,
+  HelperText,
+  AutoSaveIndicator,
+  RequiredIndicator,
+  OptionalIndicator,
+  ProgressSteps,
+} from '@/components/ui/form-helpers';
+import { validateField, commonValidations } from '@/lib/form-validation';
 
 
 const WRITING_CATEGORIES = [
@@ -72,6 +82,22 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
+
+  const formSteps = ['Basic Info', 'Content', 'Review'];
+
+  // Update step based on form completion
+  useEffect(() => {
+    if (!kind || !category || !preferredName.trim()) {
+      setCurrentStep(0);
+    } else if (kind === 'visual' && !file) {
+      setCurrentStep(1);
+    } else if (kind === 'writing' && !text.trim()) {
+      setCurrentStep(1);
+    } else {
+      setCurrentStep(2);
+    }
+  }, [kind, category, preferredName, file, text]);
 
   // Auto-save functionality
   const autoSave = useCallback(async () => {
@@ -267,13 +293,14 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
       className="form-card mx-auto w-full max-w-2xl rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg md:max-w-3xl md:p-8"
     >
       <div className="space-y-6">
+        {/* Progress Indicator */}
+        <ProgressSteps steps={formSteps} currentStep={currentStep} />
         <fieldset className="space-y-2">
           <legend className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
             Type
-            <span className="ml-1 text-red-500" aria-hidden="true">
-              *
-            </span>
+            <RequiredIndicator />
           </legend>
+          <HelperText>Choose the type of work you're submitting</HelperText>
           <div className="flex flex-wrap gap-3">
             {(['visual', 'writing'] as SubmissionKind[]).map((option) => {
               const label = option === 'visual' ? 'Visual Art' : 'Writing';
@@ -301,9 +328,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
         <div className="space-y-2">
           <label htmlFor="category" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
             Category
-            <span className="ml-1 text-red-500" aria-hidden="true">
-              *
-            </span>
+            <RequiredIndicator />
           </label>
           <select
             id="category"
@@ -319,15 +344,14 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
       ))}
     
 </select>
+          <HelperText>Select the category that best describes your work</HelperText>
           <FieldError error={errors.category} />
         </div>
 
         <div className="space-y-2">
           <label htmlFor="preferred_name" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
             Preferred Name for Publishing
-            <span className="ml-1 text-red-500" aria-hidden="true">
-              *
-            </span>
+            <RequiredIndicator />
           </label>
           <input
             id="preferred_name"
@@ -339,12 +363,14 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             onFocus={clearFeedback}
             className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
           />
+          <HelperText>This is how your name will appear in the publication</HelperText>
           <FieldError error={errors.preferredName} />
         </div>
 
         <div className="space-y-2">
           <label htmlFor="title" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
             Work Title
+            <OptionalIndicator />
           </label>
           <input
             id="title"
@@ -357,11 +383,13 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             }}
             className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
           />
+          <CharacterCount current={title.length} max={200} />
         </div>
 
         <div className="space-y-2">
           <label htmlFor="summary" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
             Summary / Blurb
+            <OptionalIndicator />
           </label>
           <textarea
             id="summary"
@@ -375,14 +403,14 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
             placeholder="Brief description of your work..."
           />
-          <div className="text-xs text-slate-400 text-right">
-            {summary.length}/500 characters
-          </div>
+          <CharacterCount current={summary.length} max={500} />
+          <HelperText>A short description to accompany your work in the publication</HelperText>
         </div>
 
         <div className="space-y-2">
           <label htmlFor="contentWarnings" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
             Content Warnings
+            <OptionalIndicator />
           </label>
           <textarea
             id="contentWarnings"
@@ -396,16 +424,17 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
             placeholder="Any content warnings for sensitive topics..."
           />
-          <div className="text-xs text-slate-400 text-right">
-            {contentWarnings.length}/300 characters
-          </div>
+          <CharacterCount current={contentWarnings.length} max={300} />
+          <HelperText>
+            List any sensitive content (e.g., violence, explicit language, mature themes)
+          </HelperText>
         </div>
 
         {kind === 'writing' ? (
           <div className="space-y-2">
             <label htmlFor="text" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
               Your Writing
-              <span className="ml-1 text-red-500" aria-hidden="true">*</span>
+              <RequiredIndicator />
             </label>
             <textarea
               id="text"
@@ -418,10 +447,11 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
               }}
               className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
             />
-            <div className="flex justify-between text-xs text-slate-400">
-              <span>Characters: {text.length.toLocaleString()}</span>
-              <span>Words: {text.trim().split(/\s+/).filter(Boolean).length.toLocaleString()}</span>
+            <div className="flex justify-between items-center">
+              <WordCount text={text} />
+              <CharacterCount current={text.length} />
             </div>
+            <HelperText>Paste your complete work here</HelperText>
             <FieldError error={errors.text} />
           </div>
         ) : null}
@@ -430,9 +460,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
           <div className="space-y-2">
             <label htmlFor="file" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
               File Upload
-              <span className="ml-1 text-red-500" aria-hidden="true">
-                *
-              </span>
+              <RequiredIndicator />
             </label>
             <input
               id="file"
@@ -503,8 +531,8 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
               onDismiss={clearFeedback}
             />
           )}
-          
-          <div className="flex items-center justify-between">
+            
+            <div className="flex items-center justify-between flex-wrap gap-4">
             <button type="submit" className="btn btn-accent" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
@@ -512,19 +540,15 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
                   Submitting…
                 </>
               ) : (
-                'Submit'
+                'Submit for Review'
               )}
             </button>
             
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              {isAutoSaving && <InlineLoading message="Saving draft..." size="sm" />}
-              {lastSaved && !isAutoSaving && (
-                <span>
-                  Last saved: {lastSaved.toLocaleTimeString()}
-                </span>
-              )}
-            </div>
+            <AutoSaveIndicator isSaving={isAutoSaving} lastSaved={lastSaved} />
           </div>
+          <HelperText>
+            Your work will be reviewed by our editorial team. You'll receive an email notification about the status.
+          </HelperText>
         </div>
       </div>
     </form>

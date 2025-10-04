@@ -1,6 +1,8 @@
 import { cookies, headers } from 'next/headers';
+import Link from 'next/link';
 
-import PageHeader from '@/components/shell/page-header';
+import { PageHeader } from '@/components/navigation';
+import { EmptyState } from '@/components/ui/empty-state';
 import { requireUser } from '@/lib/auth/guards';
 
 type SubmissionListItem = {
@@ -20,9 +22,29 @@ export default async function MinePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="My Submissions" ctaHref="/submit" ctaLabel="Submit new" />
+      <PageHeader 
+        title="My Submissions" 
+        description="View and manage your submitted works"
+        action={
+          <Link href="/submit" className="btn btn-accent">
+            Submit new
+          </Link>
+        }
+      />
       {submissions.length === 0 ? (
-        <div className="rounded-xl border border-white/15 bg-white/5 p-6 text-slate-300">No submissions yet.</div>
+        <EmptyState
+          variant="submissions"
+          title="No submissions yet"
+          description="You haven't submitted any work yet. Start by creating your first submission to share your writing or visual art with the Chicken Scratch community."
+          action={{
+            label: "Create your first submission",
+            href: "/submit"
+          }}
+          secondaryAction={{
+            label: "View published works",
+            href: "/published"
+          }}
+        />
       ) : (
         <ul className="space-y-4">
           {submissions.map((submission, index) => {

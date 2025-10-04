@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSpinner, LoadingState } from '@/components/shared/loading-states';
 import type { Submission } from '@/types/database';
 
@@ -284,7 +285,12 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
 
             <div className="space-y-3">
               {column.submissions.length === 0 ? (
-                <p className="text-sm text-slate-400 italic">No submissions</p>
+                <div className="rounded-lg border border-dashed border-white/10 bg-white/5 p-6 text-center">
+                  <svg className="mx-auto mb-2 h-8 w-8 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <p className="text-xs text-white/50">No submissions in this column</p>
+                </div>
               ) : (
                 column.submissions.map((submission) => (
                   <div

@@ -3,6 +3,7 @@ import AccountBadge from '@/components/account-badge';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly'
 import Sidebar from '@/components/shell/sidebar'
 import { ErrorBoundary } from '@/components/shared/error-boundary'
+import { SkipLinks } from '@/components/accessibility'
 
 export const metadata = { 
   title: 'Hen & Ink Portal', 
@@ -19,10 +20,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body>
         <ErrorBoundary>
+          <SkipLinks />
           <AccountBadge />
           <div className="app-shell">
             <Sidebar signedIn={signedIn} />
-            <main className="main">
+            <main id="main-content" className="main" role="main" aria-label="Main content">
               <div className="container">{children}</div>
             </main>
           </div>

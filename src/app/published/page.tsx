@@ -1,6 +1,5 @@
-import Link from 'next/link';
-
-import { StatusBadge } from '@/components/common/status-badge';
+import { PublishedGalleryClient } from '@/components/gallery/published-gallery-client';
+import { EmptyState } from '@/components/ui/empty-state';
 import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl } from '@/lib/storage';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
@@ -39,6 +38,7 @@ export default async function PublishedPage() {
       cause: error,
     });
   }
+
   const submissions: PublishedSubmission[] = await Promise.all(
     rawSubmissions.map(async (submission) => ({
       ...submission,
@@ -47,74 +47,59 @@ export default async function PublishedPage() {
     }))
   );
 
-  return (
-    <div className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold text-white">Published pieces</h1>
-        <p className="text-sm text-white/70">
-          Explore the latest stories and artwork from the Chicken Scratch community. Visual work includes signed download
-          links valid for seven days.
-        </p>
-      </header>
+  // Show error state if there was a loading issue
+  if (encounteredLoadIssue && submissions.length === 0) {
+    return (
+      <div className="space-y-6">
+        <header className="space-y-2">
+          <h1 className="text-3xl font-semibold text-white">Published pieces</h1>
+          <p className="text-sm text-white/70">
+            Explore the latest stories and artwork from the Chicken Scratch community.
+          </p>
+        </header>
+        <EmptyState
+          variant="error"
+          title="Unable to load gallery"
+          description="We couldn't reach the published gallery right now. This might be a temporary issue. Please try refreshing the page or check back in a few moments."
+          action={{
+            label: "Refresh page",
+            onClick: () => window.location.reload()
+          }}
+          secondaryAction={{
+            label: "Go to home",
+            href: "/"
+          }}
+        />
+      </div>
+    );
+  }
 
-      <section className="grid gap-6 md:grid-cols-2">
-        {submissions.map((submission) => (
-          <article
-            key={submission.id}
-            className="group flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-lg shadow-black/30"
-          >
-            {submission.coverSignedUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={submission.coverSignedUrl}
-                alt={submission.title}
-                className="h-48 w-full object-cover transition group-hover:opacity-90"
-              />
-            ) : (
-              <div className="flex h-48 items-center justify-center bg-gradient-to-br from-amber-500/40 to-purple-500/30">
-                <span className="text-sm font-semibold uppercase tracking-wide text-white/70">Chicken Scratch</span>
-              </div>
-            )}
-            <div className="flex flex-1 flex-col gap-3 p-5">
-              <div className="flex items-center gap-2 text-xs text-white/60">
-                <StatusBadge status="published" />
-                {submission.issue ? <span className="rounded-full bg-white/10 px-2 py-1">{submission.issue}</span> : null}
-                <span>{submission.type === 'writing' ? 'Writing' : 'Visual art'}</span>
-              </div>
-              <h2 className="text-xl font-semibold text-white">{submission.title}</h2>
-              <p className="text-sm text-white/70">{submission.summary ?? 'No summary provided.'}</p>
-              <div className="mt-auto flex items-center justify-between text-sm text-white/60">
-                <Link
-                  href={`/published/${submission.id}`}
-                  className="text-amber-200 transition hover:text-amber-100"
-                >
-                  View details
-                </Link>
-                {submission.published_url ? (
-                  <a
-                    href={submission.published_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-amber-200 transition hover:text-amber-100"
-                  >
-                    External link
-                  </a>
-                ) : null}
-              </div>
-            </div>
-          </article>
-        ))}
-        {submissions.length === 0 && encounteredLoadIssue ? (
-          <p className="col-span-full rounded-xl border border-amber-500/40 bg-amber-500/10 p-6 text-center text-sm text-amber-100">
-            We couldn&apos;t reach the published gallery right now. Please try again in a few moments.
+  // Show empty state if no published works exist
+  if (submissions.length === 0) {
+    return (
+      <div className="space-y-6">
+        <header className="space-y-2">
+          <h1 className="text-3xl font-semibold text-white">Published pieces</h1>
+          <p className="text-sm text-white/70">
+            Explore the latest stories and artwork from the Chicken Scratch community.
           </p>
-        ) : null}
-        {submissions.length === 0 && !encounteredLoadIssue ? (
-          <p className="col-span-full rounded-xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-sm text-white/60">
-            No published work yet. Check back soon!
-          </p>
-        ) : null}
-      </section>
-    </div>
-  );
+        </header>
+        <EmptyState
+          variant="published"
+          title="No published works yet"
+          description="The Chicken Scratch community hasn't published any works yet. Check back soon to discover amazing stories and artwork, or be the first to submit your own work!"
+          action={{
+            label: "Submit your work",
+            href: "/submit"
+          }}
+          secondaryAction={{
+            label: "Learn more about us",
+            href: "/"
+          }}
+        />
+      </div>
+    );
+  }
+
+  return <PublishedGalleryClient submissions={submissions} />;
 }

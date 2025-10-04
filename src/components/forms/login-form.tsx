@@ -4,6 +4,8 @@ import * as React from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ErrorMessage, SuccessMessage, FieldError } from '@/components/ui/feedback'
 import { LoadingSpinner } from '@/components/shared/loading-states'
+import { HelperText, RequiredIndicator, ValidationFeedback } from '@/components/ui/form-helpers'
+import { validateField, commonValidations, debounce } from '@/lib/form-validation'
 
 export default function LoginForm() {
   const params = useSearchParams()
@@ -16,6 +18,19 @@ export default function LoginForm() {
   const [password, setPassword] = React.useState('')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isMagicLink, setIsMagicLink] = React.useState(false)
+  const [emailError, setEmailError] = React.useState<string | undefined>()
+  const [touched, setTouched] = React.useState(false)
+
+  // Real-time email validation
+  const validateEmailDebounced = React.useMemo(
+    () =>
+      debounce((value: string) => {
+        if (!touched) return
+        const result = validateField(value, commonValidations.email)
+        setEmailError(result.error)
+      }, 500),
+    [touched]
+  )
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement
@@ -59,7 +74,8 @@ export default function LoginForm() {
 
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
-          Email <span className="ml-1 text-red-500" aria-hidden="true">*</span>
+          Email
+          <RequiredIndicator />
         </label>
         <input
           id="email"
@@ -69,8 +85,22 @@ export default function LoginForm() {
           className="w-full rounded-xl border bg-transparent px-3 py-2 outline-none border-slate-500/40 focus:border-[var(--accent)]"
           placeholder="you@udel.edu"
           value={email}
-          onChange={(e)=>setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value)
+            validateEmailDebounced(e.target.value)
+          }}
+          onBlur={() => {
+            setTouched(true)
+            const result = validateField(email, commonValidations.email)
+            setEmailError(result.error)
+          }}
           autoComplete="email"
+        />
+        <ValidationFeedback
+          isValid={!emailError && touched && email.length > 0}
+          error={emailError}
+          successMessage="Valid email"
+          showSuccess={touched}
         />
       </div>
 
@@ -85,9 +115,12 @@ export default function LoginForm() {
           className="w-full rounded-xl border bg-transparent px-3 py-2 outline-none border-slate-500/40 focus:border-[var(--accent)]"
           placeholder="••••••••"
           value={password}
-          onChange={(e)=>setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
         />
+        <HelperText>
+          Leave blank to receive a magic link via email
+        </HelperText>
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -123,9 +156,14 @@ export default function LoginForm() {
         <a href="/signup" className="btn">Sign up</a>
       </div>
 
-      <p className="mt-4 text-xs text-slate-400">
-        After sign-in you’ll go to <span className="text-slate-300">{next}</span>.
-      </p>
+      <div className="mt-4 space-y-2">
+        <HelperText>
+          After sign-in you'll be redirected to <span className="text-slate-300">{next}</span>
+        </HelperText>
+        <HelperText>
+          Don't have an account? <a href="/signup" className="text-[var(--accent)] hover:underline">Sign up here</a>
+        </HelperText>
+      </div>
     </form>
   )
 }

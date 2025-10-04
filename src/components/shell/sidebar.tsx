@@ -1,12 +1,13 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export default function Sidebar({ signedIn = false }: { signedIn?: boolean }) {
   const pathname = usePathname()
-  const is = (href: string) => pathname === href
+  const is = (href: string) => pathname === href || pathname.startsWith(href + '/')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const navRef = useRef<HTMLElement>(null)
   
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen)
@@ -15,6 +16,48 @@ export default function Sidebar({ signedIn = false }: { signedIn?: boolean }) {
   const closeMobileMenu = () => {
     setMobileMenuOpen(false)
   }
+  
+  // Close mobile menu on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        setMobileMenuOpen(false)
+      }
+    }
+    
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [mobileMenuOpen])
+  
+  // Keyboard navigation for nav items
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const links = Array.from(nav.querySelectorAll('a')) as HTMLAnchorElement[]
+      const currentIndex = links.findIndex(link => link === document.activeElement)
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        const nextIndex = (currentIndex + 1) % links.length
+        links[nextIndex]?.focus()
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        const prevIndex = currentIndex <= 0 ? links.length - 1 : currentIndex - 1
+        links[prevIndex]?.focus()
+      } else if (e.key === 'Home') {
+        e.preventDefault()
+        links[0]?.focus()
+      } else if (e.key === 'End') {
+        e.preventDefault()
+        links[links.length - 1]?.focus()
+      }
+    }
+    
+    nav.addEventListener('keydown', handleKeyDown)
+    return () => nav.removeEventListener('keydown', handleKeyDown)
+  }, [])
   
   return (
     <aside className="sidebar">
@@ -43,14 +86,69 @@ export default function Sidebar({ signedIn = false }: { signedIn?: boolean }) {
         )}
       </button>
       
-      <nav className={`nav ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-        <Link href="/" className={is('/') ? 'active' : ''} onClick={closeMobileMenu}>Home</Link>
-        <Link href="/submit" className={is('/submit') ? 'active' : ''} onClick={closeMobileMenu}>Submit</Link>
-        <Link href="/mine" className={is('/mine') ? 'active' : ''} onClick={closeMobileMenu}>My Submissions</Link>
-        <Link href="/published" className={is('/published') ? 'active' : ''} onClick={closeMobileMenu}>Published</Link>
-        <Link href="/officers" className={is('/officers') ? 'active' : ''} onClick={closeMobileMenu}>Officers</Link>
-        <Link href="/committee" className={is('/committee') ? 'active' : ''} onClick={closeMobileMenu}>Committee</Link>
-        <Link href="/editor" className={is('/editor') ? 'active' : ''} onClick={closeMobileMenu}>Editor</Link>
+      <nav 
+        id="navigation"
+        ref={navRef}
+        className={`nav ${mobileMenuOpen ? 'mobile-open' : ''}`}
+        role="navigation"
+        aria-label="Main navigation"
+      >
+        <Link 
+          href="/" 
+          className={is('/') ? 'active' : ''} 
+          onClick={closeMobileMenu}
+          aria-current={is('/') ? 'page' : undefined}
+        >
+          Home
+        </Link>
+        <Link 
+          href="/submit" 
+          className={is('/submit') ? 'active' : ''} 
+          onClick={closeMobileMenu}
+          aria-current={is('/submit') ? 'page' : undefined}
+        >
+          Submit
+        </Link>
+        <Link 
+          href="/mine" 
+          className={is('/mine') ? 'active' : ''} 
+          onClick={closeMobileMenu}
+          aria-current={is('/mine') ? 'page' : undefined}
+        >
+          My Submissions
+        </Link>
+        <Link 
+          href="/published" 
+          className={is('/published') ? 'active' : ''} 
+          onClick={closeMobileMenu}
+          aria-current={is('/published') ? 'page' : undefined}
+        >
+          Published
+        </Link>
+        <Link 
+          href="/officers" 
+          className={is('/officers') ? 'active' : ''} 
+          onClick={closeMobileMenu}
+          aria-current={is('/officers') ? 'page' : undefined}
+        >
+          Officers
+        </Link>
+        <Link 
+          href="/committee" 
+          className={is('/committee') ? 'active' : ''} 
+          onClick={closeMobileMenu}
+          aria-current={is('/committee') ? 'page' : undefined}
+        >
+          Committee
+        </Link>
+        <Link 
+          href="/editor" 
+          className={is('/editor') ? 'active' : ''} 
+          onClick={closeMobileMenu}
+          aria-current={is('/editor') ? 'page' : undefined}
+        >
+          Editor
+        </Link>
       </nav>
       
       <div className="sidebar-auth">

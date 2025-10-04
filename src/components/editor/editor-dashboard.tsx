@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { StatusBadge } from '@/components/common/status-badge';
 import { useSupabase } from '@/components/providers/supabase-provider';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -108,16 +109,30 @@ export function EditorDashboard({
   }, [selectedSubmission]);
 
   if (!selectedSubmission) {
+    if (loadIssue) {
+      return (
+        <EmptyState
+          variant="error"
+          title="Unable to load submissions"
+          description="We couldn't load the submission list. This might be a temporary issue. Please try refreshing the page or check back later for updates."
+          action={{
+            label: "Refresh page",
+            onClick: () => window.location.reload()
+          }}
+        />
+      );
+    }
+
     return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-sm text-white/70">
-        {loadIssue ? (
-          <p>
-            We couldn&apos;t load the submission list. Refresh the page to try again or check back later for updates.
-          </p>
-        ) : (
-          <p>No submissions yet. Once students begin submitting, items will appear here for review.</p>
-        )}
-      </div>
+      <EmptyState
+        variant="editor"
+        title="No submissions to review"
+        description="There are no submissions available for review at this time. Once students begin submitting their work, items will appear here for you to review and manage."
+        secondaryAction={{
+          label: "View published works",
+          href: "/published"
+        }}
+      />
     );
   }
 
