@@ -35,7 +35,16 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar }: Pr
 
       if (file && supabase) {
         const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-        const path = `${userId}/avatar.${ext}`;
+        // Debug logging
+        console.log('Attempting upload to path:', `${userId}/avatar.${ext}`);
+        console.log('User ID:', userId);
+        console.log('User ID type:', typeof userId);
+        console.log('User ID length:', userId?.length);
+        
+        // Temporarily using simpler path for testing
+        const path = `avatar.${ext}`;
+        console.log('Using simplified path for testing:', path);
+        
         const up = await supabase.storage.from('avatars').upload(path, file, {
           cacheControl: '3600',
           upsert: true,
@@ -56,8 +65,25 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar }: Pr
 
       setMsg('Saved ✔︎');
     } catch (err: any) {
-      console.error(err);
-      setMsg(err?.message || 'Save failed');
+      console.error('Full error object:', err);
+      console.error('Error message:', err?.message);
+      console.error('Error details:', err?.details);
+      console.error('Error hint:', err?.hint);
+      console.error('Error code:', err?.code);
+      console.error('Error status:', err?.status);
+      console.error('Error statusText:', err?.statusText);
+
+      // Also log the stringified version
+      console.error('Stringified error:', JSON.stringify(err, null, 2));
+
+      // Check if it's a Supabase storage error
+      if (err?.message?.includes('storage') || err?.message?.includes('policy')) {
+        setMsg(`Storage error: ${err.message}`);
+      } else if (err?.message) {
+        setMsg(err.message);
+      } else {
+        setMsg('Save failed - check console for details');
+      }
     } finally {
       setSaving(false);
     }
