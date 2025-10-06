@@ -1,8 +1,6 @@
 import Link from 'next/link'
 import PageHeader from '@/components/shell/page-header'
 
-export const metadata = { title: 'Home' }
-
 export default function HomePage() {
   return (
     <div className="space-y-6">

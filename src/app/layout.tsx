@@ -1,5 +1,4 @@
 import './globals.css'
-import { ClerkProvider } from '@clerk/nextjs'
 import AccountBadge from '@/components/account-badge';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly'
 import Sidebar from '@/components/shell/sidebar'
@@ -18,21 +17,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const signedIn = !!user
 
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body>
-          <ErrorBoundary>
-            <SkipLinks />
-            <AccountBadge />
-            <div className="app-shell">
-              <Sidebar signedIn={signedIn} />
-              <main id="main-content" className="main" role="main" aria-label="Main content">
-                <div className="container">{children}</div>
-              </main>
-            </div>
-          </ErrorBoundary>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en">
+      <body>
+        <ErrorBoundary>
+          <SkipLinks />
+          <AccountBadge />
+          <div className="app-shell">
+            <Sidebar signedIn={signedIn} />
+            <main id="main-content" className="main" role="main" aria-label="Main content">
+              <div className="container">{children}</div>
+            </main>
+          </div>
+        </ErrorBoundary>
+      </body>
+    </html>
   )
 }

@@ -185,6 +185,32 @@ export interface Database {
         };
         Relationships: [];
       };
+      user_roles: {
+        Row: {
+          id: string;
+          user_id: string;
+          is_member: boolean;
+          role: 'officer' | 'committee' | null;
+          position: 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief' | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          is_member?: boolean;
+          role?: 'officer' | 'committee' | null;
+          position?: 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief' | null;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          is_member?: boolean;
+          role?: 'officer' | 'committee' | null;
+          position?: 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief' | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

@@ -35,7 +35,7 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar }: Pr
 
       if (file && supabase) {
         const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-        const path = `public/${userId}-${Date.now()}.${ext}`;
+        const path = `${userId}/avatar.${ext}`;
         const up = await supabase.storage.from('avatars').upload(path, file, {
           cacheControl: '3600',
           upsert: true,

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { logHandledIssue } from '@/lib/logging'
+import { roleLandingPath } from '@/lib/auth'
+import type { Profile } from '@/types/database'
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,9 +32,9 @@ export async function POST(req: NextRequest) {
       }
     )
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     
-    if (error) {
+    if (error || !data.user) {
       logHandledIssue('auth:signin:failed', {
         reason: 'Failed to sign in with password',
         cause: error,
@@ -40,12 +42,22 @@ export async function POST(req: NextRequest) {
       })
       
       const dest = new URL('/login', req.url)
-      dest.searchParams.set('error', error.message || 'Invalid email or password.')
+      dest.searchParams.set('error', error?.message || 'Invalid email or password.')
       return NextResponse.redirect(dest, { status: 303 })
     }
 
-    // Success - redirect to intended destination
-    const dest = new URL(next, req.url)
+    // Get user's profile to determine role-based redirect
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .maybeSingle()
+    
+    const profile = profileData as Pick<Profile, 'role'> | null
+    
+    // Success - redirect based on user role
+    const redirectPath = roleLandingPath(profile?.role ?? 'student')
+    const dest = new URL(redirectPath, req.url)
     return NextResponse.redirect(dest, { status: 303 })
   } catch (err) {
     logHandledIssue('auth:signin:unexpected-error', {
