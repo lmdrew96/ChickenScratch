@@ -41,9 +41,7 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar }: Pr
         console.log('User ID type:', typeof userId);
         console.log('User ID length:', userId?.length);
         
-        // Temporarily using simpler path for testing
-        const path = `avatar.${ext}`;
-        console.log('Using simplified path for testing:', path);
+        const path = `${userId}/avatar.${ext}`;
         
         const up = await supabase.storage.from('avatars').upload(path, file, {
           cacheControl: '3600',
