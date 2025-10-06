@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { SignInButton, UserButton } from '@clerk/nextjs';
 
 import { signOutAction } from '@/lib/actions/auth';
 import type { Profile } from '@/types/database';
@@ -44,6 +45,14 @@ export function SiteHeader({ profile }: { profile: Profile | null }) {
               {link.label}
             </Link>
           ))}
+          <div className="flex items-center gap-3">
+            <SignInButton mode="modal">
+              <button className="rounded-md border border-amber-400/60 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/10 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-slate-900">
+                Sign in
+              </button>
+            </SignInButton>
+            <UserButton afterSignOutUrl="/" />
+          </div>
           {profile ? (
             <form action={signOutAction}>
               <button
