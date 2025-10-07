@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useSupabase } from '@/components/providers/supabase-provider';
 
 type Props = {
   userId: string;
@@ -10,15 +10,8 @@ type Props = {
   defaultAvatar: string | null;
 };
 
-const supabase =
-  typeof window !== 'undefined'
-    ? createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-    : (null as any);
-
 export default function AccountEditor({ userId, defaultName, defaultAvatar }: Props) {
+  const supabase = useSupabase();
   const [name, setName] = useState(defaultName ?? '');
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -55,10 +48,44 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar }: Pr
       }
 
       if (supabase) {
-        const { error } = await supabase
+        // Debug logging
+        console.log('Updating profile for user:', userId);
+        console.log('Update data:', { full_name: name || null, avatar_url });
+        
+        // Try to update first with .select() to verify
+        const { data: updateData, error: updateError } = await supabase
           .from('profiles')
-          .upsert({ id: userId, full_name: name || null, avatar_url }, { onConflict: 'id' });
-        if (error) throw error;
+          .update({ 
+            full_name: name || null,
+            avatar_url: avatar_url 
+          })
+          .eq('id', userId)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Update failed:', updateError);
+          
+          // If update failed (likely because row doesn't exist), try insert
+          const { data: insertData, error: insertError } = await supabase
+            .from('profiles')
+            .insert({ 
+              id: userId,
+              full_name: name || null,
+              avatar_url: avatar_url 
+            })
+            .select()
+            .single();
+            
+          if (insertError) {
+            console.error('Insert failed:', insertError);
+            throw insertError;
+          }
+          
+          console.log('Insert successful:', insertData);
+        } else {
+          console.log('Update successful:', updateData);
+        }
       }
 
       setMsg('Saved ✔︎');

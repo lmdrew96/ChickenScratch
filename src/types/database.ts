@@ -13,22 +13,22 @@ export interface Database {
         Row: {
           id: string;
           email: string | null;
-          name: string | null;
-          role: 'student' | 'editor' | 'admin' | 'bbeg' | 'dictator_in_chief' | 'scroll_gremlin' | 'chief_hoarder' | 'pr_nightmare' | 'editor_in_chief' | 'submissions_coordinator' | 'proofreader' | 'lead_design';
-          created_at: string | null;
+          full_name: string | null;
+          avatar_url: string | null;
+          updated_at: string | null;
         };
         Insert: {
           id: string;
           email?: string | null;
-          name?: string | null;
-          role?: 'student' | 'editor' | 'admin' | 'bbeg' | 'dictator_in_chief' | 'scroll_gremlin' | 'chief_hoarder' | 'pr_nightmare' | 'editor_in_chief' | 'submissions_coordinator' | 'proofreader' | 'lead_design';
-          created_at?: string | null;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          updated_at?: string | null;
         };
         Update: {
           email?: string | null;
-          name?: string | null;
-          role?: 'student' | 'editor' | 'admin' | 'bbeg' | 'dictator_in_chief' | 'scroll_gremlin' | 'chief_hoarder' | 'pr_nightmare' | 'editor_in_chief' | 'submissions_coordinator' | 'proofreader' | 'lead_design';
-          created_at?: string | null;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          updated_at?: string | null;
         };
         Relationships: [];
       };
@@ -190,23 +190,23 @@ export interface Database {
           id: string;
           user_id: string;
           is_member: boolean;
-          role: 'officer' | 'committee' | null;
-          position: 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief' | null;
+          roles: ('officer' | 'committee')[];
+          positions: ('BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief')[];
           created_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
           is_member?: boolean;
-          role?: 'officer' | 'committee' | null;
-          position?: 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief' | null;
+          roles?: ('officer' | 'committee')[];
+          positions?: ('BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief')[];
           created_at?: string;
         };
         Update: {
           user_id?: string;
           is_member?: boolean;
-          role?: 'officer' | 'committee' | null;
-          position?: 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief' | null;
+          roles?: ('officer' | 'committee')[];
+          positions?: ('BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief')[];
           created_at?: string;
         };
         Relationships: [];
