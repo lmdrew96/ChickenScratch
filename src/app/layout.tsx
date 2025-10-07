@@ -5,6 +5,7 @@ import Sidebar from '@/components/shell/sidebar'
 import { ErrorBoundary } from '@/components/shared/error-boundary'
 import { SkipLinks } from '@/components/accessibility';
 import { SupabaseProvider } from '@/components/providers/supabase-provider'
+import { ToastProvider } from '@/components/ui/toast'
 
 export const metadata = { 
   title: 'Hen & Ink Portal', 
@@ -21,16 +22,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body>
         <SupabaseProvider>
-          <ErrorBoundary>
-            <SkipLinks />
-            <AccountBadge />
-            <div className="app-shell">
-              <Sidebar signedIn={signedIn} />
-              <main id="main-content" className="main" role="main" aria-label="Main content">
-                <div className="container">{children}</div>
-              </main>
-            </div>
-          </ErrorBoundary>
+          <ToastProvider>
+            <ErrorBoundary>
+              <SkipLinks />
+              <AccountBadge />
+              <div className="app-shell">
+                <Sidebar signedIn={signedIn} />
+                <main id="main-content" className="main" role="main" aria-label="Main content">
+                  <div className="container">{children}</div>
+                </main>
+              </div>
+            </ErrorBoundary>
+          </ToastProvider>
         </SupabaseProvider>
       </body>
     </html>

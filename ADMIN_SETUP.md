@@ -56,12 +56,12 @@ After applying the migration, visit `/test-role` to check your role data. You sh
 ```json
 {
   "is_member": true,
-  "role": "officer",
-  "position": "Dictator-in-Chief"
+  "roles": ["officer"],
+  "positions": ["Dictator-in-Chief", "Editor-in-Chief"]
 }
 ```
 
-If your position is `null` or different, you need to update it in the database.
+If your positions array is empty or different, you need to update it in the database.
 
 ### 4. Set Your User as Admin (If Needed)
 
@@ -72,19 +72,24 @@ If you need to manually set yourself as admin:
 2. Find your user (by user_id or email)
 3. Edit the row and set:
    - `is_member`: true
-   - `role`: "officer"
-   - `position`: "Dictator-in-Chief" or "BBEG"
+   - `roles`: ["officer"]
+   - `positions`: ["Dictator-in-Chief", "Editor-in-Chief"]
 
 **Option B: Using SQL**
 ```sql
 -- Replace 'your-user-id' with your actual user ID from /test-role
-INSERT INTO user_roles (user_id, is_member, role, position)
-VALUES ('your-user-id', true, 'officer', 'Dictator-in-Chief')
+INSERT INTO user_roles (user_id, is_member, roles, positions)
+VALUES (
+  'your-user-id'::uuid, 
+  true, 
+  ARRAY['officer']::TEXT[], 
+  ARRAY['Dictator-in-Chief', 'Editor-in-Chief']::TEXT[]
+)
 ON CONFLICT (user_id) 
 DO UPDATE SET 
   is_member = true,
-  role = 'officer',
-  position = 'Dictator-in-Chief';
+  roles = ARRAY['officer']::TEXT[],
+  positions = ARRAY['Dictator-in-Chief', 'Editor-in-Chief']::TEXT[];
 ```
 
 ### 5. Test Admin Access
@@ -132,9 +137,9 @@ Make sure you've added the service role key to `.env.local` and restarted your d
 ### Still Getting Redirected from /admin
 
 1. Check `/test-role` to see your actual role data
-2. Verify your position is exactly "Dictator-in-Chief" or "BBEG" (case-sensitive)
+2. Verify your positions array includes "Dictator-in-Chief" or "BBEG" (case-sensitive)
 3. Check the server console for debug logs
-4. Make sure you applied the migration
+4. Make sure you applied all migrations including the multiple roles/positions migrations
 
 ### "Unauthorized" When Updating Roles
 
