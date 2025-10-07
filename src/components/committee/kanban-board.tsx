@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingSpinner, LoadingState } from '@/components/shared/loading-states';
+import { LoadingSpinner } from '@/components/shared/loading-states';
 import type { Submission } from '@/types/database';
 
 interface KanbanBoardProps {

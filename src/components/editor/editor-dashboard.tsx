@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { StatusBadge } from '@/components/common/status-badge';
 import { useSupabase } from '@/components/providers/supabase-provider';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
+import { EmptyState } from '@/components/ui';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';

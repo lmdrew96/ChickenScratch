@@ -1,5 +1,5 @@
-import { PublishedGalleryClient } from '@/components/gallery/published-gallery-client';
-import { EmptyState } from '@/components/ui/empty-state';
+import { PublishedGalleryClient } from '@/components/gallery';
+import { EmptyState } from '@/components/ui';
 import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl } from '@/lib/storage';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';

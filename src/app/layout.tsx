@@ -3,7 +3,7 @@ import AccountBadge from '@/components/account-badge';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly'
 import Sidebar from '@/components/shell/sidebar'
 import { ErrorBoundary } from '@/components/shared/error-boundary'
-import { SkipLinks } from '@/components/accessibility'
+import { SkipLinks } from '@/components/accessibility';
 import { SupabaseProvider } from '@/components/providers/supabase-provider'
 
 export const metadata = { 

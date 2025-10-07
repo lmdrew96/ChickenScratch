@@ -2,7 +2,7 @@ import { cookies, headers } from 'next/headers';
 import Link from 'next/link';
 
 import { PageHeader } from '@/components/navigation';
-import { EmptyState } from '@/components/ui/empty-state';
+import { EmptyState } from '@/components/ui';
 import { requireUser } from '@/lib/auth/guards';
 
 type SubmissionListItem = {
