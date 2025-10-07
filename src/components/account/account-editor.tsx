@@ -53,12 +53,14 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar }: Pr
         console.log('Update data:', { full_name: name || null, avatar_url });
         
         // Try to update first with .select() to verify
-        const { data: updateData, error: updateError } = await supabase
+        const updatePayload: any = { 
+          full_name: name || null,
+          avatar_url: avatar_url 
+        };
+        
+        const { data: updateData, error: updateError } = await (supabase as any)
           .from('profiles')
-          .update({ 
-            full_name: name || null,
-            avatar_url: avatar_url 
-          })
+          .update(updatePayload)
           .eq('id', userId)
           .select()
           .single();
@@ -67,13 +69,15 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar }: Pr
           console.error('Update failed:', updateError);
           
           // If update failed (likely because row doesn't exist), try insert
-          const { data: insertData, error: insertError } = await supabase
+          const insertPayload: any = { 
+            id: userId,
+            full_name: name || null,
+            avatar_url: avatar_url 
+          };
+          
+          const { data: insertData, error: insertError } = await (supabase as any)
             .from('profiles')
-            .insert({ 
-              id: userId,
-              full_name: name || null,
-              avatar_url: avatar_url 
-            })
+            .insert(insertPayload)
             .select()
             .single();
             

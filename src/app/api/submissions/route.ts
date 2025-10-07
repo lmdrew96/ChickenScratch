@@ -79,7 +79,7 @@ export async function GET() {
     .eq('id', user.id)
     .maybeSingle();
 
-  if (!profileData || !['editor', 'admin'].includes(profileData.role)) {
+  if (!profileData || !profileData.role || !['editor', 'admin'].includes(profileData.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

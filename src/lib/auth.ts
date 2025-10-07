@@ -65,8 +65,8 @@ export async function requireProfile() {
 
 export async function requireEditorProfile() {
   const { session, profile } = await requireProfile();
-  if (!profile || !['editor', 'admin'].includes(profile.role)) {
-    redirect('/mine');
+  if (!profile || !profile.role || !['editor', 'admin'].includes(profile.role)) {
+    return null;
   }
   return { session, profile };
 }

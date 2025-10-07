@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     .eq('id', user.id)
     .maybeSingle();
 
-  if (!profileData || !isCommitteeRole(profileData.role)) {
+  if (!profileData || !profileData.role || !isCommitteeRole(profileData.role)) {
     return NextResponse.json({ error: 'Forbidden - Committee access required' }, { status: 403 });
   }
 

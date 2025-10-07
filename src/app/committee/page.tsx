@@ -49,7 +49,7 @@ export default async function CommitteePage() {
         </div>
       </div>
 
-      <KanbanBoard userRole={profile.role} submissions={submissionsData} />
+      <KanbanBoard userRole={profile.role ?? 'student'} submissions={submissionsData} />
     </div>
   );
 }

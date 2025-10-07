@@ -13,21 +13,27 @@ export interface Database {
         Row: {
           id: string;
           email: string | null;
+          name: string | null;
           full_name: string | null;
           avatar_url: string | null;
+          role: 'student' | 'editor' | 'admin' | 'bbeg' | 'dictator_in_chief' | 'scroll_gremlin' | 'chief_hoarder' | 'pr_nightmare' | 'editor_in_chief' | 'submissions_coordinator' | 'proofreader' | 'lead_design' | null;
           updated_at: string | null;
         };
         Insert: {
           id: string;
           email?: string | null;
+          name?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
+          role?: 'student' | 'editor' | 'admin' | 'bbeg' | 'dictator_in_chief' | 'scroll_gremlin' | 'chief_hoarder' | 'pr_nightmare' | 'editor_in_chief' | 'submissions_coordinator' | 'proofreader' | 'lead_design' | null;
           updated_at?: string | null;
         };
         Update: {
           email?: string | null;
+          name?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
+          role?: 'student' | 'editor' | 'admin' | 'bbeg' | 'dictator_in_chief' | 'scroll_gremlin' | 'chief_hoarder' | 'pr_nightmare' | 'editor_in_chief' | 'submissions_coordinator' | 'proofreader' | 'lead_design' | null;
           updated_at?: string | null;
         };
         Relationships: [];

@@ -38,7 +38,7 @@ export async function POST(
 
   const profile = profileData as Pick<Profile, 'role'> | null;
 
-  if (!profile || !['editor', 'admin'].includes(profile.role)) {
+  if (!profile || !profile.role || !['editor', 'admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
