@@ -30,8 +30,8 @@ export default async function AdminPage() {
   console.log('========================')
   
   if (!isUserAdmin) {
-    console.log('User is not admin, redirecting to home')
-    redirect('/')
+    console.log('User is not admin, redirecting to /mine')
+    redirect('/mine')
   }
   
   const users = await getAllUsersWithRoles()
