@@ -271,7 +271,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
         comment?: string;
       } = {
         submissionId: submission.id,
-        action: action === 'primary' ? getPrimaryAction() : action,
+        action,
       };
 
       // Handle specific actions
@@ -319,34 +319,37 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
     }
   };
 
-  const getActionLabel = (role: string): string => {
-    switch (role) {
-      case 'submissions_coordinator':
-        return 'Review';
-      case 'proofreader':
-        return 'Edit Docs';
-      case 'lead_design':
-        return 'Add to Canva';
-      case 'editor_in_chief':
-        return 'Final Review';
-      default:
-        return 'View';
+  // Get context-aware button configuration for a submission
+  const getSubmissionButtons = (submission: Submission, columnId: string) => {
+    if (userRole === 'submissions_coordinator') {
+      // New Submissions column - only show Review button
+      if (columnId === 'new') {
+        return [
+          { label: 'Review', action: 'review', variant: 'primary' as const }
+        ];
+      }
+      // Under Review column - show Review (webhook) and Approve/Decline buttons
+      if (columnId === 'reviewing') {
+        return [
+          { label: 'Review', action: 'review', variant: 'primary' as const },
+          { label: 'Approve', action: 'approve', variant: 'success' as const },
+          { label: 'Decline', action: 'decline', variant: 'danger' as const }
+        ];
+      }
     }
-  };
-
-  const getPrimaryAction = (): string => {
-    switch (userRole) {
-      case 'submissions_coordinator':
-        return 'review';
-      case 'proofreader':
-        return 'commit';
-      case 'lead_design':
-        return 'commit';
-      case 'editor_in_chief':
-        return 'approve';
-      default:
-        return 'view';
+    
+    // Default single button for other roles
+    if (userRole === 'proofreader') {
+      return [{ label: 'Edit Docs', action: 'open_docs', variant: 'primary' as const }];
     }
+    if (userRole === 'lead_design') {
+      return [{ label: 'Add to Canva', action: 'canva_link', variant: 'primary' as const }];
+    }
+    if (userRole === 'editor_in_chief') {
+      return [{ label: 'Final Review', action: 'approve', variant: 'primary' as const }];
+    }
+    
+    return [];
   };
 
   return (
@@ -417,23 +420,33 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                         {new Date(submission.created_at!).toLocaleDateString()}
                       </span>
                       {column.canInteract && (
-                        <button
-                          className="text-[var(--accent)] hover:underline disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAction(submission, 'primary');
-                          }}
-                          disabled={isProcessing === submission.id}
-                        >
-                          {isProcessing === submission.id ? (
-                            <>
-                              <LoadingSpinner size="sm" />
-                              Processing...
-                            </>
-                          ) : (
-                            getActionLabel(userRole)
-                          )}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {getSubmissionButtons(submission, column.id).map((button) => (
+                            <button
+                              key={button.action}
+                              className={`
+                                text-xs px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1
+                                ${button.variant === 'primary' ? 'text-[var(--accent)] hover:underline' : ''}
+                                ${button.variant === 'success' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}
+                                ${button.variant === 'danger' ? 'bg-red-600 hover:bg-red-700 text-white' : ''}
+                              `}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAction(submission, button.action);
+                              }}
+                              disabled={isProcessing === submission.id}
+                            >
+                              {isProcessing === submission.id ? (
+                                <>
+                                  <LoadingSpinner size="sm" />
+                                  Processing...
+                                </>
+                              ) : (
+                                button.label
+                              )}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>

@@ -91,10 +91,21 @@ export async function POST(request: NextRequest) {
     switch (userRole) {
       case 'submissions_coordinator':
         if (action === 'review') {
-          // Move to "Under Review" column
-          newStatus = 'with_coordinator';
-          updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
-          console.log('[Committee Workflow] Review action - setting status to:', newStatus);
+          // Context-aware review action based on current status
+          if (!submission.committee_status || submission.committee_status === 'pending_coordinator') {
+            // New Submissions → Under Review (status change only)
+            newStatus = 'with_coordinator';
+            updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
+            console.log('[Committee Workflow] Review action (new submission) - setting status to:', newStatus);
+          } else if (submission.committee_status === 'with_coordinator') {
+            // Under Review → Trigger Make webhook (no status change)
+            // TODO: Add Make webhook integration here
+            console.log('[Committee Workflow] Review action (under review) - triggering Make webhook for file conversion');
+            // For now, just log that webhook would be triggered
+            // The actual webhook call will be added later
+            // No status change, so we don't update committee_status
+            console.log('[Committee Workflow] Webhook trigger placeholder - file:', submission.file_url);
+          }
         } else if (action === 'approve') {
           // Move to "Approved" column and route to next step
           newStatus = 'coordinator_approved';
