@@ -98,13 +98,45 @@ export async function POST(request: NextRequest) {
             updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
             console.log('[Committee Workflow] Review action (new submission) - setting status to:', newStatus);
           } else if (submission.committee_status === 'with_coordinator') {
-            // Under Review → Trigger Make webhook (no status change)
-            // TODO: Add Make webhook integration here
+            // Under Review → Trigger Make webhook for file conversion
             console.log('[Committee Workflow] Review action (under review) - triggering Make webhook for file conversion');
-            // For now, just log that webhook would be triggered
-            // The actual webhook call will be added later
-            // No status change, so we don't update committee_status
-            console.log('[Committee Workflow] Webhook trigger placeholder - file:', submission.file_url);
+            
+            try {
+              // Call the convert-to-gdoc endpoint
+              const convertResponse = await fetch(`${request.nextUrl.origin}/api/convert-to-gdoc`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Cookie': request.headers.get('cookie') || '',
+                },
+                body: JSON.stringify({ submission_id: submissionId }),
+              });
+
+              if (!convertResponse.ok) {
+                const errorData = await convertResponse.json();
+                console.error('[Committee Workflow] Convert to GDoc failed:', errorData);
+                return NextResponse.json(
+                  { error: errorData.error || 'Failed to convert file to Google Doc' },
+                  { status: convertResponse.status }
+                );
+              }
+
+              const convertResult = await convertResponse.json();
+              console.log('[Committee Workflow] Successfully converted to Google Doc:', convertResult.google_doc_url);
+              
+              // Return the Google Doc URL so frontend can open it
+              revalidatePath('/committee');
+              return NextResponse.json({ 
+                success: true, 
+                google_doc_url: convertResult.google_doc_url 
+              });
+            } catch (error) {
+              console.error('[Committee Workflow] Error calling convert-to-gdoc:', error);
+              return NextResponse.json(
+                { error: 'Failed to convert file to Google Doc' },
+                { status: 500 }
+              );
+            }
           }
         } else if (action === 'approve') {
           // Move to "Approved" column and route to next step

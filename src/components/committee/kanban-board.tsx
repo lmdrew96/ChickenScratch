@@ -310,6 +310,14 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
         throw new Error(error.error || 'Failed to process action');
       }
 
+      const result = await response.json();
+
+      // If response contains google_doc_url, open it in new tab
+      if (result.google_doc_url) {
+        window.open(result.google_doc_url, '_blank');
+        alert('Google Doc created successfully! Opening in new tab...');
+      }
+
       // Refresh the page to show updated data
       window.location.reload();
     } catch (error) {
