@@ -156,3 +156,93 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
     return []
   }
 }
+
+type CreateTestUserParams = {
+  email: string
+  password: string
+  is_member: boolean
+  roles: ('officer' | 'committee')[]
+  positions: Position[]
+}
+
+type CreateTestUserResult = {
+  success: boolean
+  user?: {
+    id: string
+    email: string
+    password: string
+  }
+  error?: string
+}
+
+export async function createTestUser(params: CreateTestUserParams): Promise<CreateTestUserResult> {
+  // Check if current user is admin
+  if (!await isAdmin()) {
+    return { success: false, error: 'Unauthorized: Only admins can create test users' }
+  }
+
+  try {
+    const adminClient = createSupabaseAdminClient()
+
+    // Create the user in Supabase Auth
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+      email: params.email,
+      password: params.password,
+      email_confirm: true, // Auto-confirm email for test users
+    })
+
+    if (authError || !authData.user) {
+      console.error('Error creating user in auth:', authError)
+      return { 
+        success: false, 
+        error: authError?.message || 'Failed to create user in authentication system' 
+      }
+    }
+
+    // Create profile entry
+    const { error: profileError } = await adminClient
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        email: params.email,
+      })
+
+    if (profileError) {
+      console.error('Error creating profile:', profileError)
+      // Continue anyway - profile might already exist or be created by trigger
+    }
+
+    // Create user_roles entry with the specified roles and positions
+    const { error: rolesError } = await adminClient
+      .from('user_roles')
+      .insert({
+        user_id: authData.user.id,
+        is_member: params.is_member,
+        roles: params.roles,
+        positions: params.positions,
+      })
+
+    if (rolesError) {
+      console.error('Error creating user roles:', rolesError)
+      return { 
+        success: false, 
+        error: `User created but failed to assign roles: ${rolesError.message}` 
+      }
+    }
+
+    return {
+      success: true,
+      user: {
+        id: authData.user.id,
+        email: params.email,
+        password: params.password,
+      }
+    }
+  } catch (error) {
+    console.error('Error in createTestUser:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'An unexpected error occurred' 
+    }
+  }
+}

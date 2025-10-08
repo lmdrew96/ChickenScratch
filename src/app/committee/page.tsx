@@ -2,10 +2,14 @@ import PageHeader from '@/components/shell/page-header';
 import KanbanBoard from '@/components/committee/kanban-board';
 import { requireCommitteeRole } from '@/lib/auth/guards';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { getCurrentUserRole } from '@/lib/actions/roles';
 import { Submission } from '@/types/database';
 
 export default async function CommitteePage() {
   const { profile } = await requireCommitteeRole('/committee');
+  
+  // Fetch user's actual positions from user_roles table
+  const userRole = await getCurrentUserRole();
   
   // Fetch submissions relevant to this user's role
   const supabase = await createSupabaseServerReadOnlyClient();
@@ -27,14 +31,34 @@ export default async function CommitteePage() {
     console.error('Failed to fetch submissions:', error);
   }
 
-  const roleDisplayNames = {
-    editor_in_chief: 'Editor-in-Chief',
-    submissions_coordinator: 'Submissions Coordinator',
-    proofreader: 'Proofreader',
-    lead_design: 'Lead Design'
-  };
+  // Determine display role and actual position for kanban board
+  let displayRole = 'Committee Member';
+  let userPosition = profile.role ?? 'student'; // Fallback to legacy role
+  
+  if (userRole && userRole.positions && userRole.positions.length > 0) {
+    // Use the first committee position found
+    const committeePositions = ['Editor-in-Chief', 'Submissions Coordinator', 'Proofreader', 'Lead Design'];
+    const position = userRole.positions.find(p => committeePositions.includes(p));
+    
+    if (position) {
+      displayRole = position;
+      // Convert to lowercase snake_case for kanban board logic
+      userPosition = position.toLowerCase().replace(/[- ]/g, '_');
+    }
+  } else {
+    // Fallback to legacy role display
+    const roleDisplayNames = {
+      editor_in_chief: 'Editor-in-Chief',
+      submissions_coordinator: 'Submissions Coordinator',
+      proofreader: 'Proofreader',
+      lead_design: 'Lead Design'
+    };
+    displayRole = roleDisplayNames[profile.role as keyof typeof roleDisplayNames] || profile.role || 'Committee Member';
+  }
 
-  const displayRole = roleDisplayNames[profile.role as keyof typeof roleDisplayNames] || profile.role;
+  console.log('[Committee Page] User positions:', userRole?.positions);
+  console.log('[Committee Page] Passing userPosition to kanban:', userPosition);
+  console.log('[Committee Page] Display role:', displayRole);
 
   return (
     <div className="space-y-6">
@@ -49,7 +73,7 @@ export default async function CommitteePage() {
         </div>
       </div>
 
-      <KanbanBoard userRole={profile.role ?? 'student'} submissions={submissionsData} />
+      <KanbanBoard userRole={userPosition} submissions={submissionsData} />
     </div>
   );
 }

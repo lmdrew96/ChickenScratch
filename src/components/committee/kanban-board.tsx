@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LoadingSpinner } from '@/components/shared/loading-states';
 import type { Submission } from '@/types/database';
 
@@ -21,11 +21,21 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Debug logging
+  useEffect(() => {
+    console.log('[KanbanBoard] Component mounted');
+    console.log('[KanbanBoard] userRole:', userRole);
+    console.log('[KanbanBoard] Total submissions:', submissions.length);
+    console.log('[KanbanBoard] Submissions sample:', submissions.slice(0, 2));
+  }, [userRole, submissions]);
+
   // Define columns based on user role
   const getColumns = (): KanbanColumn[] => {
+    console.log('[KanbanBoard getColumns] Generating columns for role:', userRole);
     // Editor-in-Chief sees ALL columns from all positions
     if (userRole === 'editor_in_chief') {
-      return [
+      console.log('[KanbanBoard] Detected Editor-in-Chief role');
+      const columns = [
         // Submissions Coordinator columns
         {
           id: 'new',
@@ -121,11 +131,15 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           canInteract: true
         }
       ];
+      console.log('[KanbanBoard] EIC columns:', columns.length, 'columns generated');
+      return columns;
     }
     
+    console.log('[KanbanBoard] Checking switch statement for role:', userRole);
     switch (userRole) {
       case 'submissions_coordinator':
-        return [
+        console.log('[KanbanBoard] Matched submissions_coordinator');
+        const coordColumns = [
           {
             id: 'new',
             title: 'New Submissions',
@@ -145,9 +159,12 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             canInteract: false
           }
         ];
+        console.log('[KanbanBoard] Coordinator columns:', coordColumns.length);
+        return coordColumns;
 
       case 'proofreader':
-        return [
+        console.log('[KanbanBoard] Matched proofreader');
+        const proofColumns = [
           {
             id: 'assigned',
             title: 'Assigned to Me',
@@ -171,9 +188,12 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             canInteract: false
           }
         ];
+        console.log('[KanbanBoard] Proofreader columns:', proofColumns.length);
+        return proofColumns;
 
       case 'lead_design':
-        return [
+        console.log('[KanbanBoard] Matched lead_design');
+        const designColumns = [
           {
             id: 'visual_assigned',
             title: 'Visual Art Assigned',
@@ -203,9 +223,11 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             canInteract: false
           }
         ];
-
+        console.log('[KanbanBoard] Lead Design columns:', designColumns.length);
+        return designColumns;
 
       default:
+        console.log('[KanbanBoard] No role match, using default');
         return [
           {
             id: 'all',
@@ -218,6 +240,21 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
   };
 
   const columns = getColumns();
+  
+  // Log column details after generation
+  useEffect(() => {
+    console.log('[KanbanBoard] Columns generated:', columns.length);
+    columns.forEach((col, idx) => {
+      console.log(`[KanbanBoard] Column ${idx + 1}: "${col.title}" - ${col.submissions.length} submissions`);
+      if (col.submissions.length > 0) {
+        console.log(`  Sample submission statuses:`, col.submissions.slice(0, 3).map(s => ({
+          title: s.title,
+          status: s.committee_status,
+          type: s.type
+        })));
+      }
+    });
+  }, [columns]);
 
   const handleSubmissionClick = (submission: Submission) => {
     setSelectedSubmission(submission);
