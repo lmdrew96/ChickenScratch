@@ -20,6 +20,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [googleDocUrl, setGoogleDocUrl] = useState<string | null>(null);
 
   // Debug logging
   useEffect(() => {
@@ -312,10 +313,13 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
 
       const result = await response.json();
 
-      // If response contains google_doc_url, open it in new tab
+      // If response contains google_doc_url, show it in modal
       if (result.google_doc_url) {
-        window.open(result.google_doc_url, '_blank');
-        alert('Google Doc created successfully! Opening in new tab...');
+        // Convert edit URL to preview URL for iframe embedding
+        const previewUrl = result.google_doc_url.replace('/edit', '/preview');
+        setGoogleDocUrl(previewUrl);
+        setIsProcessing(null);
+        return;
       }
 
       // Refresh the page to show updated data
@@ -464,6 +468,53 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           </div>
         ))}
       </div>
+
+      {/* Google Doc Modal */}
+      {googleDocUrl && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-[var(--bg)] border border-white/10 rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="text-lg font-semibold text-[var(--text)]">
+                Google Doc Preview
+              </h2>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    const editUrl = googleDocUrl.replace('/preview', '/edit');
+                    window.open(editUrl, '_blank');
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm text-white flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Open in New Tab
+                </button>
+                <button
+                  onClick={() => {
+                    setGoogleDocUrl(null);
+                    window.location.reload();
+                  }}
+                  className="text-slate-400 hover:text-white text-2xl leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            {/* Modal Body - Iframe */}
+            <div className="flex-1 p-4 overflow-hidden">
+              <iframe
+                src={googleDocUrl}
+                className="w-full h-full rounded-lg border border-white/10"
+                title="Google Doc Preview"
+                allow="clipboard-read; clipboard-write"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Submission Detail Modal */}
       {selectedSubmission && (
