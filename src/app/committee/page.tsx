@@ -33,7 +33,7 @@ export default async function CommitteePage() {
 
   // Determine display role and actual position for kanban board
   let displayRole = 'Committee Member';
-  let userPosition = profile.role ?? 'student'; // Fallback to legacy role
+  let userPosition: string = profile.role ?? 'student'; // Fallback to legacy role
   
   if (userRole && userRole.positions && userRole.positions.length > 0) {
     // Use the first committee position found
