@@ -1,30 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
 
 import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
+import { uploadFile, getSubmissionsBucketName, getBucketName } from '@/lib/storage';
 import type { Database } from '@/types/database';
 
-const createSubmissionSchema = z.object({
-  title: z.string().min(3).max(200),
-  type: z.enum(['writing', 'visual']),
-  genre: z.string().max(120).optional().nullable(),
-  summary: z.string().max(500).optional().nullable(),
-  contentWarnings: z.string().max(500).optional().nullable(),
-  wordCount: z.number().int().min(0).max(50000).optional().nullable(),
-  textBody: z.string().max(50000).optional().nullable(),
-  artFiles: z.array(z.string()).optional(),
-  coverImage: z.string().optional().nullable(),
-});
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
-  const parsed = createSubmissionSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid submission data.' }, { status: 400 });
-  }
-
   const supabase = await createSupabaseRouteHandlerClient();
   const {
     data: { user },
@@ -34,33 +17,116 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const insertPayload: Database['public']['Tables']['submissions']['Insert'] = {
-    owner_id: user.id,
-    title: parsed.data.title,
-    type: parsed.data.type,
-    genre: parsed.data.genre ?? null,
-    summary: parsed.data.summary ?? null,
-    content_warnings: parsed.data.contentWarnings ?? null,
-    word_count: parsed.data.wordCount ?? null,
-    text_body: parsed.data.textBody ?? null,
-    art_files: parsed.data.artFiles ?? [],
-    cover_image: parsed.data.coverImage ?? null,
-    status: 'submitted',
-  };
+  try {
+    const formData = await request.formData();
+    
+    const title = formData.get('title') as string;
+    const type = formData.get('type') as 'writing' | 'visual';
+    const genre = formData.get('genre') as string | null;
+    const summary = formData.get('summary') as string | null;
+    const contentWarnings = formData.get('contentWarnings') as string | null;
+    const file = formData.get('file') as File | null;
 
-  const { data, error } = await supabase
-    .from('submissions')
-    .insert(insertPayload)
-    .select()
-    .single();
+    // Validate required fields
+    if (!title || title.length < 3 || title.length > 200) {
+      return NextResponse.json({ error: 'Title must be between 3 and 200 characters.' }, { status: 400 });
+    }
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    if (!type || !['writing', 'visual'].includes(type)) {
+      return NextResponse.json({ error: 'Invalid submission type.' }, { status: 400 });
+    }
+
+    if (!file) {
+      return NextResponse.json({ error: 'File is required.' }, { status: 400 });
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: 'File size must be less than 10MB.' }, { status: 400 });
+    }
+
+    // Validate file type based on submission type
+    if (type === 'writing') {
+      const allowedTypes = [
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/pdf',
+        'text/plain',
+      ];
+      const allowedExtensions = ['.doc', '.docx', '.pdf', '.txt'];
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      
+      if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+        return NextResponse.json({ 
+          error: 'Writing submissions must be .doc, .docx, .pdf, or .txt files.' 
+        }, { status: 400 });
+      }
+    }
+
+    // Generate unique file path
+    const timestamp = Date.now();
+    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const filePath = `${user.id}/${timestamp}-${sanitizedFileName}`;
+
+    // Determine which bucket to use
+    const bucket = type === 'writing' ? getSubmissionsBucketName() : getBucketName();
+
+    // Upload file to Supabase Storage
+    const { path: uploadedPath, error: uploadError } = await uploadFile(
+      supabase,
+      bucket,
+      filePath,
+      file
+    );
+
+    if (uploadError || !uploadedPath) {
+      console.error('File upload error:', uploadError);
+      return NextResponse.json({ 
+        error: 'Failed to upload file. Please try again.' 
+      }, { status: 500 });
+    }
+
+    // Create submission record
+    const insertPayload: Database['public']['Tables']['submissions']['Insert'] = {
+      owner_id: user.id,
+      title,
+      type,
+      genre: genre || null,
+      summary: summary || null,
+      content_warnings: contentWarnings || null,
+      file_url: uploadedPath,
+      file_name: file.name,
+      file_type: file.type,
+      file_size: file.size,
+      status: 'submitted',
+    };
+
+    // For visual art, also set cover_image
+    if (type === 'visual') {
+      insertPayload.cover_image = uploadedPath;
+      insertPayload.art_files = [uploadedPath];
+    }
+
+    const { data, error } = await supabase
+      .from('submissions')
+      .insert(insertPayload)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database insert error:', error);
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    revalidatePath('/mine');
+    revalidatePath('/editor');
+    return NextResponse.json({ success: true, submission: data });
+  } catch (error) {
+    console.error('Submission error:', error);
+    return NextResponse.json({ 
+      error: 'An error occurred while processing your submission.' 
+    }, { status: 500 });
   }
-
-  revalidatePath('/mine');
-  revalidatePath('/editor');
-  return NextResponse.json({ success: true, submission: data });
 }
 
 export async function GET(request: NextRequest) {

@@ -70,13 +70,15 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
   const [summary, setSummary] = useState('');
   const [contentWarnings, setContentWarnings] = useState('');
   const [text, setText] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [writingFile, setWritingFile] = useState<File | null>(null);
+  const [visualFile, setVisualFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
+  const writingFileInputRef = useRef<HTMLInputElement | null>(null);
+  const visualFileInputRef = useRef<HTMLInputElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { feedback, showSuccess, showError, clearFeedback } = useFeedback();
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
 
   const formSteps = ['Basic Info', 'Content', 'Review'];
@@ -85,14 +87,14 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
   useEffect(() => {
     if (!kind || !category || !preferredName.trim()) {
       setCurrentStep(0);
-    } else if (kind === 'visual' && !file) {
+    } else if (kind === 'visual' && !visualFile) {
       setCurrentStep(1);
-    } else if (kind === 'writing' && !text.trim()) {
+    } else if (kind === 'writing' && !writingFile) {
       setCurrentStep(1);
     } else {
       setCurrentStep(2);
     }
-  }, [kind, category, preferredName, file, text]);
+  }, [kind, category, preferredName, visualFile, writingFile]);
 
   // Auto-save functionality
   const autoSave = useCallback(async () => {
@@ -163,25 +165,69 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
     setErrors((prev) => ({ ...prev, preferredName: undefined }));
   }
 
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+  function handleWritingFileChange(event: ChangeEvent<HTMLInputElement>) {
     clearFeedback();
     const files = event.target.files;
 
     if (!files || files.length === 0) {
-      setFile(null);
+      setWritingFile(null);
       setErrors((prev) => ({ ...prev, file: undefined }));
       return;
     }
 
     if (files.length > 1) {
       setErrors((prev) => ({ ...prev, file: 'Please upload a single file.' }));
-      setFile(null);
+      setWritingFile(null);
       event.target.value = '';
       return;
     }
 
     const nextFile = files[0];
-    setFile(nextFile);
+    
+    // Validate file type for writing submissions
+    const allowedTypes = [
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/pdf', // .pdf
+      'text/plain', // .txt
+    ];
+    
+    const allowedExtensions = ['.doc', '.docx', '.pdf', '.txt'];
+    const fileExtension = nextFile.name.toLowerCase().substring(nextFile.name.lastIndexOf('.'));
+    
+    if (!allowedTypes.includes(nextFile.type) && !allowedExtensions.includes(fileExtension)) {
+      setErrors((prev) => ({ 
+        ...prev, 
+        file: 'Please upload a .doc, .docx, .pdf, or .txt file.' 
+      }));
+      setWritingFile(null);
+      event.target.value = '';
+      return;
+    }
+
+    setWritingFile(nextFile);
+    setErrors((prev) => ({ ...prev, file: undefined }));
+  }
+
+  function handleVisualFileChange(event: ChangeEvent<HTMLInputElement>) {
+    clearFeedback();
+    const files = event.target.files;
+
+    if (!files || files.length === 0) {
+      setVisualFile(null);
+      setErrors((prev) => ({ ...prev, file: undefined }));
+      return;
+    }
+
+    if (files.length > 1) {
+      setErrors((prev) => ({ ...prev, file: 'Please upload a single file.' }));
+      setVisualFile(null);
+      event.target.value = '';
+      return;
+    }
+
+    const nextFile = files[0];
+    setVisualFile(nextFile);
     setErrors((prev) => ({ ...prev, file: undefined }));
   }
 
@@ -203,20 +249,23 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
       validationErrors.preferredName = 'Preferred name is required.';
     }
 
-    const pendingFiles = fileInputRef.current?.files;
-
     if (kind === 'visual') {
-      if (pendingFiles && pendingFiles.length > 1) {
+      const pendingVisualFiles = visualFileInputRef.current?.files;
+      if (pendingVisualFiles && pendingVisualFiles.length > 1) {
         validationErrors.file = 'Only one file can be uploaded.';
       }
-      if (!file) {
+      if (!visualFile) {
         validationErrors.file = validationErrors.file ?? 'Add the piece you want to share.';
       }
     }
 
     if (kind === 'writing') {
-      if (!text.trim()) {
-        validationErrors.text = 'Please paste your writing.';
+      const pendingWritingFiles = writingFileInputRef.current?.files;
+      if (pendingWritingFiles && pendingWritingFiles.length > 1) {
+        validationErrors.file = 'Only one file can be uploaded.';
+      }
+      if (!writingFile) {
+        validationErrors.file = validationErrors.file ?? 'Please upload your writing file (.doc, .docx, .pdf, or .txt).';
       }
     }
 
@@ -229,46 +278,29 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
     setIsSubmitting(true);
 
     try {
-      // Build JSON payload matching API schema
-      const payload: {
-        title: string;
-        type: 'writing' | 'visual';
-        genre?: string;
-        summary?: string;
-        contentWarnings?: string;
-        wordCount?: number;
-        textBody?: string;
-        artFiles?: string[];
-        coverImage?: string;
-      } = {
-        title: title.trim() || `${category} by ${preferredName.trim()}`,
-        type: kind,
-        genre: category || undefined,
-        summary: summary.trim() || undefined,
-        contentWarnings: contentWarnings.trim() || undefined,
-      };
+      // Create FormData for file upload
+      const formData = new FormData();
+      
+      formData.append('title', title.trim() || `${category} by ${preferredName.trim()}`);
+      formData.append('type', kind);
+      formData.append('preferredName', preferredName.trim());
+      
+      if (category) formData.append('genre', category);
+      if (summary.trim()) formData.append('summary', summary.trim());
+      if (contentWarnings.trim()) formData.append('contentWarnings', contentWarnings.trim());
 
-      if (kind === 'writing' && text.trim()) {
-        payload.textBody = text.trim();
-        // Calculate word count
-        const words = text.trim().split(/\s+/).filter(w => w.length > 0);
-        payload.wordCount = words.length;
+      // Handle file uploads
+      if (kind === 'writing' && writingFile) {
+        formData.append('file', writingFile);
       }
 
-      // TODO: File upload needs to be implemented separately
-      // For now, we'll skip file handling until storage is set up
-      if (kind === 'visual' && file) {
-        // This would need to upload to storage first and get a URL
-        // For now, we'll add a placeholder
-        payload.coverImage = `placeholder-${file.name}`;
+      if (kind === 'visual' && visualFile) {
+        formData.append('file', visualFile);
       }
 
       const response = await fetch('/api/submissions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -449,56 +481,63 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
 
         {kind === 'writing' ? (
           <div className="space-y-2">
-            <label htmlFor="text" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-              Your Writing
+            <label htmlFor="writing-file" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+              Upload Your Writing
               <RequiredIndicator />
             </label>
-            <textarea
-              id="text"
-              name="text"
-              rows={12}
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                clearFeedback();
-              }}
-              className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
+            <input
+              id="writing-file"
+              name="writing-file"
+              ref={writingFileInputRef}
+              type="file"
+              accept=".doc,.docx,.pdf,.txt,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,text/plain"
+              aria-required="true"
+              onChange={handleWritingFileChange}
+              className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-200 focus:border-[var(--accent)]"
             />
-            <div className="flex justify-between items-center">
-              <WordCount text={text} />
-              <CharacterCount current={text.length} />
+            {writingFile && (
+              <div className="space-y-2">
+                <p className="text-xs text-slate-300">Selected: {writingFile.name}</p>
+                <div className="text-xs text-slate-400">
+                  Size: {(writingFile.size / 1024 / 1024).toFixed(2)} MB
+                </div>
+              </div>
+            )}
+            <div className="space-y-1">
+              <p className="text-xs text-slate-400">Accepted formats: .doc, .docx, .pdf, .txt</p>
+              <p className="text-xs text-slate-500">Maximum file size: 10 MB</p>
             </div>
-            <HelperText>Paste your complete work here</HelperText>
-            <FieldError error={errors.text} />
+            <HelperText>Upload your complete work as a document file</HelperText>
+            <FieldError error={errors.file} />
           </div>
         ) : null}
 
         {kind === 'visual' ? (
           <div className="space-y-2">
-            <label htmlFor="file" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-              File Upload
+            <label htmlFor="visual-file" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+              Upload Your Visual Art
               <RequiredIndicator />
             </label>
             <input
-              id="file"
-              name="file"
-              ref={fileInputRef}
+              id="visual-file"
+              name="visual-file"
+              ref={visualFileInputRef}
               type="file"
-              accept="image/*,application/pdf"
+              accept="image/*,.jpg,.jpeg,.png,.gif,.webp,application/pdf"
               aria-required="true"
-              onChange={handleFileChange}
+              onChange={handleVisualFileChange}
               className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-200 focus:border-[var(--accent)]"
             />
-            {file && (
+            {visualFile && (
               <div className="space-y-2">
-                <p className="text-xs text-slate-300">Selected: {file.name}</p>
+                <p className="text-xs text-slate-300">Selected: {visualFile.name}</p>
                 <div className="text-xs text-slate-400">
-                  Size: {(file.size / 1024 / 1024).toFixed(2)} MB
+                  Size: {(visualFile.size / 1024 / 1024).toFixed(2)} MB
                 </div>
               </div>
             )}
             <div className="space-y-1">
-              <p className="text-xs text-slate-400">Accepted formats: images or PDF, one file only.</p>
+              <p className="text-xs text-slate-400">Accepted formats: .jpg, .png, .gif, .webp, or PDF</p>
               <p className="text-xs text-slate-500">Maximum file size: 10 MB</p>
             </div>
             <FieldError error={errors.file} />

@@ -49,6 +49,10 @@ export interface Database {
           content_warnings: string | null;
           word_count: number | null;
           text_body: string | null;
+          file_url: string | null;
+          file_name: string | null;
+          file_type: string | null;
+          file_size: number | null;
           art_files: Json;
           cover_image: string | null;
           status:
@@ -95,6 +99,10 @@ export interface Database {
           content_warnings?: string | null;
           word_count?: number | null;
           text_body?: string | null;
+          file_url?: string | null;
+          file_name?: string | null;
+          file_type?: string | null;
+          file_size?: number | null;
           art_files?: Json;
           cover_image?: string | null;
           status?: Database['public']['Tables']['submissions']['Row']['status'];
@@ -133,6 +141,10 @@ export interface Database {
           content_warnings?: string | null;
           word_count?: number | null;
           text_body?: string | null;
+          file_url?: string | null;
+          file_name?: string | null;
+          file_type?: string | null;
+          file_size?: number | null;
           art_files?: Json;
           cover_image?: string | null;
           status?: Database['public']['Tables']['submissions']['Row']['status'];
