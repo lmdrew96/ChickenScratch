@@ -8,7 +8,7 @@ import type { Database, Json } from '@/types/database';
 
 const workflowActionSchema = z.object({
   submissionId: z.string().uuid(),
-  action: z.enum(['approve', 'decline', 'commit', 'assign']),
+  action: z.enum(['review', 'approve', 'decline', 'commit', 'assign']),
   comment: z.string().optional(),
   linkUrl: z.string().url().optional(),
   assigneeId: z.string().uuid().optional(),
@@ -90,12 +90,13 @@ export async function POST(request: NextRequest) {
 
     switch (userRole) {
       case 'submissions_coordinator':
-        if (action === 'approve') {
-          if (submission.type === 'writing') {
-            newStatus = 'with_proofreader';
-          } else {
-            newStatus = 'with_lead_design';
-          }
+        if (action === 'review') {
+          // Move to "Under Review" column
+          newStatus = 'with_coordinator';
+          updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
+        } else if (action === 'approve') {
+          // Move to "Approved" column and route to next step
+          newStatus = 'coordinator_approved';
           updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
           updatePayload.coordinator_reviewed_at = new Date().toISOString();
         } else if (action === 'decline') {

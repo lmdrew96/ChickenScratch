@@ -337,7 +337,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
   const getPrimaryAction = (): string => {
     switch (userRole) {
       case 'submissions_coordinator':
-        return 'approve';
+        return 'review';
       case 'proofreader':
         return 'commit';
       case 'lead_design':
