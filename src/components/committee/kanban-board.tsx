@@ -60,7 +60,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           id: 'proofreader_assigned',
           title: 'Proofreader Assigned',
           submissions: submissions.filter(s => 
-            (s.committee_status === 'with_proofreader' || s.committee_status === 'coordinator_approved') && s.type === 'writing'
+            s.committee_status === 'coordinator_approved' && s.type === 'writing'
           ),
           canInteract: true
         },
@@ -83,7 +83,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           id: 'design_visual_assigned',
           title: 'Design: Visual Art',
           submissions: submissions.filter(s => 
-            (s.committee_status === 'with_lead_design' || s.committee_status === 'coordinator_approved') && s.type === 'visual'
+            s.committee_status === 'coordinator_approved' && s.type === 'visual'
           ),
           canInteract: true
         },
@@ -169,7 +169,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             id: 'assigned',
             title: 'Assigned to Me',
             submissions: submissions.filter(s => 
-              (s.committee_status === 'with_proofreader' || s.committee_status === 'coordinator_approved') && s.type === 'writing'
+              s.committee_status === 'coordinator_approved' && s.type === 'writing'
             ),
             canInteract: true
           },
@@ -198,7 +198,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             id: 'visual_assigned',
             title: 'Visual Art Assigned',
             submissions: submissions.filter(s => 
-              (s.committee_status === 'with_lead_design' || s.committee_status === 'coordinator_approved') && s.type === 'visual'
+              s.committee_status === 'coordinator_approved' && s.type === 'visual'
             ),
             canInteract: true
           },

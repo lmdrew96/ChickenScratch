@@ -94,16 +94,19 @@ export async function POST(request: NextRequest) {
           // Move to "Under Review" column
           newStatus = 'with_coordinator';
           updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
+          console.log('[Committee Workflow] Review action - setting status to:', newStatus);
         } else if (action === 'approve') {
           // Move to "Approved" column and route to next step
           newStatus = 'coordinator_approved';
           updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
           updatePayload.coordinator_reviewed_at = new Date().toISOString();
+          console.log('[Committee Workflow] Approve action - setting status to:', newStatus, 'for submission type:', submission.type);
         } else if (action === 'decline') {
           newStatus = 'coordinator_declined';
           updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
           updatePayload.decline_reason = comment;
           updatePayload.coordinator_reviewed_at = new Date().toISOString();
+          console.log('[Committee Workflow] Decline action - setting status to:', newStatus);
         }
         break;
 
@@ -112,6 +115,7 @@ export async function POST(request: NextRequest) {
           updatePayload.google_docs_link = linkUrl;
           updatePayload.committee_status = 'proofreader_committed';
           updatePayload.proofreader_committed_at = new Date().toISOString();
+          console.log('[Committee Workflow] Proofreader commit - setting status to: proofreader_committed');
         }
         break;
 
@@ -120,6 +124,7 @@ export async function POST(request: NextRequest) {
           updatePayload.lead_design_commit_link = linkUrl;
           updatePayload.committee_status = 'lead_design_committed';
           updatePayload.lead_design_committed_at = new Date().toISOString();
+          console.log('[Committee Workflow] Lead Design commit - setting status to: lead_design_committed');
         }
         break;
 
@@ -127,10 +132,12 @@ export async function POST(request: NextRequest) {
         if (action === 'approve') {
           updatePayload.committee_status = 'editor_approved';
           updatePayload.editor_reviewed_at = new Date().toISOString();
+          console.log('[Committee Workflow] Editor approve - setting status to: editor_approved');
         } else if (action === 'decline') {
           updatePayload.committee_status = 'editor_declined';
           updatePayload.decline_reason = comment;
           updatePayload.editor_reviewed_at = new Date().toISOString();
+          console.log('[Committee Workflow] Editor decline - setting status to: editor_declined');
         }
         break;
 
@@ -153,14 +160,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Update the submission
+    console.log('[Committee Workflow] Updating submission:', submissionId, 'with payload:', updatePayload);
     const { error: updateError } = await supabase
       .from('submissions')
       .update(updatePayload)
       .eq('id', submissionId);
 
     if (updateError) {
+      console.error('[Committee Workflow] Update error:', updateError);
       return NextResponse.json({ error: updateError.message }, { status: 400 });
     }
+    
+    console.log('[Committee Workflow] Successfully updated submission to status:', newStatus);
 
     // Log the action in audit trail
     const auditDetails: Json = {
