@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
-import { isCommitteeRole } from '@/lib/auth/guards';
+import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import type { Database, Json } from '@/types/database';
 
 const workflowActionSchema = z.object({
@@ -31,18 +31,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Get user's profile and role
-  const { data: profileData } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
+  // Get user's roles from user_roles table
+  const { data: userRoleData } = await supabase
+    .from('user_roles')
+    .select('*')
+    .eq('user_id', user.id)
     .maybeSingle();
 
-  if (!profileData || !profileData.role || !isCommitteeRole(profileData.role)) {
+  // Check if user has committee or officer access
+  if (!userRoleData || !userRoleData.is_member) {
     return NextResponse.json({ error: 'Forbidden - Committee access required' }, { status: 403 });
   }
 
-  const userRole = profileData.role;
+  const positions = userRoleData.positions || [];
+  const roles = userRoleData.roles || [];
+
+  // Officers have access to everything, committee members have access to committee workflow
+  if (!hasOfficerAccess(positions, roles) && !hasCommitteeAccess(positions, roles)) {
+    return NextResponse.json({ error: 'Forbidden - Committee access required' }, { status: 403 });
+  }
+
+  // Determine the user's primary position for workflow logic
+  let userRole: string | null = null;
+  if (positions.includes('Submissions Coordinator')) {
+    userRole = 'submissions_coordinator';
+  } else if (positions.includes('Proofreader')) {
+    userRole = 'proofreader';
+  } else if (positions.includes('Lead Design')) {
+    userRole = 'lead_design';
+  } else if (positions.includes('Editor-in-Chief')) {
+    userRole = 'editor_in_chief';
+  } else if (hasOfficerAccess(positions, roles)) {
+    // Officers can perform any action, default to editor role
+    userRole = 'editor_in_chief';
+  }
+
+  if (!userRole) {
+    return NextResponse.json({ error: 'Forbidden - No valid committee position' }, { status: 403 });
+  }
   const { submissionId, action, comment, linkUrl, assigneeId } = parsed.data;
 
   try {
