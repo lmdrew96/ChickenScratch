@@ -229,24 +229,46 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
     setIsSubmitting(true);
 
     try {
-      const formData = new FormData();
-      formData.append('kind', kind);
-      formData.append('category', category);
-      formData.append('preferred_name', preferredName.trim());
-      formData.append('title', title.trim());
-      formData.append('summary', summary.trim());
-      formData.append('content_warnings', contentWarnings.trim());
+      // Build JSON payload matching API schema
+      const payload: {
+        title: string;
+        type: 'writing' | 'visual';
+        genre?: string;
+        summary?: string;
+        contentWarnings?: string;
+        wordCount?: number;
+        textBody?: string;
+        artFiles?: string[];
+        coverImage?: string;
+      } = {
+        title: title.trim() || `${category} by ${preferredName.trim()}`,
+        type: kind,
+        genre: category || undefined,
+        summary: summary.trim() || undefined,
+        contentWarnings: contentWarnings.trim() || undefined,
+      };
 
-      if (kind === 'visual' && file) {
-        formData.append('file', file);
-      }
       if (kind === 'writing' && text.trim()) {
-        formData.append('text', text.trim());
+        payload.textBody = text.trim();
+        // Calculate word count
+        const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+        payload.wordCount = words.length;
+      }
+
+      // TODO: File upload needs to be implemented separately
+      // For now, we'll skip file handling until storage is set up
+      if (kind === 'visual' && file) {
+        // This would need to upload to storage first and get a URL
+        // For now, we'll add a placeholder
+        payload.coverImage = `placeholder-${file.name}`;
       }
 
       const response = await fetch('/api/submissions', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
