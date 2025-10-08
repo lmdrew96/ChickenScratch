@@ -1,11 +1,12 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
 
 export default async function AccountBadge() {
   const supabase = await createSupabaseServerReadOnlyClient();
   if (!supabase) return null;
 
-  let user = null as null | { id: string; email?: string | null; user_metadata?: Record<string, any> };
+  let user = null as null | { id: string; email?: string | null; user_metadata?: Record<string, unknown> };
   try {
     const { data } = await supabase.auth.getUser();
     user = data?.user ?? null;
@@ -49,9 +50,12 @@ export default async function AccountBadge() {
     >
       <span className="sr-only">Your account</span>
       {avatarUrl ? (
-        <img
+        <Image
           src={avatarUrl}
           alt=""
+          width={32}
+          height={32}
+          className="rounded-full"
         />
       ) : (
         <span>

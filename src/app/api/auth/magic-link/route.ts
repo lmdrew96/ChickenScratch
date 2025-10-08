@@ -26,8 +26,8 @@ export async function POST(req: NextRequest) {
       {
         cookies: {
           get(name: string) { return cookieStore.get(name)?.value },
-          set(name: string, value: string, options: any) { cookieStore.set({ name, value, ...options }) },
-          remove(name: string, options: any) { cookieStore.set({ name, value: '', ...options, expires: new Date(0) }) },
+          set(name: string, value: string, options: Record<string, unknown>) { cookieStore.set({ name, value, ...options }) },
+          remove(name: string, options: Record<string, unknown>) { cookieStore.set({ name, value: '', ...options, expires: new Date(0) }) },
         },
       }
     )

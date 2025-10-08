@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 
@@ -62,7 +63,7 @@ export default function Sidebar({ signedIn = false }: { signedIn?: boolean }) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <img src="/logo.png" alt="Hen & Ink logo" className="brand-badge" />
+        <Image src="/logo.png" alt="Hen & Ink logo" width={40} height={40} className="brand-badge" />
         <div className="font-semibold">Hen &amp; Ink</div>
       </div>
       

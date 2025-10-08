@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="error-boundary-content">
             <h2 className="error-boundary-title">Something went wrong</h2>
             <p className="error-boundary-message">
-              We're sorry, but something unexpected happened. Please try refreshing the page.
+              We&apos;re sorry, but something unexpected happened. Please try refreshing the page.
             </p>
             <div className="error-boundary-actions">
               <button

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 
 import { StatusBadge } from '@/components/common/status-badge';
@@ -93,8 +94,15 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
       </header>
 
       {coverUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={coverUrl} alt={submission.title} className="w-full rounded-xl border border-white/10 object-cover" />
+        <div className="relative w-full aspect-video">
+          <Image 
+            src={coverUrl} 
+            alt={submission.title} 
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+            className="rounded-xl border border-white/10 object-cover" 
+          />
+        </div>
       ) : null}
 
       {submission.type === 'writing' ? (

@@ -58,9 +58,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Process action based on user role and action type
-    let updatePayload: Database['public']['Tables']['submissions']['Update'] = {};
+    const updatePayload: Database['public']['Tables']['submissions']['Update'] = {};
     let newStatus: string | null = null;
-    let auditAction = action;
+    const auditAction = action;
 
     switch (userRole) {
       case 'submissions_coordinator':
@@ -70,11 +70,11 @@ export async function POST(request: NextRequest) {
           } else {
             newStatus = 'with_lead_design';
           }
-          updatePayload.committee_status = newStatus as any;
+          updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
           updatePayload.coordinator_reviewed_at = new Date().toISOString();
         } else if (action === 'decline') {
           newStatus = 'coordinator_declined';
-          updatePayload.committee_status = newStatus as any;
+          updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
           updatePayload.decline_reason = comment;
           updatePayload.coordinator_reviewed_at = new Date().toISOString();
         }
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     // Add comment to committee_comments array if provided
     if (comment) {
-      const existingComments = (submission.committee_comments as any[]) || [];
+      const existingComments = (submission.committee_comments as Array<Record<string, unknown>>) || [];
       const newComment = {
         id: crypto.randomUUID(),
         userId: user.id,

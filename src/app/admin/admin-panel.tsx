@@ -32,7 +32,14 @@ export default function AdminPanel({ initialUsers }: { initialUsers: UserWithRol
   const [users, setUsers] = useState(initialUsers)
   const [loading, setLoading] = useState(false)
 
-  async function handleRoleUpdate(userId: string, updates: any) {
+  async function handleRoleUpdate(
+    userId: string, 
+    updates: { 
+      is_member?: boolean; 
+      roles?: ('officer' | 'committee')[]; 
+      positions?: Position[] 
+    }
+  ) {
     setLoading(true)
     
     const { error } = await updateUserRole(userId, updates)

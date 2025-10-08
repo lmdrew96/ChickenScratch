@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import type { Submission } from '@/types/database';
 import { StatusBadge } from '@/components/common/status-badge';
 import { LoadingSkeleton } from '@/components/shared/loading-states';
@@ -63,12 +64,14 @@ export function SubmissionCard({
                 <LoadingSkeleton className="w-full h-full" variant="rectangular" />
               </div>
             )}
-            <img
+            <Image
               src={previewImage}
               alt={submission.title}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               onError={handleImageError}
               onLoad={handleImageLoad}
-              className={`submission-image ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+              className={`submission-image object-cover ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
             />
           </>
         ) : (
@@ -124,7 +127,10 @@ interface SubmissionGridProps {
     art_files?: string[];
     owner?: { name: string | null; email: string | null };
   }>;
-  onSubmissionClick?: (submission: any) => void;
+  onSubmissionClick?: (submission: Submission & {
+    art_files?: string[];
+    owner?: { name: string | null; email: string | null };
+  }) => void;
   showAuthor?: boolean;
   showStatus?: boolean;
   cardSize?: 'sm' | 'md' | 'lg';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { LoadingSpinner } from '@/components/shared/loading-states';
 import type { Submission } from '@/types/database';
 
@@ -138,18 +138,6 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
     }
   };
 
-  // Filter submissions based on search term
-  const filteredSubmissions = useMemo(() => {
-    if (!searchTerm.trim()) return submissions;
-    
-    const term = searchTerm.toLowerCase();
-    return submissions.filter(submission => 
-      submission.title.toLowerCase().includes(term) ||
-      submission.genre?.toLowerCase().includes(term) ||
-      submission.type.toLowerCase().includes(term)
-    );
-  }, [submissions, searchTerm]);
-
   const columns = getColumns();
 
   const handleSubmissionClick = (submission: Submission) => {
@@ -160,9 +148,14 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
     try {
       setIsProcessing(submission.id);
       
-      let payload: any = {
+      const payload: {
+        submissionId: string;
+        action: string;
+        linkUrl?: string;
+        comment?: string;
+      } = {
         submissionId: submission.id,
-        action: action === 'primary' ? getPrimaryAction(submission) : action,
+        action: action === 'primary' ? getPrimaryAction() : action,
       };
 
       // Handle specific actions
@@ -210,7 +203,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
     }
   };
 
-  const getActionLabel = (role: string, submission: Submission): string => {
+  const getActionLabel = (role: string): string => {
     switch (role) {
       case 'submissions_coordinator':
         return 'Review';
@@ -225,7 +218,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
     }
   };
 
-  const getPrimaryAction = (submission: Submission): string => {
+  const getPrimaryAction = (): string => {
     switch (userRole) {
       case 'submissions_coordinator':
         return 'approve';
@@ -322,7 +315,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                               Processing...
                             </>
                           ) : (
-                            getActionLabel(userRole, submission)
+                            getActionLabel(userRole)
                           )}
                         </button>
                       )}

@@ -1,9 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { registerAction } from '@/lib/actions/auth'
-import { ErrorMessage, FieldError, InfoMessage } from '@/components/ui/feedback'
+import { ErrorMessage, FieldError } from '@/components/ui/feedback'
 import { LoadingSpinner } from '@/components/shared/loading-states'
 import {
   HelperText,
@@ -19,7 +19,6 @@ import {
 } from '@/lib/form-validation'
 
 export default function SignupForm() {
-  const router = useRouter()
   const params = useSearchParams()
   const next = params.get('next') || '/mine'
   const error = params.get('error')
@@ -127,7 +126,7 @@ export default function SignupForm() {
         setIsLoading(false)
       }
       // If successful, registerAction will redirect automatically
-    } catch (err) {
+    } catch {
       setFormError('Unable to connect to the server. Please check your internet connection and try again.')
       setIsLoading(false)
     }
@@ -282,7 +281,7 @@ export default function SignupForm() {
       </div>
 
       <p className="mt-4 text-xs text-slate-400">
-        After sign-up you'll go to <span className="text-slate-300">{next}</span>.
+        After sign-up you&apos;ll go to <span className="text-slate-300">{next}</span>.
       </p>
     </form>
   )

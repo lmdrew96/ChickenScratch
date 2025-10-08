@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { StatusBadge } from '@/components/common/status-badge';
 import { EmptyState } from '@/components/ui';
 import type { PublishedSubmission } from '@/types/database';
@@ -187,10 +188,12 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
               <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-amber-500/40 to-purple-500/30">
                 {submission.coverSignedUrl ? (
                   <>
-                    <img
+                    <Image
                       src={submission.coverSignedUrl}
                       alt={submission.title}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-110"
                     />
                     {/* Overlay buttons for visual art */}
                     {submission.type === 'visual' && (
@@ -381,11 +384,15 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
             className="relative max-h-[90vh] max-w-[90vw]"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
-              src={lightbox.imageUrl}
-              alt={lightbox.title}
-              className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
-            />
+            <div className="relative h-[90vh] w-[90vw]">
+              <Image
+                src={lightbox.imageUrl}
+                alt={lightbox.title}
+                fill
+                sizes="90vw"
+                className="rounded-lg object-contain"
+              />
+            </div>
             <p className="mt-4 text-center text-sm text-white/80">{lightbox.title}</p>
           </div>
         </div>

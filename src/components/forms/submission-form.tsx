@@ -9,7 +9,7 @@ import {
   type FormEvent,
 } from 'react';
 import { LoadingSpinner } from '@/components/shared/loading-states';
-import { ErrorMessage, SuccessMessage, FieldError, InlineLoading } from '@/components/ui/feedback';
+import { ErrorMessage, SuccessMessage, FieldError } from '@/components/ui/feedback';
 import { useFeedback } from '@/hooks/use-feedback';
 import {
   CharacterCount,
@@ -20,7 +20,6 @@ import {
   OptionalIndicator,
   ProgressSteps,
 } from '@/components/ui/form-helpers';
-import { validateField, commonValidations } from '@/lib/form-validation';
 
 
 const WRITING_CATEGORIES = [
@@ -61,8 +60,6 @@ type SubmissionFormProps = {
   redirectTo?: string;
 };
 
-const CATEGORY_OPTIONS = ['Photography', 'Illustration', 'Comics', 'Mixed media', 'Poster', 'Other'];
-
 export function SubmissionForm(props: SubmissionFormProps = {}) {
   void props;
   const [kind, setKind] = useState<SubmissionKind>('visual');
@@ -79,8 +76,6 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
   const { feedback, showSuccess, showError, clearFeedback } = useFeedback();
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -117,8 +112,8 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
       
       localStorage.setItem('submission-draft', JSON.stringify(formData));
       setLastSaved(new Date());
-    } catch (error) {
-      console.error('Auto-save failed:', error);
+    } catch {
+      // Silently fail auto-save
     } finally {
       setIsAutoSaving(false);
     }
@@ -139,8 +134,8 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
         setText(draft.text || '');
         setLastSaved(new Date());
       }
-    } catch (error) {
-      console.error('Failed to load draft:', error);
+    } catch {
+      // Silently fail draft loading
     }
   }, []);
 
@@ -276,7 +271,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
       setTimeout(() => {
         window.location.href = '/mine';
       }, 2000);
-    } catch (error) {
+    } catch {
       showError(
         'Unable to connect to the server. Please check your internet connection and try again.',
         'Network Error'
@@ -300,7 +295,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             Type
             <RequiredIndicator />
           </legend>
-          <HelperText>Choose the type of work you're submitting</HelperText>
+          <HelperText>Choose the type of work you&apos;re submitting</HelperText>
           <div className="flex flex-wrap gap-3">
             {(['visual', 'writing'] as SubmissionKind[]).map((option) => {
               const label = option === 'visual' ? 'Visual Art' : 'Writing';
@@ -472,33 +467,18 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
               onChange={handleFileChange}
               className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-200 focus:border-[var(--accent)]"
             />
-            {file ? (
+            {file && (
               <div className="space-y-2">
                 <p className="text-xs text-slate-300">Selected: {file.name}</p>
                 <div className="text-xs text-slate-400">
                   Size: {(file.size / 1024 / 1024).toFixed(2)} MB
                 </div>
-                {isUploading && (
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span>Uploading...</span>
-                      <span>{Math.round(uploadProgress)}%</span>
-                    </div>
-                    <div className="w-full bg-slate-700 rounded-full h-1.5">
-                      <div 
-                        className="bg-[var(--accent)] h-1.5 rounded-full transition-all duration-300"
-                        style={{ width: `${uploadProgress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <p className="text-xs text-slate-400">Accepted formats: images or PDF, one file only.</p>
-                <p className="text-xs text-slate-500">Maximum file size: 10 MB</p>
               </div>
             )}
+            <div className="space-y-1">
+              <p className="text-xs text-slate-400">Accepted formats: images or PDF, one file only.</p>
+              <p className="text-xs text-slate-500">Maximum file size: 10 MB</p>
+            </div>
             <FieldError error={errors.file} />
           </div>
         ) : null}
@@ -547,7 +527,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
             <AutoSaveIndicator isSaving={isAutoSaving} lastSaved={lastSaved} />
           </div>
           <HelperText>
-            Your work will be reviewed by our editorial team. You'll receive an email notification about the status.
+            Your work will be reviewed by our editorial team. You&apos;ll receive an email notification about the status.
           </HelperText>
         </div>
       </div>

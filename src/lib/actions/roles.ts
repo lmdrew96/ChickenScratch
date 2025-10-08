@@ -1,6 +1,5 @@
 'use server'
 
-import { createSupabaseServerActionClient } from '@/lib/supabase/server-action'
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/types/database'

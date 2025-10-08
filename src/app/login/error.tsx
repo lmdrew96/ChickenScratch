@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
 import PageHeader from '@/components/shell/page-header'
 
 export default function LoginError({
@@ -30,9 +31,9 @@ export default function LoginError({
             >
               Try again
             </button>
-            <a href="/" className="btn">
+            <Link href="/" className="btn">
               Go home
-            </a>
+            </Link>
           </div>
         </div>
       </div>

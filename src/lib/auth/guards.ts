@@ -42,23 +42,23 @@ export async function requireUser(nextUrl?: string) {
 }
 
 export function isOfficerRole(role: string): boolean {
-  return OFFICER_ROLES.includes(role as any);
+  return (OFFICER_ROLES as readonly string[]).includes(role);
 }
 
 export function isCommitteeRole(role: string): boolean {
-  return COMMITTEE_ROLES.includes(role as any);
+  return (COMMITTEE_ROLES as readonly string[]).includes(role);
 }
 
 export function isEditorRole(role: string): boolean {
-  return EDITOR_ROLES.includes(role as any);
+  return (EDITOR_ROLES as readonly string[]).includes(role);
 }
 
 export function isOfficerPosition(position: string): boolean {
-  return OFFICER_POSITIONS.includes(position as any);
+  return (OFFICER_POSITIONS as readonly string[]).includes(position);
 }
 
 export function isCommitteePosition(position: string): boolean {
-  return COMMITTEE_POSITIONS.includes(position as any);
+  return (COMMITTEE_POSITIONS as readonly string[]).includes(position);
 }
 
 export function hasOfficerAccess(positions?: string[], roles?: string[]): boolean {

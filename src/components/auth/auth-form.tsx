@@ -187,7 +187,7 @@ export function AuthForm({ type, onSubmit, loading = false, error }: AuthFormPro
         <div className="auth-form-footer">
           {type === 'signin' ? (
             <p className="auth-form-switch">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/auth/signup" className="auth-form-link">
                 Sign up
               </Link>

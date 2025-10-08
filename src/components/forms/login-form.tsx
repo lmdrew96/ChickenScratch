@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ErrorMessage, SuccessMessage, FieldError } from '@/components/ui/feedback'
+import { ErrorMessage, SuccessMessage } from '@/components/ui/feedback'
 import { LoadingSpinner } from '@/components/shared/loading-states'
 import { HelperText, RequiredIndicator, ValidationFeedback } from '@/components/ui/form-helpers'
 import { validateField, commonValidations, debounce } from '@/lib/form-validation'
@@ -158,10 +158,10 @@ export default function LoginForm() {
 
       <div className="mt-4 space-y-2">
         <HelperText>
-          After sign-in you'll be redirected to <span className="text-slate-300">{next}</span>
+          After sign-in you&apos;ll be redirected to <span className="text-slate-300">{next}</span>
         </HelperText>
         <HelperText>
-          Don't have an account? <a href="/signup" className="text-[var(--accent)] hover:underline">Sign up here</a>
+          Don&apos;t have an account? <a href="/signup" className="text-[var(--accent)] hover:underline">Sign up here</a>
         </HelperText>
       </div>
     </form>
