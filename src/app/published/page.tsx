@@ -94,7 +94,7 @@ export default async function PublishedPage() {
           }}
           secondaryAction={{
             label: "Learn more about us",
-            href: "/"
+            href: "/about"
           }}
         />
       </div>

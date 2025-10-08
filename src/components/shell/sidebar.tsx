@@ -127,6 +127,14 @@ export default function Sidebar({ signedIn = false }: { signedIn?: boolean }) {
           Published
         </Link>
         <Link 
+          href="/about" 
+          className={is('/about') ? 'active' : ''} 
+          onClick={closeMobileMenu}
+          aria-current={is('/about') ? 'page' : undefined}
+        >
+          About
+        </Link>
+        <Link 
           href="/officers" 
           className={is('/officers') ? 'active' : ''} 
           onClick={closeMobileMenu}

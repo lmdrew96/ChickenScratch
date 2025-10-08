@@ -177,10 +177,11 @@ export async function POST(request: NextRequest) {
           updatePayload.editor_reviewed_at = new Date().toISOString();
           console.log('[Committee Workflow] Editor approve - setting status to: editor_approved');
         } else if (action === 'decline') {
+          // Special handling: EIC decline overrides all other statuses and moves directly to editor_declined
           updatePayload.committee_status = 'editor_declined';
           updatePayload.decline_reason = comment;
           updatePayload.editor_reviewed_at = new Date().toISOString();
-          console.log('[Committee Workflow] Editor decline - setting status to: editor_declined');
+          console.log('[Committee Workflow] Editor-in-Chief decline - setting status to: editor_declined (overrides current stage)');
         }
         break;
 
