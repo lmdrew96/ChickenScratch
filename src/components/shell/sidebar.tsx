@@ -135,6 +135,14 @@ export default function Sidebar({ signedIn = false }: { signedIn?: boolean }) {
           About
         </Link>
         <Link 
+          href="/contact" 
+          className={is('/contact') ? 'active' : ''} 
+          onClick={closeMobileMenu}
+          aria-current={is('/contact') ? 'page' : undefined}
+        >
+          Contact
+        </Link>
+        <Link 
           href="/officers" 
           className={is('/officers') ? 'active' : ''} 
           onClick={closeMobileMenu}
