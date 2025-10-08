@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
         due_date,
         created_by: user.id,
         status: 'todo',
-      })
+      } as never)
       .select()
       .single();
 

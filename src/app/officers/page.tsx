@@ -24,13 +24,27 @@ export default async function OfficersPage() {
     `)
     .or('roles.cs.{"officer"},positions.ov.{BBEG,Dictator-in-Chief,Scroll Gremlin,Chief Hoarder,PR Nightmare}');
 
+  interface OfficerProfile {
+    id: string;
+    display_name: string;
+    email: string;
+  }
+
+  interface OfficerWithProfile {
+    user_id: string;
+    profiles: OfficerProfile[];
+  }
+
   const officersList = officers
-    ?.map((o: any) => ({
-      id: o.profiles?.id,
-      display_name: o.profiles?.display_name,
-      email: o.profiles?.email,
-    }))
-    .filter((o: any) => o.id) || [];
+    ?.map((o: OfficerWithProfile) => {
+      const profile = o.profiles?.[0];
+      return {
+        id: profile?.id || '',
+        display_name: profile?.display_name || '',
+        email: profile?.email || '',
+      };
+    })
+    .filter((o): o is OfficerProfile => !!o.id && !!o.display_name && !!o.email) || [];
 
   // Check if user has admin access (BBEG or Dictator-in-Chief)
   const { data: userRole } = await supabase

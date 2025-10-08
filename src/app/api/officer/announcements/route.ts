@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       .insert({
         message,
         created_by: user.id,
-      })
+      } as never)
       .select()
       .single();
 

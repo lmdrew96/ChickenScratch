@@ -3,9 +3,10 @@ import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     const supabase = await createSupabaseRouteHandlerClient();
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -31,7 +32,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const updates: any = {};
+    const updates: Record<string, string | null> = {};
 
     if (body.title !== undefined) updates.title = body.title;
     if (body.description !== undefined) updates.description = body.description;
@@ -42,8 +43,8 @@ export async function PATCH(
 
     const { data: task, error } = await supabase
       .from('officer_tasks')
-      .update(updates)
-      .eq('id', params.id)
+      .update(updates as never)
+      .eq('id', id)
       .select()
       .single();
 
@@ -61,9 +62,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     const supabase = await createSupabaseRouteHandlerClient();
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -91,7 +93,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('officer_tasks')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('Error deleting task:', error);

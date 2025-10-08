@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         description,
         proposed_dates,
         created_by: user.id,
-      })
+      } as never)
       .select()
       .single();
 

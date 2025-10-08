@@ -3,9 +3,10 @@ import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     const supabase = await createSupabaseRouteHandlerClient();
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -37,8 +38,8 @@ export async function PATCH(
     if (finalized_date !== undefined) {
       const { data: proposal, error } = await supabase
         .from('meeting_proposals')
-        .update({ finalized_date })
-        .eq('id', params.id)
+        .update({ finalized_date } as never)
+        .eq('id', id)
         .select()
         .single();
 
@@ -56,9 +57,9 @@ export async function PATCH(
         .from('officer_availability')
         .upsert({
           user_id: user.id,
-          meeting_proposal_id: params.id,
+          meeting_proposal_id: id,
           available_slots,
-        })
+        } as never)
         .select()
         .single();
 
