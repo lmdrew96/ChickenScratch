@@ -68,8 +68,8 @@ CREATE POLICY "Officers can view all meeting proposals"
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
       AND (
-        user_roles.roles @> '["officer"]'::jsonb
-        OR user_roles.positions ?| ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
+        'officer' = ANY(user_roles.roles)
+        OR user_roles.positions && ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
       )
     )
   );
@@ -82,8 +82,8 @@ CREATE POLICY "Officers can create meeting proposals"
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
       AND (
-        user_roles.roles @> '["officer"]'::jsonb
-        OR user_roles.positions ?| ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
+        'officer' = ANY(user_roles.roles)
+        OR user_roles.positions && ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
       )
     )
   );
@@ -95,8 +95,8 @@ CREATE POLICY "Officers can update meeting proposals"
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
       AND (
-        user_roles.roles @> '["officer"]'::jsonb
-        OR user_roles.positions ?| ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
+        'officer' = ANY(user_roles.roles)
+        OR user_roles.positions && ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
       )
     )
   );
@@ -109,8 +109,8 @@ CREATE POLICY "Officers can view all availability"
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
       AND (
-        user_roles.roles @> '["officer"]'::jsonb
-        OR user_roles.positions ?| ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
+        'officer' = ANY(user_roles.roles)
+        OR user_roles.positions && ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
       )
     )
   );
@@ -123,8 +123,8 @@ CREATE POLICY "Officers can manage their own availability"
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
       AND (
-        user_roles.roles @> '["officer"]'::jsonb
-        OR user_roles.positions ?| ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
+        'officer' = ANY(user_roles.roles)
+        OR user_roles.positions && ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
       )
     )
   );
@@ -137,8 +137,8 @@ CREATE POLICY "Officers can view all tasks"
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
       AND (
-        user_roles.roles @> '["officer"]'::jsonb
-        OR user_roles.positions ?| ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
+        'officer' = ANY(user_roles.roles)
+        OR user_roles.positions && ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
       )
     )
   );
@@ -151,8 +151,8 @@ CREATE POLICY "Officers can create tasks"
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
       AND (
-        user_roles.roles @> '["officer"]'::jsonb
-        OR user_roles.positions ?| ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
+        'officer' = ANY(user_roles.roles)
+        OR user_roles.positions && ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
       )
     )
   );
@@ -164,8 +164,8 @@ CREATE POLICY "Officers can update tasks"
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
       AND (
-        user_roles.roles @> '["officer"]'::jsonb
-        OR user_roles.positions ?| ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
+        'officer' = ANY(user_roles.roles)
+        OR user_roles.positions && ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
       )
     )
   );
@@ -177,8 +177,8 @@ CREATE POLICY "Officers can delete tasks"
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
       AND (
-        user_roles.roles @> '["officer"]'::jsonb
-        OR user_roles.positions ?| ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
+        'officer' = ANY(user_roles.roles)
+        OR user_roles.positions && ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
       )
     )
   );
@@ -191,8 +191,8 @@ CREATE POLICY "Officers can view all announcements"
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
       AND (
-        user_roles.roles @> '["officer"]'::jsonb
-        OR user_roles.positions ?| ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
+        'officer' = ANY(user_roles.roles)
+        OR user_roles.positions && ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
       )
     )
   );
@@ -205,8 +205,8 @@ CREATE POLICY "Officers can create announcements"
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
       AND (
-        user_roles.roles @> '["officer"]'::jsonb
-        OR user_roles.positions ?| ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
+        'officer' = ANY(user_roles.roles)
+        OR user_roles.positions && ARRAY['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare']
       )
     )
   );
