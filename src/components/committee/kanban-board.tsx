@@ -23,6 +23,106 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
 
   // Define columns based on user role
   const getColumns = (): KanbanColumn[] => {
+    // Editor-in-Chief sees ALL columns from all positions
+    if (userRole === 'editor_in_chief') {
+      return [
+        // Submissions Coordinator columns
+        {
+          id: 'new',
+          title: 'New Submissions',
+          submissions: submissions.filter(s => !s.committee_status || s.committee_status === 'pending_coordinator'),
+          canInteract: true
+        },
+        {
+          id: 'coordinator_reviewing', 
+          title: 'Coordinator Review',
+          submissions: submissions.filter(s => s.committee_status === 'with_coordinator'),
+          canInteract: true
+        },
+        {
+          id: 'coordinator_approved',
+          title: 'Coordinator Approved',
+          submissions: submissions.filter(s => s.committee_status === 'coordinator_approved'),
+          canInteract: true
+        },
+        // Proofreader columns (writing only)
+        {
+          id: 'proofreader_assigned',
+          title: 'Proofreader Assigned',
+          submissions: submissions.filter(s => 
+            (s.committee_status === 'with_proofreader' || s.committee_status === 'coordinator_approved') && s.type === 'writing'
+          ),
+          canInteract: true
+        },
+        {
+          id: 'proofreader_in_progress',
+          title: 'Proofreading', 
+          submissions: submissions.filter(s => 
+            s.google_docs_link && !s.proofreader_committed_at && s.type === 'writing'
+          ),
+          canInteract: true
+        },
+        {
+          id: 'proofreader_committed',
+          title: 'Proofread Complete',
+          submissions: submissions.filter(s => s.committee_status === 'proofreader_committed'),
+          canInteract: true
+        },
+        // Lead Design columns
+        {
+          id: 'design_visual_assigned',
+          title: 'Design: Visual Art',
+          submissions: submissions.filter(s => 
+            (s.committee_status === 'with_lead_design' || s.committee_status === 'coordinator_approved') && s.type === 'visual'
+          ),
+          canInteract: true
+        },
+        {
+          id: 'design_from_proofread',
+          title: 'Design: From Proofread',
+          submissions: submissions.filter(s => s.committee_status === 'proofreader_committed'),
+          canInteract: true
+        },
+        {
+          id: 'design_in_canva',
+          title: 'In Canva',
+          submissions: submissions.filter(s => 
+            s.lead_design_commit_link && !s.lead_design_committed_at
+          ),
+          canInteract: true
+        },
+        {
+          id: 'design_committed',
+          title: 'Design Complete',
+          submissions: submissions.filter(s => s.committee_status === 'lead_design_committed'),
+          canInteract: true
+        },
+        // Editor-in-Chief final review columns
+        {
+          id: 'eic_ready_for_review',
+          title: 'EIC: Final Review',
+          submissions: submissions.filter(s => 
+            s.committee_status === 'with_editor_in_chief' || 
+            s.committee_status === 'lead_design_committed' ||
+            s.committee_status === 'proofreader_committed'
+          ),
+          canInteract: true
+        },
+        {
+          id: 'eic_approved',
+          title: 'EIC: Approved',
+          submissions: submissions.filter(s => s.committee_status === 'editor_approved'),
+          canInteract: true
+        },
+        {
+          id: 'eic_declined',
+          title: 'EIC: Declined',
+          submissions: submissions.filter(s => s.committee_status === 'editor_declined' || s.committee_status === 'coordinator_declined'),
+          canInteract: true
+        }
+      ];
+    }
+    
     switch (userRole) {
       case 'submissions_coordinator':
         return [
@@ -104,31 +204,6 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           }
         ];
 
-      case 'editor_in_chief':
-        return [
-          {
-            id: 'ready_for_review',
-            title: 'Ready for Review',
-            submissions: submissions.filter(s => 
-              s.committee_status === 'with_editor_in_chief' || 
-              s.committee_status === 'lead_design_committed' ||
-              s.committee_status === 'proofreader_committed'
-            ),
-            canInteract: true
-          },
-          {
-            id: 'approved',
-            title: 'Approved',
-            submissions: submissions.filter(s => s.committee_status === 'editor_approved'),
-            canInteract: false
-          },
-          {
-            id: 'declined',
-            title: 'Declined',
-            submissions: submissions.filter(s => s.committee_status === 'editor_declined'),
-            canInteract: false
-          }
-        ];
 
       default:
         return [
@@ -267,7 +342,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className={`grid gap-6 ${userRole === 'editor_in_chief' ? 'lg:grid-cols-4 xl:grid-cols-5' : 'lg:grid-cols-3'}`}>
         {columns.map((column) => (
           <div key={column.id} className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
             <header className="mb-4 flex items-center justify-between">
