@@ -76,7 +76,7 @@ export default async function AdminPage() {
   return (
     <div className="container mx-auto p-8">
       <h1 className="text-3xl font-bold mb-6">Admin Panel</h1>
-      <CreateTestUser onUserCreated={() => {}} />
+      <CreateTestUser />
       <div className="mt-8">
         <h2 className="text-2xl font-bold mb-4">Manage Member Roles</h2>
         <AdminPanel initialUsers={users} />

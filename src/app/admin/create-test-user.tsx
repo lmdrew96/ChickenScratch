@@ -26,7 +26,7 @@ type CreatedUser = {
   password: string
 }
 
-export default function CreateTestUser({ onUserCreated }: { onUserCreated: () => void }) {
+export default function CreateTestUser({ onUserCreated }: { onUserCreated?: () => void } = {}) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [autoGeneratePassword, setAutoGeneratePassword] = useState(true)
@@ -103,8 +103,8 @@ export default function CreateTestUser({ onUserCreated }: { onUserCreated: () =>
       setRoles(['committee'])
       setPositions([])
       setShowForm(false)
-      // Notify parent to refresh user list
-      onUserCreated()
+      // Notify parent to refresh user list if callback provided
+      onUserCreated?.()
     } else {
       setError(result.error || 'Failed to create user')
     }
