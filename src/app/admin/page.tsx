@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { isAdmin, getAllUsersWithRoles, getCurrentUserRole } from '@/lib/actions/roles'
-import AdminPageClient from './admin-page-client'
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly'
+import AdminPanel from './admin-panel'
+import CreateTestUser from './create-test-user'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,7 +76,11 @@ export default async function AdminPage() {
   return (
     <div className="container mx-auto p-8">
       <h1 className="text-3xl font-bold mb-6">Admin Panel</h1>
-      <AdminPageClient initialUsers={users} />
+      <CreateTestUser onUserCreated={() => {}} />
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">Manage Member Roles</h2>
+        <AdminPanel initialUsers={users} />
+      </div>
     </div>
   )
 }
