@@ -1,76 +1,151 @@
 import PageHeader from '@/components/shell/page-header';
 import { requireOfficerRole } from '@/lib/auth/guards';
-
-const meetingScheduler = [
-  { title: 'Next meeting proposal', meta: 'Vote to schedule for next Friday' },
-  { title: 'Agenda items', meta: '3 topics submitted' },
-  { title: 'Meeting history', meta: 'Last met: January 15th' },
-];
-
-const officerTasks = [
-  { title: 'Budget review', meta: 'Q1 financial report due' },
-  { title: 'Event planning', meta: 'Spring showcase coordination' },
-  { title: 'Committee oversight', meta: 'Review workflow efficiency' },
-];
-
-const adminTools = [
-  { title: 'User role management', meta: 'Assign new committee members' },
-  { title: 'System settings', meta: 'Configure workflow parameters' },
-  { title: 'Analytics dashboard', meta: 'View submission metrics' },
-];
+import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { MeetingScheduler } from '@/components/officers/meeting-scheduler';
+import { TaskManager } from '@/components/officers/task-manager';
+import { Announcements } from '@/components/officers/announcements';
+import { AdminTools } from '@/components/officers/admin-tools';
+import { StatsDashboard } from '@/components/officers/stats-dashboard';
 
 export default async function OfficersPage() {
   const { profile } = await requireOfficerRole('/officers');
+  const supabase = await createSupabaseServerReadOnlyClient();
 
-  const roleDisplayNames = {
-    bbeg: 'BBEG',
-    dictator_in_chief: 'Dictator-in-Chief', 
-    scroll_gremlin: 'Scroll Gremlin',
-    chief_hoarder: 'Chief Hoarder',
-    pr_nightmare: 'PR Nightmare'
+  // Fetch officers for task assignment
+  const { data: officers } = await supabase
+    .from('user_roles')
+    .select(`
+      user_id,
+      profiles!user_roles_user_id_fkey(
+        id,
+        display_name,
+        email
+      )
+    `)
+    .or('roles.cs.{"officer"},positions.ov.{BBEG,Dictator-in-Chief,Scroll Gremlin,Chief Hoarder,PR Nightmare}');
+
+  const officersList = officers
+    ?.map((o: any) => ({
+      id: o.profiles?.id,
+      display_name: o.profiles?.display_name,
+      email: o.profiles?.email,
+    }))
+    .filter((o: any) => o.id) || [];
+
+  // Check if user has admin access (BBEG or Dictator-in-Chief)
+  const { data: userRole } = await supabase
+    .from('user_roles')
+    .select('positions')
+    .eq('user_id', profile.id)
+    .single();
+
+  const hasAdminAccess = userRole?.positions?.some((p: string) =>
+    ['BBEG', 'Dictator-in-Chief'].includes(p)
+  );
+
+  // Fetch stats
+  const now = new Date();
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [
+    { count: submissionsThisMonth },
+    { count: pendingReviews },
+    { count: publishedPieces },
+    { count: activeCommittee },
+    { count: totalUsers },
+    { count: committeeMembers },
+    { count: pendingSubmissions },
+  ] = await Promise.all([
+    supabase
+      .from('submissions')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', firstDayOfMonth.toISOString()),
+    supabase
+      .from('submissions')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending'),
+    supabase
+      .from('submissions')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_published', true),
+    supabase
+      .from('user_roles')
+      .select('*', { count: 'exact', head: true })
+      .or('roles.cs.{"committee"},positions.ov.{Editor-in-Chief,Submissions Coordinator,Proofreader,Lead Design}'),
+    supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true }),
+    supabase
+      .from('user_roles')
+      .select('*', { count: 'exact', head: true })
+      .or('roles.cs.{"committee"},positions.ov.{Editor-in-Chief,Submissions Coordinator,Proofreader,Lead Design}'),
+    supabase
+      .from('submissions')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending'),
+  ]);
+
+  const stats = {
+    submissionsThisMonth: submissionsThisMonth || 0,
+    pendingReviews: pendingReviews || 0,
+    publishedPieces: publishedPieces || 0,
+    activeCommittee: activeCommittee || 0,
   };
 
-  const displayRole = roleDisplayNames[profile.role as keyof typeof roleDisplayNames] || profile.role;
+  const adminStats = hasAdminAccess
+    ? {
+        totalUsers: totalUsers || 0,
+        committeeMembers: committeeMembers || 0,
+        pendingSubmissions: pendingSubmissions || 0,
+      }
+    : undefined;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader title="Officers Dashboard" />
-      
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg md:p-8">
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-[var(--text)]">Welcome, {displayRole}</h2>
-          <p className="text-sm text-slate-300">Officer access granted - manage team operations</p>
+
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
+        <h2 className="text-lg font-semibold text-[var(--text)] mb-2">
+          Welcome to the Officers Dashboard
+        </h2>
+        <p className="text-sm text-slate-300">
+          Coordinate team activities, manage tasks, and oversee operations
+        </p>
+      </div>
+
+      {/* Stats Dashboard */}
+      <StatsDashboard stats={stats} />
+
+      {/* Main Content Grid */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        {/* Left Column */}
+        <div className="space-y-8">
+          {/* Meeting Scheduler */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
+            <MeetingScheduler userId={profile.id} />
+          </div>
+
+          {/* Announcements */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
+            <Announcements />
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-8">
+          {/* Admin Tools */}
+          {hasAdminAccess && (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
+              <AdminTools hasAdminAccess={hasAdminAccess} stats={adminStats} />
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <SectionCard heading="Team Meeting Scheduler" items={meetingScheduler} />
-        <SectionCard heading="Officer Tasks" items={officerTasks} />
-        <SectionCard heading="Admin Tools" items={adminTools} />
+      {/* Full Width Task Manager */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
+        <TaskManager officers={officersList} />
       </div>
     </div>
-  );
-}
-
-type SectionCardProps = {
-  heading: string;
-  items: Array<{ title: string; meta: string }>;
-};
-
-function SectionCard({ heading, items }: SectionCardProps) {
-  return (
-    <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg md:p-8">
-      <header className="mb-4">
-        <h2 className="text-xl font-semibold text-[var(--text)]">{heading}</h2>
-      </header>
-      <ul className="space-y-3 text-sm text-slate-200">
-        {items.map((item) => (
-          <li key={item.title} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-            <p className="font-semibold text-[var(--text)]">{item.title}</p>
-            <p className="text-xs text-slate-300">{item.meta}</p>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
