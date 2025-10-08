@@ -35,7 +35,7 @@ export default function AboutPage() {
           <p className="text-gray-300 leading-relaxed mb-4">
             The Hen & Ink Society is a student-run organization dedicated to fostering creativity and 
             literary expression within our community. We believe that everyone has a story to tell, and 
-            we're here to provide a platform for those voices to be heard.
+            we&apos;re here to provide a platform for those voices to be heard.
           </p>
           <p className="text-gray-300 leading-relaxed">
             Through workshops, events, and our publication Chicken Scratch, we create spaces where 
@@ -79,7 +79,7 @@ export default function AboutPage() {
             <div className="pt-4">
               <h3 className="text-xl font-semibold text-white mb-2">Join Our Team</h3>
               <p className="text-gray-300 leading-relaxed mb-3">
-                Interested in being part of the editorial process? We're always looking for passionate 
+                Interested in being part of the editorial process? We&apos;re always looking for passionate 
                 students to join our committee as editors, designers, and coordinators.
               </p>
               <Link href="/officers" className="btn inline-flex">
@@ -103,7 +103,7 @@ export default function AboutPage() {
         <section className="rounded-2xl border border-white/10 bg-white/5 p-8">
           <h2 className="text-2xl font-bold text-white mb-4">Contact Us</h2>
           <p className="text-gray-300 leading-relaxed mb-4">
-            Have questions or want to learn more? We'd love to hear from you!
+            Have questions or want to learn more? We&apos;d love to hear from you!
           </p>
           <p className="text-gray-300">
             Reach out to us through the submission portal or connect with us at our events throughout the year.

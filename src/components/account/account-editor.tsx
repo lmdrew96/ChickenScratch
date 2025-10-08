@@ -25,7 +25,6 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar }: Pr
   const [preview, setPreview] = useState<string | null>(defaultAvatar ?? null);
   
   // Password section state
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
@@ -57,7 +56,7 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar }: Pr
 
       if (supabase) {
         // Try to update first
-        const { data: updateData, error: updateError } = await supabase
+        const { error: updateError } = await supabase
           .from('profiles')
           .update({ 
             full_name: name || null,
@@ -70,7 +69,7 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar }: Pr
 
         if (updateError) {
           // If update failed (likely because row doesn't exist), try insert
-          const { data: insertData, error: insertError } = await supabase
+          const { error: insertError } = await supabase
             .from('profiles')
             .insert({ 
               id: userId,
@@ -127,7 +126,6 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar }: Pr
       if (error) throw error;
 
       setPasswordMsg('Password changed successfully ✔︎');
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setPasswordMsg(null), 3000);

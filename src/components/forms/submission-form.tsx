@@ -13,7 +13,6 @@ import { ErrorMessage, SuccessMessage, FieldError } from '@/components/ui/feedba
 import { useFeedback } from '@/hooks/use-feedback';
 import {
   CharacterCount,
-  WordCount,
   HelperText,
   AutoSaveIndicator,
   RequiredIndicator,

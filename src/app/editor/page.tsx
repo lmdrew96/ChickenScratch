@@ -47,7 +47,7 @@ function getDaysSince(date: string | null): number {
 
 export default async function EditorInChiefDashboard() {
   // Require user to be logged in
-  const { session, profile } = await requireUser('/editor');
+  await requireUser('/editor');
 
   // Get user role from user_roles table
   const userRole = await getCurrentUserRole();
@@ -116,7 +116,7 @@ export default async function EditorInChiefDashboard() {
 
   // Find stage with most backlog
   const maxBacklog = Math.max(...Object.values(statusCounts));
-  const backlogStage = Object.entries(statusCounts).find(([_, count]) => count === maxBacklog)?.[0];
+  const backlogStage = Object.entries(statusCounts).find(([, count]) => count === maxBacklog)?.[0];
 
   // Recent activity - get last 10 submissions with status changes
   const recentActivity = submissions
