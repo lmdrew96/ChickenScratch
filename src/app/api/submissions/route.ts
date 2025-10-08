@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ success: true, submission: data });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createSupabaseRouteHandlerClient();
   const {
     data: { user },
@@ -73,6 +73,28 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const mine = searchParams.get('mine');
+
+  // If requesting own submissions, allow any authenticated user
+  if (mine === '1') {
+    const { data: submissions, error } = await supabase
+      .from('submissions')
+      .select(`
+        *,
+        assigned_editor_profile:profiles!submissions_assigned_editor_fkey(id, name, email)
+      `)
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ submissions });
+  }
+
+  // For all submissions, require editor or admin role
   const { data: profileData } = await supabase
     .from('profiles')
     .select('role')
