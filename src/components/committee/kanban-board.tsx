@@ -29,7 +29,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           {
             id: 'new',
             title: 'New Submissions',
-            submissions: submissions.filter(s => s.committee_status === 'pending_coordinator'),
+            submissions: submissions.filter(s => !s.committee_status || s.committee_status === 'pending_coordinator'),
             canInteract: true
           },
           {
@@ -52,7 +52,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             id: 'assigned',
             title: 'Assigned to Me',
             submissions: submissions.filter(s => 
-              s.committee_status === 'with_proofreader' && s.type === 'writing'
+              (s.committee_status === 'with_proofreader' || s.committee_status === 'coordinator_approved') && s.type === 'writing'
             ),
             canInteract: true
           },
@@ -78,7 +78,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             id: 'visual_assigned',
             title: 'Visual Art Assigned',
             submissions: submissions.filter(s => 
-              s.committee_status === 'with_lead_design' && s.type === 'visual'
+              (s.committee_status === 'with_lead_design' || s.committee_status === 'coordinator_approved') && s.type === 'visual'
             ),
             canInteract: true
           },
@@ -109,7 +109,11 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           {
             id: 'ready_for_review',
             title: 'Ready for Review',
-            submissions: submissions.filter(s => s.committee_status === 'with_editor_in_chief'),
+            submissions: submissions.filter(s => 
+              s.committee_status === 'with_editor_in_chief' || 
+              s.committee_status === 'lead_design_committed' ||
+              s.committee_status === 'proofreader_committed'
+            ),
             canInteract: true
           },
           {
@@ -131,7 +135,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           {
             id: 'all',
             title: 'All Submissions',
-            submissions: submissions.filter(s => s.committee_status === 'final_committee_review'),
+            submissions: submissions,
             canInteract: false
           }
         ];
