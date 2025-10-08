@@ -1,24 +1,33 @@
-import { cookies, headers } from 'next/headers';
 import Link from 'next/link';
 
 import { PageHeader } from '@/components/navigation';
 import { EmptyState } from '@/components/ui';
 import { requireUser } from '@/lib/auth/guards';
-
-type SubmissionListItem = {
-  id?: string | null;
-  title?: string | null;
-  status?: string | null;
-  updated_at?: string | null;
-  updatedAt?: string | null;
-  created_at?: string | null;
-  createdAt?: string | null;
-};
+import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import type { Submission } from '@/types/database';
 
 export default async function MinePage() {
-  await requireUser('/mine');
+  const { profile } = await requireUser('/mine');
 
-  const submissions = await loadMineSubmissions();
+  // Fetch user's submissions directly from Supabase
+  const supabase = await createSupabaseServerReadOnlyClient();
+  let submissions: Submission[] = [];
+  
+  try {
+    const { data, error } = await supabase
+      .from('submissions')
+      .select('*')
+      .eq('owner_id', profile.id)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching submissions:', error);
+    } else if (data) {
+      submissions = data;
+    }
+  } catch (error) {
+    console.error('Failed to fetch submissions:', error);
+  }
 
   return (
     <div className="space-y-6">
@@ -47,16 +56,13 @@ export default async function MinePage() {
         />
       ) : (
         <ul className="space-y-4">
-          {submissions.map((submission, index) => {
-            const key = submission.id ?? `submission-${index}`;
-            const title = (submission.title ?? '').trim() || 'Untitled submission';
+          {submissions.map((submission) => {
+            const title = submission.title?.trim() || 'Untitled submission';
             const status = formatStatus(submission.status);
-            const updated = formatDate(
-              submission.updated_at ?? submission.updatedAt ?? submission.created_at ?? submission.createdAt
-            );
+            const updated = formatDate(submission.updated_at ?? submission.created_at);
 
             return (
-              <li key={key}>
+              <li key={submission.id}>
                 <article className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="space-y-1">
@@ -75,56 +81,6 @@ export default async function MinePage() {
       )}
     </div>
   );
-}
-
-async function loadMineSubmissions(): Promise<SubmissionListItem[]> {
-  try {
-    const headerList = await headers();
-    const protocol = headerList.get('x-forwarded-proto') ?? 'http';
-    const host = headerList.get('x-forwarded-host') ?? headerList.get('host');
-
-    if (!host) {
-      return [];
-    }
-
-    const baseUrl = `${protocol}://${host}`;
-    const cookieStore = cookies();
-    const cookieHeader = cookieStore.toString();
-
-    const response = await fetch(`${baseUrl}/api/submissions?mine=1`, {
-      method: 'GET',
-      headers: {
-        ...(cookieHeader ? { cookie: cookieHeader } : {}),
-      },
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const payload = await response.json().catch(() => null);
-
-    if (!payload) {
-      return [];
-    }
-
-    if (Array.isArray(payload)) {
-      return payload as SubmissionListItem[];
-    }
-
-    if (Array.isArray(payload.data)) {
-      return payload.data as SubmissionListItem[];
-    }
-
-    if (Array.isArray(payload.submissions)) {
-      return payload.submissions as SubmissionListItem[];
-    }
-
-    return [];
-  } catch {
-    return [];
-  }
 }
 
 function formatStatus(status?: string | null) {
