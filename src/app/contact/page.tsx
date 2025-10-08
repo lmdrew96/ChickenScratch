@@ -146,7 +146,7 @@ export default function ContactPage() {
                 <h3 className="font-semibold text-white group-hover:text-[var(--accent)] transition-colors">
                   BBEG
                 </h3>
-                <p className="text-sm text-gray-400">Big Bad Evil Guy</p>
+                <p className="text-sm text-gray-400">President</p>
                 <p className="text-sm text-[var(--accent)] mt-1">mbdorsch@udel.edu</p>
               </div>
             </a>
@@ -163,7 +163,7 @@ export default function ContactPage() {
                 <h3 className="font-semibold text-white group-hover:text-[var(--accent)] transition-colors">
                   Dictator-in-Chief
                 </h3>
-                <p className="text-sm text-gray-400">Leadership</p>
+                <p className="text-sm text-gray-400">Vice President</p>
                 <p className="text-sm text-[var(--accent)] mt-1">lmdrew@udel.edu</p>
               </div>
             </a>
