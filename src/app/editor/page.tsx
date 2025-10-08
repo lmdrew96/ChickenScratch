@@ -4,7 +4,12 @@ import PageHeader from '@/components/shell/page-header';
 import { requireUser } from '@/lib/auth/guards';
 import { getCurrentUserRole } from '@/lib/actions/roles';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { SubmissionsListWithDelete } from '@/components/editor/submissions-list-with-delete';
 import type { Submission } from '@/types/database';
+
+interface SubmissionWithAuthor extends Submission {
+  author_name?: string;
+}
 
 // Committee status type
 type CommitteeStatus = Submission['committee_status'];
@@ -64,9 +69,9 @@ export default async function EditorInChiefDashboard() {
     }
   }
 
-  // Fetch all submissions
+  // Fetch all submissions with author names
   const supabase = await createSupabaseServerReadOnlyClient();
-  let submissions: Submission[] = [];
+  let submissions: SubmissionWithAuthor[] = [];
 
   try {
     const { data, error } = await supabase
@@ -77,11 +82,29 @@ export default async function EditorInChiefDashboard() {
     if (error) {
       console.error('Error fetching submissions:', error);
     } else if (data) {
-      submissions = data;
+      // Fetch author names for all submissions
+      const ownerIds = [...new Set(data.map((s) => s.owner_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', ownerIds);
+
+      const profileMap = new Map(profiles?.map((p) => [p.id, p.name]) || []);
+
+      submissions = data.map((submission) => ({
+        ...submission,
+        author_name: profileMap.get(submission.owner_id) || undefined,
+      }));
     }
   } catch (error) {
     console.error('Failed to fetch submissions:', error);
   }
+
+  // Check if user is admin (BBEG or Dictator-in-Chief)
+  const isAdmin = !!(
+    userRole?.positions?.includes('BBEG') ||
+    userRole?.positions?.includes('Dictator-in-Chief')
+  );
 
   // Calculate metrics
   const totalSubmissions = submissions.length;
@@ -348,6 +371,9 @@ export default async function EditorInChiefDashboard() {
           </button>
         </div>
       </section>
+
+      {/* All Submissions List with Delete Functionality */}
+      <SubmissionsListWithDelete submissions={submissions} isAdmin={isAdmin} />
     </div>
   );
 }
