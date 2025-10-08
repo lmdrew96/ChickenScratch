@@ -92,47 +92,67 @@ type UserWithRole = {
 }
 
 export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
-  // Use admin client to list all users
-  const adminClient = createSupabaseAdminClient()
-  
-  // Get all users from auth
-  const { data: { users }, error: usersError } = await adminClient.auth.admin.listUsers()
-  
-  if (usersError) {
-    // Fallback: get from profiles if admin API not available
-    const { data: profiles } = await adminClient
-      .from('profiles')
-      .select('*')
+  try {
+    // Use admin client to list all users
+    const adminClient = createSupabaseAdminClient()
     
-    const { data: roles } = await adminClient
+    // Get all users from auth
+    const { data: { users }, error: usersError } = await adminClient.auth.admin.listUsers()
+    
+    if (usersError) {
+      console.error('Error listing users from auth:', usersError)
+      // Fallback: get from profiles if admin API not available
+      const { data: profiles, error: profilesError } = await adminClient
+        .from('profiles')
+        .select('*')
+      
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError)
+        return []
+      }
+      
+      const { data: roles, error: rolesError } = await adminClient
+        .from('user_roles')
+        .select('*')
+      
+      if (rolesError) {
+        console.error('Error fetching roles:', rolesError)
+      }
+      
+      return profiles?.map(profile => {
+        const role = roles?.find(r => r.user_id === profile.id)
+        return {
+          id: profile.id,
+          email: profile.email,
+          is_member: role?.is_member,
+          roles: role?.roles || [],
+          positions: role?.positions || []
+        }
+      }) || []
+    }
+    
+    // Get all roles
+    const { data: roles, error: rolesError } = await adminClient
       .from('user_roles')
       .select('*')
     
-    return profiles?.map(profile => {
-      const role = roles?.find(r => r.user_id === profile.id)
+    if (rolesError) {
+      console.error('Error fetching user roles:', rolesError)
+    }
+    
+    return users?.map(user => {
+      const role = roles?.find(r => r.user_id === user.id)
       return {
-        id: profile.id,
-        email: profile.email,
+        id: user.id,
+        email: user.email ?? null,
         is_member: role?.is_member,
         roles: role?.roles || [],
         positions: role?.positions || []
       }
     }) || []
+  } catch (error) {
+    console.error('Error in getAllUsersWithRoles:', error)
+    // Return empty array instead of throwing to prevent page crash
+    return []
   }
-  
-  // Get all roles
-  const { data: roles } = await adminClient
-    .from('user_roles')
-    .select('*')
-  
-  return users?.map(user => {
-    const role = roles?.find(r => r.user_id === user.id)
-    return {
-      id: user.id,
-      email: user.email ?? null,
-      is_member: role?.is_member,
-      roles: role?.roles || [],
-      positions: role?.positions || []
-    }
-  }) || []
 }
