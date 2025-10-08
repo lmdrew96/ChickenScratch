@@ -277,10 +277,9 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
 
       // Handle specific actions
       if (action === 'open_docs') {
-        // If google_docs_link exists, open it directly in preview modal
+        // If google_docs_link exists, open it directly in edit mode
         if (submission.google_docs_link) {
-          const previewUrl = submission.google_docs_link.replace('/edit', '/preview');
-          setGoogleDocUrl(previewUrl);
+          setGoogleDocUrl(submission.google_docs_link);
           setIsProcessing(null);
           return;
         }
@@ -325,11 +324,9 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
 
       const result = await response.json();
 
-      // If response contains google_doc_url, show it in modal
+      // If response contains google_doc_url, show it in modal (keep in edit mode)
       if (result.google_doc_url) {
-        // Convert edit URL to preview URL for iframe embedding
-        const previewUrl = result.google_doc_url.replace('/edit', '/preview');
-        setGoogleDocUrl(previewUrl);
+        setGoogleDocUrl(result.google_doc_url);
         setIsProcessing(null);
         return;
       }
@@ -488,13 +485,12 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <h2 className="text-lg font-semibold text-[var(--text)]">
-                Google Doc Preview
+                Google Doc Editor
               </h2>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => {
-                    const editUrl = googleDocUrl.replace('/preview', '/edit');
-                    window.open(editUrl, '_blank');
+                    window.open(googleDocUrl, '_blank');
                   }}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm text-white flex items-center gap-2"
                 >
@@ -520,7 +516,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
               <iframe
                 src={googleDocUrl}
                 className="w-full h-full rounded-lg border border-white/10"
-                title="Google Doc Preview"
+                title="Google Doc Editor"
                 allow="clipboard-read; clipboard-write"
               />
             </div>
@@ -580,8 +576,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                   <button
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm flex items-center gap-2"
                     onClick={() => {
-                      const previewUrl = selectedSubmission.google_docs_link!.replace('/edit', '/preview');
-                      setGoogleDocUrl(previewUrl);
+                      setGoogleDocUrl(selectedSubmission.google_docs_link!);
                     }}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
