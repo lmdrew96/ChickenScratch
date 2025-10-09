@@ -19,13 +19,14 @@ export default function AboutPage() {
         {/* Mission Statement */}
         <section className="rounded-2xl border border-white/10 bg-white/5 p-8">
           <h2 className="text-2xl font-bold text-white mb-4">Our Mission</h2>
+          <p className="text-gray-300 leading-relaxed text-lg mb-4">
+            The Hen & Ink Society serves as a vital bridge connecting students and staff across the University of Delaware community, with a special focus on bringing together voices from smaller satellite and commuter campuses. Through Chicken Scratch, we create a space where students from all corners of our university can share their stories, art, and perspectives—fostering a sense of belonging and connection that transcends physical distance. We feature interviews with faculty, students, and peer mentors, celebrating the diverse experiences that make our community rich and vibrant. Our goal is to promote unification, especially for students in transition to the main campus, and we&apos;re excited about the potential for a sister society in Newark to further expand our reach.
+          </p>
+          <p className="text-gray-300 leading-relaxed text-lg mb-4">
+            As college students, we spend countless hours reading and writing because we have to—for classes, assignments, and requirements. Unfortunately, this obligation can drain the joy from what should be powerful forms of self-expression and creativity. The Hen & Ink Society and Chicken Scratch exist to reclaim that creativity, to remind ourselves and our peers that writing and art can be sources of inspiration, connection, and personal fulfillment rather than just academic duties.
+          </p>
           <p className="text-gray-300 leading-relaxed text-lg">
-            We began this zine as a way to collect student creative works and share them with our community. 
-            Our goal is to inspire not only our readers, but each other. Being college students, we all spend 
-            a lot of time reading and writing because we have to, not necessarily because we want to. 
-            Unfortunately, this can take all of the enjoyment out of some pretty important forms of self-expression. 
-            The Hen & Ink Society and Chicken Scratch are our way of taking back our creativity and using it to 
-            uplift and support our community.
+            We began this zine as a way to collect student creative works and share them with our community, but it has become so much more. Our mission is to inspire not only our readers, but each other—to create a supportive space where creativity thrives and every voice matters. Through Chicken Scratch, we&apos;re taking back our creativity and using it to uplift, support, and unite our community.
           </p>
         </section>
 
