@@ -4,9 +4,11 @@ import { isAdmin } from '@/lib/actions/roles';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
+    
     // Check if user is admin
     const isUserAdmin = await isAdmin();
     if (!isUserAdmin) {
@@ -16,7 +18,7 @@ export async function DELETE(
       );
     }
 
-    const userId = params.id;
+    const userId = id;
 
     // Create Supabase admin client with service role key
     const supabaseAdmin = createClient(

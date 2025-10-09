@@ -10,7 +10,7 @@ type UserWithRole = {
   id: string
   email: string | null
   display_name?: string | null
-  created_at?: string
+  created_at?: string | null
   is_member?: boolean
   roles?: ('officer' | 'committee')[]
   positions?: Position[]
