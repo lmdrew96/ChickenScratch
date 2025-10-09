@@ -4,15 +4,17 @@ import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
 
 const notificationSchema = z.object({
   submissionId: z.string().uuid(),
-  committeeStatus: z.string(),
+  committeeStatus: z.string().optional(),
+  notificationType: z.enum(['new_submission', 'assignment']).optional(),
   submissionTitle: z.string(),
   submissionType: z.string(),
+  submissionGenre: z.string().optional(),
+  submissionDate: z.string().optional(),
   authorName: z.string().optional(),
 });
 
-// Map committee status to position
+// Map committee status to position (for workflow assignments)
 const STATUS_TO_POSITION: Record<string, string> = {
-  'with_coordinator': 'Submissions Coordinator',
   'with_proofreader': 'Proofreader',
   'with_lead_design': 'Lead Design',
   'with_editor_in_chief': 'Editor-in-Chief',
@@ -31,12 +33,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { submissionId, committeeStatus, submissionTitle, submissionType, authorName } = parsed.data;
+    const { 
+      submissionId, 
+      committeeStatus, 
+      notificationType,
+      submissionTitle, 
+      submissionType,
+      submissionGenre,
+      submissionDate,
+      authorName 
+    } = parsed.data;
 
     // Determine which position should be notified
-    const targetPosition = STATUS_TO_POSITION[committeeStatus];
+    let targetPosition: string;
     
-    if (!targetPosition) {
+    if (notificationType === 'new_submission') {
+      // New submissions always go to Submissions Coordinator
+      targetPosition = 'Submissions Coordinator';
+      console.log('[Notification] New submission - notifying Submissions Coordinator');
+    } else if (committeeStatus && STATUS_TO_POSITION[committeeStatus]) {
+      // Workflow assignments go to specific positions
+      targetPosition = STATUS_TO_POSITION[committeeStatus];
+      console.log('[Notification] Workflow assignment - notifying:', targetPosition);
+    } else {
       console.log('[Notification] No notification needed for status:', committeeStatus);
       return NextResponse.json({ success: true, message: 'No notification required for this status' });
     }
@@ -89,13 +108,27 @@ export async function POST(request: NextRequest) {
     // Check if Resend API key is configured
     const resendApiKey = process.env.RESEND_API_KEY;
     
+    // Determine email subject and content based on notification type
+    const isNewSubmission = notificationType === 'new_submission';
+    const emailSubject = isNewSubmission 
+      ? `New Submission Received: ${submissionTitle}`
+      : `New Submission Assigned: ${submissionTitle}`;
+
     if (!resendApiKey) {
       console.warn('[Notification] RESEND_API_KEY not configured, logging email instead');
       console.log('[Notification] Would send email:', {
         from: 'Chicken Scratch <notifications@chickenscratch.me>',
         to: recipients,
-        subject: `New Submission Assigned: ${submissionTitle}`,
-        html: generateEmailHtml(submissionTitle, submissionType, authorName, submissionId),
+        subject: emailSubject,
+        html: generateEmailHtml(
+          submissionTitle, 
+          submissionType, 
+          authorName, 
+          submissionId,
+          submissionGenre,
+          submissionDate,
+          isNewSubmission
+        ),
       });
       return NextResponse.json({ 
         success: true, 
@@ -115,8 +148,16 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           from: 'Chicken Scratch <notifications@chickenscratch.me>',
           to: recipients,
-          subject: `New Submission Assigned: ${submissionTitle}`,
-          html: generateEmailHtml(submissionTitle, submissionType, authorName, submissionId),
+          subject: emailSubject,
+          html: generateEmailHtml(
+            submissionTitle, 
+            submissionType, 
+            authorName, 
+            submissionId,
+            submissionGenre,
+            submissionDate,
+            isNewSubmission
+          ),
         }),
       });
 
@@ -158,9 +199,16 @@ function generateEmailHtml(
   title: string,
   type: string,
   authorName: string | undefined,
-  submissionId: string
+  submissionId: string,
+  genre: string | undefined,
+  submissionDate: string | undefined,
+  isNewSubmission: boolean
 ): string {
   const committeeUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/committee`;
+  const headerText = isNewSubmission ? 'New Submission Received' : 'New Submission Assigned';
+  const bodyText = isNewSubmission 
+    ? 'A new submission has been received and is ready for your review.'
+    : 'A new submission has been assigned to you for review.';
   
   return `
     <!DOCTYPE html>
@@ -168,13 +216,13 @@ function generateEmailHtml(
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>New Submission Assigned</title>
+        <title>${headerText}</title>
       </head>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background-color: #f8f9fa; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
-          <h1 style="color: #2c3e50; margin-top: 0;">New Submission Assigned</h1>
+          <h1 style="color: #2c3e50; margin-top: 0;">${headerText}</h1>
           <p style="font-size: 16px; color: #555;">
-            A new submission has been assigned to you for review.
+            ${bodyText}
           </p>
         </div>
         
@@ -189,10 +237,22 @@ function generateEmailHtml(
               <td style="padding: 8px 0; font-weight: bold; color: #555;">Type:</td>
               <td style="padding: 8px 0;">${type}</td>
             </tr>
+            ${genre ? `
+            <tr>
+              <td style="padding: 8px 0; font-weight: bold; color: #555;">Genre:</td>
+              <td style="padding: 8px 0;">${genre}</td>
+            </tr>
+            ` : ''}
             ${authorName ? `
             <tr>
               <td style="padding: 8px 0; font-weight: bold; color: #555;">Author:</td>
               <td style="padding: 8px 0;">${authorName}</td>
+            </tr>
+            ` : ''}
+            ${submissionDate ? `
+            <tr>
+              <td style="padding: 8px 0; font-weight: bold; color: #555;">Submitted:</td>
+              <td style="padding: 8px 0;">${new Date(submissionDate).toLocaleDateString()}</td>
             </tr>
             ` : ''}
             <tr>

@@ -218,7 +218,8 @@ export async function POST(request: NextRequest) {
     console.log('[Committee Workflow] Successfully updated submission to status:', newStatus);
 
     // Send notification if status changed to a committee member assignment
-    if (newStatus && ['with_coordinator', 'with_proofreader', 'with_lead_design', 'with_editor_in_chief'].includes(newStatus)) {
+    // Note: with_coordinator is NOT included here - coordinators are notified on submission creation
+    if (newStatus && ['with_proofreader', 'with_lead_design', 'with_editor_in_chief'].includes(newStatus)) {
       console.log('[Committee Workflow] Triggering notification for status:', newStatus);
       
       try {

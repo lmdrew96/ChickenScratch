@@ -118,6 +118,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    // Send notification to Submissions Coordinators about new submission
+    console.log('[Submission] Triggering notification for new submission:', data.id);
+    try {
+      // Fetch author name from profiles
+      const { data: authorProfile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+
+      const notificationResponse = await fetch(`${request.nextUrl.origin}/api/notifications/submission-assigned`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': request.headers.get('cookie') || '',
+        },
+        body: JSON.stringify({
+          submissionId: data.id,
+          notificationType: 'new_submission',
+          submissionTitle: data.title,
+          submissionType: data.type,
+          submissionGenre: data.genre,
+          submissionDate: data.created_at,
+          authorName: authorProfile?.full_name || authorProfile?.email || 'Unknown',
+        }),
+      });
+
+      if (!notificationResponse.ok) {
+        const errorData = await notificationResponse.json();
+        console.error('[Submission] Notification failed:', errorData);
+        // Don't fail the submission if notification fails, just log it
+      } else {
+        const notificationResult = await notificationResponse.json();
+        console.log('[Submission] Notification sent:', notificationResult);
+      }
+    } catch (notificationError) {
+      console.error('[Submission] Error sending notification:', notificationError);
+      // Don't fail the submission if notification fails
+    }
+
     revalidatePath('/mine');
     revalidatePath('/editor');
     return NextResponse.json({ success: true, submission: data });
