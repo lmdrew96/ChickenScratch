@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
     try {
       console.log('📤 Calling resend.emails.send...');
       const emailResult = await resend.emails.send({
-        from: 'Chicken Scratch <onboarding@resend.dev>',
-        to: 'mbdorsch@udel.edu',
+        from: 'Chicken Scratch <contact@chickenscratch.me>',
+        to: ['mbdorsch@udel.edu', 'lmdrew@udel.edu'],
         replyTo: email,
         subject: `Contact Form: ${subject || 'New Message'}`,
         html: `
