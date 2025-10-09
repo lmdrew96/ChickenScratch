@@ -92,11 +92,11 @@ export default function AboutPage() {
         <section className="rounded-2xl border border-white/10 bg-white/5 p-8">
           <h2 className="text-2xl font-bold text-white mb-4">Contact Us</h2>
           <p className="text-gray-300 leading-relaxed mb-4">
-            Have questions or want to learn more? We&apos;d love to hear from you!
+            Have questions or want to get involved? We&apos;d love to hear from you!
           </p>
-          <p className="text-gray-300 mb-6">
-            Reach out to us through the submission portal or connect with us at our events throughout the year.
-          </p>
+          <Link href="/contact" className="btn btn-accent inline-flex mb-6">
+            Visit Our Contact Page
+          </Link>
           
           <div className="flex items-center gap-3 pt-4 border-t border-white/10">
             <svg 

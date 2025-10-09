@@ -24,37 +24,20 @@ export function AdminTools({ hasAdminAccess, stats }: AdminToolsProps) {
         Admin Tools
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link
-          href="/admin"
-          className="rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="rounded-lg bg-white/10 p-2 group-hover:bg-white/20 transition-colors">
-              <Settings className="h-5 w-5 text-white" />
-            </div>
-            <h3 className="font-semibold text-white">Admin Dashboard</h3>
+      <Link
+        href="/admin"
+        className="rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-colors group"
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div className="rounded-lg bg-white/10 p-2 group-hover:bg-white/20 transition-colors">
+            <Settings className="h-5 w-5 text-white" />
           </div>
-          <p className="text-sm text-slate-300">
-            Access full admin panel for system configuration and management
-          </p>
-        </Link>
-
-        <Link
-          href="/admin"
-          className="rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="rounded-lg bg-white/10 p-2 group-hover:bg-white/20 transition-colors">
-              <Users className="h-5 w-5 text-white" />
-            </div>
-            <h3 className="font-semibold text-white">User Management</h3>
-          </div>
-          <p className="text-sm text-slate-300">
-            Manage user roles, permissions, and committee assignments
-          </p>
-        </Link>
-      </div>
+          <h3 className="font-semibold text-white">Admin Dashboard</h3>
+        </div>
+        <p className="text-sm text-slate-300">
+          Access full admin panel for system configuration and user management
+        </p>
+      </Link>
 
       {stats && (
         <div className="rounded-xl border border-white/10 bg-white/5 p-6">

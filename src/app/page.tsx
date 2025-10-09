@@ -18,7 +18,7 @@ export default function HomePage() {
             <li>• <strong>Submit</strong> visual art or writing for consideration.</li>
             <li>• <strong>Track</strong> the status of your pieces in <em>My Submissions</em>.</li>
             <li>• <strong>Browse</strong> published work from the community.</li>
-            <li>• Editors can <strong>review &amp; assign</strong> pieces (Editor dashboard).</li>
+            <li>• Editors can <strong>review and provide feedback</strong> on assigned submissions (Editor dashboard).</li>
             <li>• Committee members can access <strong>planning resources</strong> (Committee).</li>
           </ul>
 
@@ -35,7 +35,6 @@ export default function HomePage() {
               <Link href="/mine" className="btn">My Submissions</Link>
               <Link href="/editor" className="btn">Editor</Link>
               <Link href="/committee" className="btn">Committee</Link>
-              <Link href="/login" className="btn">Log in</Link>
             </div>
             <p className="mt-4 text-sm text-slate-400">
               Editor/Committee areas require the appropriate role on your account.
