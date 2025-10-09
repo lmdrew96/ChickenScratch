@@ -86,6 +86,8 @@ export async function updateUserRole(
 type UserWithRole = {
   id: string
   email: string | null
+  display_name?: string | null
+  created_at?: string | null
   is_member?: boolean
   roles?: ('officer' | 'committee')[]
   positions?: Position[]
@@ -124,11 +126,22 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
         return {
           id: profile.id,
           email: profile.email,
+          display_name: profile.full_name,
+          created_at: profile.updated_at,
           is_member: role?.is_member,
           roles: role?.roles || [],
           positions: role?.positions || []
         }
       }) || []
+    }
+    
+    // Get all profiles to get full names
+    const { data: profiles, error: profilesError } = await adminClient
+      .from('profiles')
+      .select('id, full_name')
+    
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError)
     }
     
     // Get all roles
@@ -142,9 +155,12 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
     
     return users?.map(user => {
       const role = roles?.find(r => r.user_id === user.id)
+      const profile = profiles?.find(p => p.id === user.id)
       return {
         id: user.id,
         email: user.email ?? null,
+        display_name: profile?.full_name,
+        created_at: user.created_at,
         is_member: role?.is_member,
         roles: role?.roles || [],
         positions: role?.positions || []
