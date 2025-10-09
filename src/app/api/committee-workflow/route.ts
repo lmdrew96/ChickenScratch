@@ -217,6 +217,47 @@ export async function POST(request: NextRequest) {
     
     console.log('[Committee Workflow] Successfully updated submission to status:', newStatus);
 
+    // Send notification if status changed to a committee member assignment
+    if (newStatus && ['with_coordinator', 'with_proofreader', 'with_lead_design', 'with_editor_in_chief'].includes(newStatus)) {
+      console.log('[Committee Workflow] Triggering notification for status:', newStatus);
+      
+      try {
+        // Fetch author name from profiles
+        const { data: authorProfile } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', submission.owner_id)
+          .single();
+
+        const notificationResponse = await fetch(`${request.nextUrl.origin}/api/notifications/submission-assigned`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': request.headers.get('cookie') || '',
+          },
+          body: JSON.stringify({
+            submissionId,
+            committeeStatus: newStatus,
+            submissionTitle: submission.title,
+            submissionType: submission.type,
+            authorName: authorProfile?.full_name || authorProfile?.email || 'Unknown',
+          }),
+        });
+
+        if (!notificationResponse.ok) {
+          const errorData = await notificationResponse.json();
+          console.error('[Committee Workflow] Notification failed:', errorData);
+          // Don't fail the workflow if notification fails, just log it
+        } else {
+          const notificationResult = await notificationResponse.json();
+          console.log('[Committee Workflow] Notification sent:', notificationResult);
+        }
+      } catch (notificationError) {
+        console.error('[Committee Workflow] Error sending notification:', notificationError);
+        // Don't fail the workflow if notification fails
+      }
+    }
+
     // Log the action in audit trail
     const auditDetails: Json = {
       action,
