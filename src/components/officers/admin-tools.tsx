@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Settings, Users, BarChart3, Shield } from 'lucide-react';
+import { Settings, BarChart3, Shield } from 'lucide-react';
 
 interface AdminToolsProps {
   hasAdminAccess: boolean;

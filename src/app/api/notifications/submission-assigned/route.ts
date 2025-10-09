@@ -93,8 +93,11 @@ export async function POST(request: NextRequest) {
 
     // Extract emails
     const recipients = userRoles
-      .map((role: any) => role.profiles?.[0]?.email)
-      .filter((email: string | undefined): email is string => !!email);
+      .map((role) => {
+        const profiles = role.profiles as unknown as Array<{ email: string | null; full_name: string | null }>;
+        return profiles?.[0]?.email;
+      })
+      .filter((email: string | null | undefined): email is string => !!email);
 
     if (recipients.length === 0) {
       console.warn('[Notification] No valid email addresses found for position:', targetPosition);
