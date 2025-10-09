@@ -5,6 +5,7 @@ import { requireUser } from '@/lib/auth/guards';
 import { getCurrentUserRole } from '@/lib/actions/roles';
 import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
 import { SubmissionsListWithDelete } from '@/components/editor/submissions-list-with-delete';
+import { ExportReportButton } from '@/components/editor/export-report-button';
 import type { Submission } from '@/types/database';
 
 interface SubmissionWithAuthor extends Submission {
@@ -362,13 +363,7 @@ export default async function EditorInChiefDashboard() {
           >
             View Full Committee Workflow
           </Link>
-          <button
-            disabled
-            className="rounded-xl border border-white/10 bg-white/5 px-6 py-3 font-semibold text-slate-400 opacity-50"
-            title="Coming soon"
-          >
-            Export Report (Coming Soon)
-          </button>
+          <ExportReportButton />
         </div>
       </section>
 
