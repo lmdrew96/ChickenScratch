@@ -11,14 +11,15 @@ type Props = {
   userId: string;
   defaultName: string | null;
   defaultAvatar: string | null;
+  defaultPronouns?: string | null;
 };
 
-export default function AccountEditor({ userId, defaultName, defaultAvatar }: Props) {
+export default function AccountEditor({ userId, defaultName, defaultAvatar, defaultPronouns }: Props) {
   const supabase = useSupabase();
   
   // Profile section state
   const [name, setName] = useState(defaultName ?? '');
-  const [pronouns, setPronouns] = useState('');
+  const [pronouns, setPronouns] = useState(defaultPronouns ?? '');
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);

@@ -12,7 +12,7 @@ export default async function AccountPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, full_name, avatar_url')
+    .select('id, full_name, avatar_url, pronouns')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -22,6 +22,7 @@ export default async function AccountPage() {
 
   const fullName = profile?.full_name ?? user.user_metadata?.full_name ?? null;
   const avatarUrl = profile?.avatar_url ?? null;
+  const pronouns = profile?.pronouns ?? null;
 
   return (
     <>
@@ -35,6 +36,7 @@ export default async function AccountPage() {
           userId={user.id}
           defaultName={fullName}
           defaultAvatar={avatarUrl}
+          defaultPronouns={pronouns}
         />
       </div>
     </>
