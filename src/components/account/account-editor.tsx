@@ -48,14 +48,15 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar, defa
         const path = `${userId}/avatar.${ext}`;
         
         const up = await supabase.storage.from('avatars').upload(path, file, {
-          cacheControl: '3600',
+          cacheControl: '0', // Disable CDN caching for avatars
           upsert: true,
           contentType: file.type || undefined,
         });
         if (up.error) throw up.error;
 
+        // Add cache-busting timestamp to force browsers to fetch the new image
         const pub = supabase.storage.from('avatars').getPublicUrl(path);
-        avatar_url = pub.data.publicUrl;
+        avatar_url = `${pub.data.publicUrl}?t=${Date.now()}`;
       }
 
       // Try to update first
@@ -147,7 +148,7 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar, defa
         
         <div className="flex items-center gap-4">
           {preview ? (
-            <Image src={preview} alt="" width={64} height={64} className="h-16 w-16 rounded-full object-cover ring-2 ring-[--accent]" />
+            <Image src={preview} alt="" width={64} height={64} className="h-16 w-16 rounded-full object-cover ring-2 ring-[--accent]" unoptimized />
           ) : (
             <div className="h-16 w-16 rounded-full grid place-items-center bg-[--accent] text-[--brand] font-semibold">?</div>
           )}

@@ -56,6 +56,7 @@ export default async function AccountBadge() {
           width={32}
           height={32}
           className="rounded-full"
+          unoptimized // Bypass Next.js image cache for dynamic avatars
         />
       ) : (
         <span>
