@@ -4,7 +4,12 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 
-export default function Sidebar({ signedIn = false }: { signedIn?: boolean }) {
+interface SidebarProps {
+  signedIn?: boolean;
+  userProfile?: { avatarUrl: string | null; initials: string } | null;
+}
+
+export default function Sidebar({ signedIn = false, userProfile }: SidebarProps) {
   const pathname = usePathname()
   const is = (href: string) => pathname === href || pathname.startsWith(href + '/')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -170,9 +175,33 @@ export default function Sidebar({ signedIn = false }: { signedIn?: boolean }) {
       
       <div className="sidebar-auth">
         {signedIn ? (
-          <form action="/api/auth/signout" method="post" className="auth-form">
-            <button type="submit" className="btn" aria-label="Sign out">Sign out</button>
-          </form>
+          <>
+            {/* Inline account badge for mobile - hidden on desktop via CSS */}
+            {userProfile && (
+              <Link
+                href="/account"
+                aria-label="Your account"
+                className="account-badge-inline"
+                prefetch={false}
+              >
+                {userProfile.avatarUrl ? (
+                  <Image
+                    src={userProfile.avatarUrl}
+                    alt=""
+                    width={32}
+                    height={32}
+                    className="rounded-full"
+                    unoptimized
+                  />
+                ) : (
+                  <span>{userProfile.initials}</span>
+                )}
+              </Link>
+            )}
+            <form action="/api/auth/signout" method="post" className="auth-form">
+              <button type="submit" className="btn" aria-label="Sign out">Sign out</button>
+            </form>
+          </>
         ) : (
           <Link href="/login" className="btn btn-accent">
             Login

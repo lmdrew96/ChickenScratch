@@ -364,40 +364,70 @@ p{margin:0 0 12px}
   }
 }
 
-/* Mobile breakpoint - smaller size and adjusted position */
+/* Inline account badge for sidebar (hidden by default, shown on mobile) */
+.account-badge-inline {
+  display: none; /* Hidden on desktop */
+}
+
+/* Mobile breakpoint - hide fixed badge, show inline badge */
 @media (max-width:768px){
-  .account-badge{
-    top:10px;
-    right:60px;
-    width:36px;
-    height:36px;
+  .account-badge {
+    display: none; /* Hide fixed badge on mobile */
   }
   
-  .account-badge img {
+  .account-badge-inline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    background: var(--accent);
+    color: #003b72;
+    border: 1px solid #cca800;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  
+  .account-badge-inline:hover {
+    filter: brightness(0.97);
+    text-decoration: none;
+  }
+  
+  .account-badge-inline img {
     width: 28px;
     height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent);
   }
   
-  .account-badge span {
+  .account-badge-inline span {
     font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  
+  .sidebar-auth {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 }
 
-/* Small mobile - further adjustments */
+/* Small mobile - smaller inline badge */
 @media (max-width:480px){
-  .account-badge{
-    top:8px;
-    right:56px;
-    width:34px;
-    height:34px;
+  .account-badge-inline {
+    width: 34px;
+    height: 34px;
   }
   
-  .account-badge img {
+  .account-badge-inline img {
     width: 26px;
     height: 26px;
   }
   
-  .account-badge span {
+  .account-badge-inline span {
     font-size: 11px;
   }
 }
