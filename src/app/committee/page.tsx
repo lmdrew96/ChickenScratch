@@ -56,10 +56,6 @@ export default async function CommitteePage() {
     displayRole = roleDisplayNames[profile.role as keyof typeof roleDisplayNames] || profile.role || 'Committee Member';
   }
 
-  console.log('[Committee Page] User positions:', userRole?.positions);
-  console.log('[Committee Page] Passing userPosition to kanban:', userPosition);
-  console.log('[Committee Page] Display role:', displayRole);
-
   return (
     <div className="space-y-6">
       <PageHeader title="Committee Workflow" />

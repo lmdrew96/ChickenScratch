@@ -119,7 +119,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Send notification to Submissions Coordinators about new submission
-    console.log('[Submission] Triggering notification for new submission:', data.id);
     try {
       // Fetch author name from profiles
       const { data: authorProfile } = await supabase
@@ -147,14 +146,11 @@ export async function POST(request: NextRequest) {
 
       if (!notificationResponse.ok) {
         const errorData = await notificationResponse.json();
-        console.error('[Submission] Notification failed:', errorData);
+        console.error('Notification failed:', errorData);
         // Don't fail the submission if notification fails, just log it
-      } else {
-        const notificationResult = await notificationResponse.json();
-        console.log('[Submission] Notification sent:', notificationResult);
       }
     } catch (notificationError) {
-      console.error('[Submission] Error sending notification:', notificationError);
+      console.error('Error sending notification:', notificationError);
       // Don't fail the submission if notification fails
     }
 

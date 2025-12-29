@@ -327,7 +327,7 @@ describe('Submission API Validation', () => {
     });
 
     it('should use art bucket for visual', () => {
-      const type: 'writing' | 'visual' = 'visual';
+      const type = 'visual' as 'writing' | 'visual';
       const bucket = type === 'writing' ? 'submissions' : 'art';
       expect(bucket).toBe('art');
     });

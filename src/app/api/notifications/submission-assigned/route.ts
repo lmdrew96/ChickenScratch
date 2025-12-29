@@ -50,17 +50,12 @@ export async function POST(request: NextRequest) {
     if (notificationType === 'new_submission') {
       // New submissions always go to Submissions Coordinator
       targetPosition = 'Submissions Coordinator';
-      console.log('[Notification] New submission - notifying Submissions Coordinator');
     } else if (committeeStatus && STATUS_TO_POSITION[committeeStatus]) {
       // Workflow assignments go to specific positions
       targetPosition = STATUS_TO_POSITION[committeeStatus];
-      console.log('[Notification] Workflow assignment - notifying:', targetPosition);
     } else {
-      console.log('[Notification] No notification needed for status:', committeeStatus);
       return NextResponse.json({ success: true, message: 'No notification required for this status' });
     }
-
-    console.log('[Notification] Looking up users with position:', targetPosition);
 
     // Get users with the target position
     const supabase = await createSupabaseRouteHandlerClient();
@@ -100,13 +95,10 @@ export async function POST(request: NextRequest) {
       .filter((email: string | null | undefined): email is string => !!email);
 
     if (recipients.length === 0) {
-      console.warn('[Notification] No valid email addresses found for position:', targetPosition);
       return NextResponse.json(
         { success: true, message: 'No valid email addresses found' }
       );
     }
-
-    console.log('[Notification] Sending emails to:', recipients);
 
     // Check if Resend API key is configured
     const resendApiKey = process.env.RESEND_API_KEY;
@@ -118,21 +110,6 @@ export async function POST(request: NextRequest) {
       : `New Submission Assigned: ${submissionTitle}`;
 
     if (!resendApiKey) {
-      console.warn('[Notification] RESEND_API_KEY not configured, logging email instead');
-      console.log('[Notification] Would send email:', {
-        from: 'Chicken Scratch <notifications@chickenscratch.me>',
-        to: recipients,
-        subject: emailSubject,
-        html: generateEmailHtml(
-          submissionTitle, 
-          submissionType, 
-          authorName, 
-          submissionId,
-          submissionGenre,
-          submissionDate,
-          isNewSubmission
-        ),
-      });
       return NextResponse.json({ 
         success: true, 
         message: 'Email logged (Resend not configured)',
@@ -174,7 +151,6 @@ export async function POST(request: NextRequest) {
       }
 
       const result = await response.json();
-      console.log('[Notification] Email sent successfully:', result);
 
       return NextResponse.json({
         success: true,

@@ -1,11 +1,13 @@
-
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck - Supabase type inference issues with profiles table
 'use client';
 
 import { useState } from 'react';
 import Image from 'next/image';
 import { useSupabase } from '@/components/providers/supabase-provider';
+import type { Database } from '@/types/database';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
+type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
 
 type Props = {
   userId: string;
@@ -15,7 +17,8 @@ type Props = {
 };
 
 export default function AccountEditor({ userId, defaultName, defaultAvatar, defaultPronouns }: Props) {
-  const supabase = useSupabase();
+  // Cast to properly typed client to work around SSR type inference issues
+  const supabase = useSupabase() as unknown as SupabaseClient<Database>;
   
   // Profile section state
   const [name, setName] = useState(defaultName ?? '');
@@ -40,7 +43,7 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar, defa
     try {
       let avatar_url = preview ?? null;
 
-      if (file && supabase) {
+      if (file) {
         const ext = (file.name.split('.').pop() || 'png').toLowerCase();
         const path = `${userId}/avatar.${ext}`;
         
@@ -55,35 +58,35 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar, defa
         avatar_url = pub.data.publicUrl;
       }
 
-      if (supabase) {
-        // Try to update first
-        const { error: updateError } = await supabase
+      // Try to update first
+      const updateData: ProfileUpdate = {
+        full_name: name || null,
+        avatar_url: avatar_url,
+        pronouns: pronouns || null
+      };
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (updateError) {
+        // If update failed (likely because row doesn't exist), try insert
+        const insertData: ProfileInsert = {
+          id: userId,
+          full_name: name || null,
+          avatar_url: avatar_url,
+          pronouns: pronouns || null
+        };
+        const { error: insertError } = await supabase
           .from('profiles')
-          .update({ 
-            full_name: name || null,
-            avatar_url: avatar_url,
-            pronouns: pronouns || null
-          })
-          .eq('id', userId)
+          .insert(insertData)
           .select()
           .single();
-
-        if (updateError) {
-          // If update failed (likely because row doesn't exist), try insert
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert({ 
-              id: userId,
-              full_name: name || null,
-              avatar_url: avatar_url,
-              pronouns: pronouns || null
-            })
-            .select()
-            .single();
-            
-          if (insertError) {
-            throw insertError;
-          }
+          
+        if (insertError) {
+          throw insertError;
         }
       }
 
@@ -117,8 +120,6 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar, defa
     }
 
     try {
-      if (!supabase) throw new Error('Supabase client not available');
-
       // Update password using Supabase auth
       const { error } = await supabase.auth.updateUser({
         password: newPassword

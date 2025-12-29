@@ -22,20 +22,10 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
   const [searchTerm, setSearchTerm] = useState('');
   const [googleDocUrl, setGoogleDocUrl] = useState<string | null>(null);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('[KanbanBoard] Component mounted');
-    console.log('[KanbanBoard] userRole:', userRole);
-    console.log('[KanbanBoard] Total submissions:', submissions.length);
-    console.log('[KanbanBoard] Submissions sample:', submissions.slice(0, 2));
-  }, [userRole, submissions]);
-
   // Define columns based on user role
   const getColumns = (): KanbanColumn[] => {
-    console.log('[KanbanBoard getColumns] Generating columns for role:', userRole);
     // Editor-in-Chief sees ALL columns from all positions
     if (userRole === 'editor_in_chief') {
-      console.log('[KanbanBoard] Detected Editor-in-Chief role');
       const columns = [
         // Submissions Coordinator columns
         {

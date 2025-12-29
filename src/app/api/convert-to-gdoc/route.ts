@@ -82,16 +82,13 @@ export async function POST(request: NextRequest) {
     );
 
     if (!signedUrl) {
-      console.error('[Convert to GDoc] Failed to create signed URL for:', submission.file_url);
+      console.error('Failed to create signed URL for:', submission.file_url);
       return NextResponse.json({ error: 'Failed to create signed URL for file' }, { status: 500 });
     }
-
-    console.log('[Convert to GDoc] Created signed URL for submission:', submission_id);
 
     // Get Make webhook URL from environment
     const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
     if (!makeWebhookUrl) {
-      console.error('[Convert to GDoc] MAKE_WEBHOOK_URL not configured');
       return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
     }
 
@@ -104,11 +101,6 @@ export async function POST(request: NextRequest) {
       author: authorName,
     };
 
-    console.log('[Convert to GDoc] Calling Make webhook with payload:', {
-      ...webhookPayload,
-      file_url: '[SIGNED_URL]', // Don't log the full signed URL
-    });
-
     // Call Make webhook
     const webhookResponse = await fetch(makeWebhookUrl, {
       method: 'POST',
@@ -120,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     if (!webhookResponse.ok) {
       const errorText = await webhookResponse.text();
-      console.error('[Convert to GDoc] Webhook failed:', webhookResponse.status, errorText);
+      console.error('Webhook failed:', webhookResponse.status, errorText);
       return NextResponse.json(
         { error: `Webhook failed: ${webhookResponse.statusText}` },
         { status: 500 }
@@ -129,10 +121,9 @@ export async function POST(request: NextRequest) {
 
     // Parse webhook response
     const webhookResult = await webhookResponse.json();
-    console.log('[Convert to GDoc] Webhook response:', webhookResult);
 
     if (!webhookResult.google_doc_id) {
-      console.error('[Convert to GDoc] No google_doc_id in webhook response:', webhookResult);
+      console.error('No google_doc_id in webhook response');
       return NextResponse.json({ error: 'Webhook did not return google_doc_id' }, { status: 500 });
     }
 
