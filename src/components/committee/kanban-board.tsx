@@ -368,7 +368,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-[var(--text)]">
-            {userRole.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} Workflow
+            {userRole.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Workflow
           </h2>
           <p className="text-sm text-slate-300">
             Manage submissions in your role-specific workflow
