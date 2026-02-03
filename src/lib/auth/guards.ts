@@ -32,13 +32,13 @@ function buildLoginRedirect(nextUrl?: string) {
 }
 
 export async function requireUser(nextUrl?: string) {
-  const { session, profile } = await getSessionWithProfile();
+  const { userId, profile } = await getSessionWithProfile();
 
-  if (!session || !profile) {
+  if (!userId || !profile) {
     redirect(buildLoginRedirect(nextUrl));
   }
 
-  return { session, profile };
+  return { userId, profile };
 }
 
 export function isOfficerRole(role: string): boolean {
@@ -62,11 +62,9 @@ export function isCommitteePosition(position: string): boolean {
 }
 
 export function hasOfficerAccess(positions?: string[], roles?: string[]): boolean {
-  // Check new user_roles table positions
   if (positions && positions.some(p => isOfficerPosition(p))) {
     return true;
   }
-  // Check new user_roles table roles
   if (roles && roles.includes('officer')) {
     return true;
   }
@@ -74,11 +72,9 @@ export function hasOfficerAccess(positions?: string[], roles?: string[]): boolea
 }
 
 export function hasCommitteeAccess(positions?: string[], roles?: string[]): boolean {
-  // Check new user_roles table positions
   if (positions && positions.some(p => isCommitteePosition(p))) {
     return true;
   }
-  // Check new user_roles table roles
   if (roles && roles.includes('committee')) {
     return true;
   }
@@ -86,11 +82,9 @@ export function hasCommitteeAccess(positions?: string[], roles?: string[]): bool
 }
 
 export function hasEditorAccess(positions?: string[], roles?: string[]): boolean {
-  // Editor-in-Chief has editor access
   if (positions && positions.includes('Editor-in-Chief')) {
     return true;
   }
-  // Committee members have editor access
   if (roles && roles.includes('committee')) {
     return true;
   }
@@ -98,87 +92,82 @@ export function hasEditorAccess(positions?: string[], roles?: string[]): boolean
 }
 
 export async function requireRole(role: RoleRequirement, nextUrl?: string) {
-  const { session, profile } = await requireUser(nextUrl);
-  
+  const { userId, profile } = await requireUser(nextUrl);
+
   // Check new user_roles table first
   const userRole = await getCurrentUserRole();
-  
+
   if (userRole && userRole.is_member) {
     const allowedRoles = Array.isArray(role) ? role : [role];
     const normalizedAllowed = allowedRoles.map((value) => value.toLowerCase());
-    
+
     // Check if user has officer access (officers can access everything)
     if (hasOfficerAccess(userRole.positions, userRole.roles)) {
-      return { session, profile };
+      return { userId, profile };
     }
-    
+
     // Check if user has committee access for committee/editor roles
     if (normalizedAllowed.includes('committee') || normalizedAllowed.includes('editor')) {
       if (hasCommitteeAccess(userRole.positions, userRole.roles) || hasEditorAccess(userRole.positions, userRole.roles)) {
-        return { session, profile };
+        return { userId, profile };
       }
     }
   }
-  
+
   // Fallback to legacy profile.role check for backward compatibility
   const currentRole = (profile.role ?? '').toLowerCase();
   const allowedRoles = Array.isArray(role) ? role : [role];
   const normalizedAllowed = allowedRoles.map((value) => value.toLowerCase());
 
   if (currentRole === 'admin' || normalizedAllowed.includes(currentRole)) {
-    return { session, profile };
+    return { userId, profile };
   }
 
   redirect('/mine');
 }
 
-// Require officer role specifically
 export async function requireOfficerRole(nextUrl?: string) {
-  const { session, profile } = await requireUser(nextUrl);
-  
+  const { userId, profile } = await requireUser(nextUrl);
+
   // Check new user_roles table first
   const userRole = await getCurrentUserRole();
-  
+
   if (userRole && userRole.is_member) {
-    // Check if user has officer access via positions or roles
     if (hasOfficerAccess(userRole.positions, userRole.roles)) {
-      return { session, profile };
+      return { userId, profile };
     }
   }
-  
+
   // Fallback to legacy profile.role check for backward compatibility
   const currentRole = (profile.role ?? '').toLowerCase();
 
   if (currentRole === 'admin' || isOfficerRole(currentRole)) {
-    return { session, profile };
+    return { userId, profile };
   }
 
   redirect('/mine');
 }
 
-// Require committee role specifically  
 export async function requireCommitteeRole(nextUrl?: string) {
-  const { session, profile } = await requireUser(nextUrl);
-  
+  const { userId, profile } = await requireUser(nextUrl);
+
   // Check new user_roles table first
   const userRole = await getCurrentUserRole();
-  
+
   if (userRole && userRole.is_member) {
-    // Officers have access to everything including committee pages
     if (hasOfficerAccess(userRole.positions, userRole.roles)) {
-      return { session, profile };
+      return { userId, profile };
     }
-    // Check if user has committee access
     if (hasCommitteeAccess(userRole.positions, userRole.roles)) {
-      return { session, profile };
+      return { userId, profile };
     }
   }
-  
+
   // Fallback to legacy profile.role check for backward compatibility
   const currentRole = (profile.role ?? '').toLowerCase();
 
   if (currentRole === 'admin' || isCommitteeRole(currentRole)) {
-    return { session, profile };
+    return { userId, profile };
   }
 
   redirect('/mine');

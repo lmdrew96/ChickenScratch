@@ -1,36 +1,17 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { auth } from '@clerk/nextjs/server';
+import { ensureProfile } from '@/lib/auth/clerk';
 
 export default async function AccountBadge() {
-  const supabase = await createSupabaseServerReadOnlyClient();
-  if (!supabase) return null;
+  const { userId } = await auth();
+  if (!userId) return null;
 
-  let user = null as null | { id: string; email?: string | null; user_metadata?: Record<string, unknown> };
-  try {
-    const { data } = await supabase.auth.getUser();
-    user = data?.user ?? null;
-  } catch {
-    return null;
-  }
-  if (!user) return null;
+  const profile = await ensureProfile(userId);
+  if (!profile) return null;
 
-  let avatarUrl: string | null = null;
-  let fullName =
-    (user.user_metadata?.full_name as string | undefined) ||
-    (user.user_metadata?.name as string | undefined) ||
-    user.email ||
-    'User';
-
-  try {
-    const { data: prof } = await supabase
-      .from('profiles')
-      .select('full_name, avatar_url')
-      .eq('id', user.id)
-      .maybeSingle();
-    if (prof?.avatar_url) avatarUrl = prof.avatar_url;
-    if (prof?.full_name) fullName = prof.full_name;
-  } catch {}
+  const avatarUrl = profile.avatar_url ?? null;
+  const fullName = profile.full_name || 'User';
 
   const initials =
     (fullName ?? 'User')
@@ -56,7 +37,7 @@ export default async function AccountBadge() {
           width={32}
           height={32}
           className="rounded-full"
-          unoptimized // Bypass Next.js image cache for dynamic avatars
+          unoptimized
         />
       ) : (
         <span>

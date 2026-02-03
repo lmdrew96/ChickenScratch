@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import Papa from 'papaparse';
-import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
+import { db } from '@/lib/supabase/db';
 import { getCurrentUserRole } from '@/lib/actions/roles';
 import type { Submission } from '@/types/database';
 
@@ -41,7 +41,7 @@ export async function GET() {
     }
 
     // Fetch all submissions with author names
-    const supabase = await createSupabaseRouteHandlerClient();
+    const supabase = db();
     const { data, error } = await supabase
       .from('submissions')
       .select('*')
@@ -88,16 +88,13 @@ export async function GET() {
     const genreCounts: Record<string, number> = {};
 
     submissions.forEach((s) => {
-      // Status counts
       const status = s.committee_status || 'new';
       statusCounts[status] = (statusCounts[status] || 0) + 1;
 
-      // Type counts
       if (s.type) {
         typeCounts[s.type] = (typeCounts[s.type] || 0) + 1;
       }
 
-      // Genre counts
       if (s.genre) {
         genreCounts[s.genre] = (genreCounts[s.genre] || 0) + 1;
       }
@@ -111,7 +108,6 @@ export async function GET() {
     // Prepare CSV data
     const csvData: (string | number)[][] = [];
 
-    // Add summary section
     csvData.push(['CHICKEN SCRATCH SUBMISSIONS REPORT']);
     csvData.push(['Generated:', new Date().toLocaleString()]);
     csvData.push([]);
@@ -119,7 +115,6 @@ export async function GET() {
     csvData.push(['Total Submissions:', totalSubmissions]);
     csvData.push([]);
 
-    // Status breakdown
     csvData.push(['STATUS BREAKDOWN']);
     Object.entries(statusCounts)
       .sort(([, a], [, b]) => b - a)
@@ -128,14 +123,12 @@ export async function GET() {
       });
     csvData.push([]);
 
-    // Type breakdown
     csvData.push(['TYPE BREAKDOWN']);
     Object.entries(typeCounts).forEach(([type, count]) => {
       csvData.push([type.charAt(0).toUpperCase() + type.slice(1), count]);
     });
     csvData.push([]);
 
-    // Genre breakdown
     if (Object.keys(genreCounts).length > 0) {
       csvData.push(['GENRE BREAKDOWN']);
       Object.entries(genreCounts)
@@ -146,13 +139,11 @@ export async function GET() {
       csvData.push([]);
     }
 
-    // Bottleneck information
     csvData.push(['BOTTLENECK ANALYSIS']);
     csvData.push(['Submissions stuck >7 days:', bottleneckCount]);
     csvData.push([]);
     csvData.push([]);
 
-    // Add individual submission data
     csvData.push(['INDIVIDUAL SUBMISSIONS']);
     csvData.push([
       'Title',
@@ -199,11 +190,9 @@ export async function GET() {
     // Generate CSV
     const csv = Papa.unparse(csvData);
 
-    // Generate filename with current date
-    const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const date = new Date().toISOString().split('T')[0];
     const filename = `chicken-scratch-report-${date}.csv`;
 
-    // Return CSV file
     return new NextResponse(csv, {
       status: 200,
       headers: {

@@ -2,8 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
+import { auth } from '@clerk/nextjs/server';
+import { db } from '@/lib/supabase/db';
+import { ensureProfile } from '@/lib/auth/clerk';
 import { sendSubmissionEmail } from '@/lib/email';
-import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
 import type { Database, Json, Profile, Submission } from '@/types/database';
 
 const statusSchema = z.object({
@@ -23,24 +25,13 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid status payload.' }, { status: 400 });
   }
 
-  const supabase = await createSupabaseRouteHandlerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const profile = await ensureProfile(userId);
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const supabase = db();
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { data: profileData } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  const profile = profileData as Pick<Profile, 'role'> | null;
-
-  if (!profile || !profile.role || !['editor', 'admin'].includes(profile.role)) {
+  if (!profile.role || !['editor', 'admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -95,7 +86,7 @@ export async function POST(
 
   await supabase.from('audit_log').insert({
     submission_id: id,
-    actor_id: user.id,
+    actor_id: profile.id,
     action: 'status_change',
     details: statusDetails,
   });

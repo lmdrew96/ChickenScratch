@@ -19,7 +19,7 @@
     "verify:all": "pnpm typecheck && pnpm lint && pnpm verify:dev && pnpm verify:prod"
   },
   "dependencies": {
-    "@supabase/ssr": "0.5.2",
+    "@clerk/nextjs": "^6.37.1",
     "@supabase/supabase-js": "2.57.4",
     "@types/papaparse": "^5.3.16",
     "clsx": "2.1.1",
@@ -29,6 +29,7 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "resend": "^6.1.2",
+    "svix": "^1.84.1",
     "zod": "3.25.76"
   },
   "devDependencies": {

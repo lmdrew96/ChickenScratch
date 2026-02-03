@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
+import { db } from '@/lib/supabase/db';
 
 const notificationSchema = z.object({
   submissionId: z.string().uuid(),
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get users with the target position
-    const supabase = await createSupabaseRouteHandlerClient();
+    const supabase = db();
     const { data: userRoles, error: rolesError } = await supabase
       .from('user_roles')
       .select(`

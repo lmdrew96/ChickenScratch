@@ -2,8 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
+import { auth } from '@clerk/nextjs/server';
+import { db } from '@/lib/supabase/db';
+import { ensureProfile } from '@/lib/auth/clerk';
 import { EDITABLE_STATUSES, SUBMISSION_TYPES } from '@/lib/constants';
-import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
 import { assertUserOwnsPath } from '@/lib/storage';
 import type { Database, Submission } from '@/types/database';
 
@@ -31,14 +33,11 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid update payload.' }, { status: 400 });
   }
 
-  const supabase = await createSupabaseRouteHandlerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const profile = await ensureProfile(userId);
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const supabase = db();
 
   const { data: submissionData, error: fetchError } = await supabase
     .from('submissions')
@@ -56,7 +55,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Submission not found.' }, { status: 404 });
   }
 
-  if (submission.owner_id !== user.id) {
+  if (submission.owner_id !== profile.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -83,13 +82,13 @@ export async function PATCH(
       );
     }
     for (const path of parsed.data.artFiles) {
-      assertUserOwnsPath(user.id, path);
+      assertUserOwnsPath(profile.id, path);
     }
     updates.art_files = parsed.data.artFiles;
   }
 
   if (parsed.data.coverImage !== undefined && parsed.data.coverImage !== null) {
-    assertUserOwnsPath(user.id, parsed.data.coverImage);
+    assertUserOwnsPath(profile.id, parsed.data.coverImage);
     updates.cover_image = parsed.data.coverImage;
   }
 

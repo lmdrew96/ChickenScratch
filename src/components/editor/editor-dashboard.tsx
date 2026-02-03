@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { StatusBadge } from '@/components/common/status-badge';
-import { useSupabase } from '@/components/providers/supabase-provider';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui';
 import { Input } from '@/components/ui/input';
@@ -16,9 +15,8 @@ import { ConfirmModal } from '@/components/ui/modal';
 import { LoadingSpinner } from '@/components/shared/loading-states';
 import { useConfirmation } from '@/hooks/use-confirmation';
 import { EDITABLE_STATUSES, SUBMISSION_STATUSES, formatStatus } from '@/lib/constants';
+import { getSignedDownloadUrl } from '@/lib/actions/storage';
 import type { Submission } from '@/types/database';
-
-const ART_BUCKET = 'art';
 
 export type EditorSubmission = Submission & {
   art_files: string[];
@@ -50,7 +48,6 @@ export function EditorDashboard({
 }: EditorDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | Submission['status']>('all');
   const [selectedId, setSelectedId] = useState(submissions[0]?.id ?? null);
-  const supabase = useSupabase();
   const { notify } = useToast();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -383,11 +380,11 @@ export function EditorDashboard({
 
   async function downloadPath(path: string) {
     try {
-      const { data, error } = await supabase.storage.from(ART_BUCKET).createSignedUrl(path, 60 * 30);
-      if (error || !data?.signedUrl) {
-        throw new Error(error?.message ?? 'Unable to generate download link.');
+      const { signedUrl, error } = await getSignedDownloadUrl(path);
+      if (error || !signedUrl) {
+        throw new Error(error ?? 'Unable to generate download link.');
       }
-      window.open(data.signedUrl, '_blank');
+      window.open(signedUrl, '_blank');
     } catch (error) {
       notify({
         title: 'Download failed',

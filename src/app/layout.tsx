@@ -1,40 +1,29 @@
 import './globals.css'
+import { ClerkProvider } from '@clerk/nextjs'
+import { auth } from '@clerk/nextjs/server'
 import AccountBadge from '@/components/account-badge';
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly'
 import Sidebar from '@/components/shell/sidebar'
 import { ErrorBoundary } from '@/components/shared/error-boundary'
 import { SkipLinks } from '@/components/accessibility';
-import { SupabaseProvider } from '@/components/providers/supabase-provider'
 import { ToastProvider } from '@/components/ui/toast'
+import { ensureProfile } from '@/lib/auth/clerk'
 
-export const metadata = { 
-  title: 'Hen & Ink Portal', 
+export const metadata = {
+  title: 'Hen & Ink Portal',
   description: 'Submission portal',
   viewport: 'width=device-width, initial-scale=1'
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createSupabaseServerReadOnlyClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const signedIn = !!user
+  const { userId } = await auth()
+  const signedIn = !!userId
 
   // Fetch user profile for account badge in sidebar
   let userProfile: { avatarUrl: string | null; initials: string } | null = null;
-  if (user) {
-    let avatarUrl: string | null = null;
-    let fullName = (user.user_metadata?.full_name as string) ||
-      (user.user_metadata?.name as string) ||
-      user.email || 'User';
-    
-    try {
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('full_name, avatar_url')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (prof?.avatar_url) avatarUrl = prof.avatar_url;
-      if (prof?.full_name) fullName = prof.full_name;
-    } catch {}
+  if (userId) {
+    const profile = await ensureProfile(userId);
+    const fullName = profile?.full_name || 'User';
+    const avatarUrl = profile?.avatar_url || null;
 
     const initials = (fullName ?? 'User')
       .trim()
@@ -48,9 +37,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang="en">
-      <body>
-        <SupabaseProvider>
+    <ClerkProvider>
+      <html lang="en">
+        <body>
           <ToastProvider>
             <ErrorBoundary>
               <SkipLinks />
@@ -63,8 +52,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </div>
             </ErrorBoundary>
           </ToastProvider>
-        </SupabaseProvider>
-      </body>
-    </html>
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

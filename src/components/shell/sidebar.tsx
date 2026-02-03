@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
+import { SignOutButton } from '@clerk/nextjs'
 
 interface SidebarProps {
   signedIn?: boolean;
@@ -198,9 +199,9 @@ export default function Sidebar({ signedIn = false, userProfile }: SidebarProps)
                 )}
               </Link>
             )}
-            <form action="/api/auth/signout" method="post" className="auth-form">
-              <button type="submit" className="btn" aria-label="Sign out">Sign out</button>
-            </form>
+            <SignOutButton redirectUrl="/login">
+              <button type="button" className="btn" aria-label="Sign out">Sign out</button>
+            </SignOutButton>
           </>
         ) : (
           <Link href="/login" className="btn btn-accent">

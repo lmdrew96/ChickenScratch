@@ -2,11 +2,11 @@ import { PublishedGalleryClient } from '@/components/gallery';
 import { EmptyState } from '@/components/ui';
 import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl } from '@/lib/storage';
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { db } from '@/lib/supabase/db';
 import type { PublishedSubmissionRow, PublishedSubmission } from '@/types/database';
 
 export default async function PublishedPage() {
-  const supabase = await createSupabaseServerReadOnlyClient();
+  const supabase = db();
   let rawSubmissions: PublishedSubmissionRow[] = [];
   let encounteredLoadIssue = false;
 

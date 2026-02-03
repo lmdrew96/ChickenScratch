@@ -4,14 +4,12 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { SubmissionForm } from '@/components/forms/submission-form';
-import { useSupabase } from '@/components/providers/supabase-provider';
 import { StatusBadge } from '@/components/common/status-badge';
 import { Button } from '@/components/ui/button';
 import { EDITABLE_STATUSES, formatStatus } from '@/lib/constants';
 import type { Submission } from '@/types/database';
 import { useToast } from '@/components/ui/toast';
-
-const ART_BUCKET = 'art';
+import { getSignedDownloadUrl } from '@/lib/actions/storage';
 
 type MineSubmission = Submission & {
   art_files: string[];
@@ -25,7 +23,6 @@ type MineClientProps = {
 };
 
 export function MineClient({ submissions, viewerName, loadIssue = false }: MineClientProps) {
-  const supabase = useSupabase();
   const { notify } = useToast();
   const [selectedId, setSelectedId] = useState(submissions[0]?.id ?? null);
   const router = useRouter();
@@ -52,12 +49,12 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
   const canEdit = EDITABLE_STATUSES.includes(selectedSubmission.status);
 
   async function downloadPath(path: string) {
-    const { data, error } = await supabase.storage.from(ART_BUCKET).createSignedUrl(path, 60 * 30);
-    if (error || !data?.signedUrl) {
-      notify({ title: 'Download failed', description: error?.message ?? 'Unable to generate link.', variant: 'error' });
+    const { signedUrl, error } = await getSignedDownloadUrl(path);
+    if (error || !signedUrl) {
+      notify({ title: 'Download failed', description: error ?? 'Unable to generate link.', variant: 'error' });
       return;
     }
-    window.open(data.signedUrl, '_blank');
+    window.open(signedUrl, '_blank');
   }
 
   return (

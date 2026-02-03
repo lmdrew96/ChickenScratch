@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { auth } from '@clerk/nextjs/server';
 
-import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
+import { db } from '@/lib/supabase/db';
+import { ensureProfile } from '@/lib/auth/clerk';
 import { createSignedUrl, getSubmissionsBucketName } from '@/lib/storage';
 import { hasCommitteeAccess } from '@/lib/auth/guards';
 
@@ -18,20 +20,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request data.' }, { status: 400 });
   }
 
-  const supabase = await createSupabaseRouteHandlerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const profile = await ensureProfile(userId);
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const supabase = db();
 
   // Check if user has committee access
   const { data: userRoleData } = await supabase
     .from('user_roles')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', profile.id)
     .maybeSingle();
 
   if (!userRoleData || !userRoleData.is_member) {
@@ -146,7 +145,7 @@ export async function POST(request: NextRequest) {
     // Log the action in audit trail
     await supabase.from('audit_log').insert({
       submission_id,
-      actor_id: user.id,
+      actor_id: profile.id,
       action: 'convert_to_gdoc',
       details: {
         google_doc_id: webhookResult.google_doc_id,

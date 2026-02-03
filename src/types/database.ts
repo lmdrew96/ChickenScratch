@@ -12,6 +12,7 @@ export interface Database {
       profiles: {
         Row: {
           id: string;
+          clerk_id: string | null;
           email: string | null;
           name: string | null;
           full_name: string | null;
@@ -22,6 +23,7 @@ export interface Database {
         };
         Insert: {
           id: string;
+          clerk_id?: string | null;
           email?: string | null;
           name?: string | null;
           full_name?: string | null;
@@ -31,6 +33,7 @@ export interface Database {
           updated_at?: string | null;
         };
         Update: {
+          clerk_id?: string | null;
           email?: string | null;
           name?: string | null;
           full_name?: string | null;

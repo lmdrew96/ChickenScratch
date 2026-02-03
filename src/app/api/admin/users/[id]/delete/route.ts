@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { db } from '@/lib/supabase/db';
 import { isAdmin } from '@/lib/actions/roles';
 
 export async function DELETE(
@@ -8,7 +8,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await context.params;
-    
+
     // Check if user is admin
     const isUserAdmin = await isAdmin();
     if (!isUserAdmin) {
@@ -21,16 +21,7 @@ export async function DELETE(
     const userId = id;
 
     // Create Supabase admin client with service role key
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    const supabaseAdmin = db();
 
     // Delete from user_roles table first (foreign key constraint)
     const { error: rolesError } = await supabaseAdmin
@@ -56,17 +47,6 @@ export async function DELETE(
       console.error('Error deleting profile:', profileError);
       return NextResponse.json(
         { error: 'Failed to delete profile: ' + profileError.message },
-        { status: 500 }
-      );
-    }
-
-    // Delete from auth.users (requires admin client)
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-
-    if (authError) {
-      console.error('Error deleting auth user:', authError);
-      return NextResponse.json(
-        { error: 'Failed to delete auth user: ' + authError.message },
         { status: 500 }
       );
     }

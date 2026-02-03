@@ -1,6 +1,6 @@
 import PageHeader from '@/components/shell/page-header';
 import { requireOfficerRole } from '@/lib/auth/guards';
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { db } from '@/lib/supabase/db';
 import { MeetingScheduler } from '@/components/officers/meeting-scheduler';
 import { TaskManager } from '@/components/officers/task-manager';
 import { Announcements } from '@/components/officers/announcements';
@@ -9,20 +9,22 @@ import { StatsDashboard } from '@/components/officers/stats-dashboard';
 
 export default async function OfficersPage() {
   const { profile } = await requireOfficerRole('/officers');
-  const supabase = await createSupabaseServerReadOnlyClient();
+  const supabase = db();
 
   // Fetch officers for task assignment
-  const { data: officers } = await supabase
+  const { data: officerRoles } = await supabase
     .from('user_roles')
-    .select(`
-      user_id,
-      profiles!user_roles_user_id_fkey(
-        id,
-        display_name,
-        email
-      )
-    `)
+    .select('user_id')
     .or('roles.cs.{"officer"},positions.ov.{BBEG,Dictator-in-Chief,Scroll Gremlin,Chief Hoarder,PR Nightmare}');
+
+  const officerUserIds = officerRoles?.map((r) => r.user_id) || [];
+
+  const { data: officerProfiles } = officerUserIds.length > 0
+    ? await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .in('id', officerUserIds)
+    : { data: [] };
 
   interface OfficerProfile {
     id: string;
@@ -30,21 +32,13 @@ export default async function OfficersPage() {
     email: string;
   }
 
-  interface OfficerWithProfile {
-    user_id: string;
-    profiles: OfficerProfile[];
-  }
-
-  const officersList = officers
-    ?.map((o: OfficerWithProfile) => {
-      const profile = o.profiles?.[0];
-      return {
-        id: profile?.id || '',
-        display_name: profile?.display_name || '',
-        email: profile?.email || '',
-      };
-    })
-    .filter((o): o is OfficerProfile => !!o.id && !!o.display_name && !!o.email) || [];
+  const officersList = (officerProfiles || [])
+    .map((p) => ({
+      id: p.id,
+      display_name: p.name || '',
+      email: p.email || '',
+    }))
+    .filter((o): o is OfficerProfile => !!o.id && (!!o.display_name || !!o.email));
 
   // Check if user has admin access (BBEG or Dictator-in-Chief)
   const { data: userRole } = await supabase
@@ -77,11 +71,11 @@ export default async function OfficersPage() {
     supabase
       .from('submissions')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending'),
+      .eq('status', 'submitted'),
     supabase
       .from('submissions')
       .select('*', { count: 'exact', head: true })
-      .eq('is_published', true),
+      .eq('published', true),
     supabase
       .from('user_roles')
       .select('*', { count: 'exact', head: true })
@@ -96,7 +90,7 @@ export default async function OfficersPage() {
     supabase
       .from('submissions')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending'),
+      .eq('status', 'submitted'),
   ]);
 
   const stats = {

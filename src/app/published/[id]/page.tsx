@@ -5,12 +5,12 @@ import { notFound } from 'next/navigation';
 import { StatusBadge } from '@/components/common/status-badge';
 import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl, createSignedUrls } from '@/lib/storage';
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { db } from '@/lib/supabase/db';
 import type { PublishedDetailRow } from '@/types/database';
 
 export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createSupabaseServerReadOnlyClient();
+  const supabase = db();
   let submission: PublishedDetailRow | null = null;
   let encounteredLoadIssue = false;
 

@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { auth } from '@clerk/nextjs/server';
 
-import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
+import { db } from '@/lib/supabase/db';
+import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import type { Database, Json } from '@/types/database';
 
@@ -22,20 +24,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid workflow action data.' }, { status: 400 });
   }
 
-  const supabase = await createSupabaseRouteHandlerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const profile = await ensureProfile(userId);
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const supabase = db();
 
   // Get user's roles from user_roles table
   const { data: userRoleData } = await supabase
     .from('user_roles')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', profile.id)
     .maybeSingle();
 
   // Check if user has committee or officer access
@@ -100,14 +99,13 @@ export async function POST(request: NextRequest) {
           } else if (submission.committee_status === 'with_coordinator') {
             // Under Review → Trigger Make webhook for file conversion
             console.log('[Committee Workflow] Review action (under review) - triggering Make webhook for file conversion');
-            
+
             try {
               // Call the convert-to-gdoc endpoint
               const convertResponse = await fetch(`${request.nextUrl.origin}/api/convert-to-gdoc`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Cookie': request.headers.get('cookie') || '',
                 },
                 body: JSON.stringify({ submission_id: submissionId }),
               });
@@ -123,12 +121,12 @@ export async function POST(request: NextRequest) {
 
               const convertResult = await convertResponse.json();
               console.log('[Committee Workflow] Successfully converted to Google Doc:', convertResult.google_doc_url);
-              
+
               // Return the Google Doc URL so frontend can open it
               revalidatePath('/committee');
-              return NextResponse.json({ 
-                success: true, 
-                google_doc_url: convertResult.google_doc_url 
+              return NextResponse.json({
+                success: true,
+                google_doc_url: convertResult.google_doc_url
               });
             } catch (error) {
               console.error('[Committee Workflow] Error calling convert-to-gdoc:', error);
@@ -194,7 +192,7 @@ export async function POST(request: NextRequest) {
       const existingComments = (submission.committee_comments as Array<Record<string, unknown>>) || [];
       const newComment = {
         id: crypto.randomUUID(),
-        userId: user.id,
+        userId: profile.id,
         userRole,
         comment,
         timestamp: new Date().toISOString(),
@@ -214,14 +212,13 @@ export async function POST(request: NextRequest) {
       console.error('[Committee Workflow] Update error:', updateError);
       return NextResponse.json({ error: updateError.message }, { status: 400 });
     }
-    
+
     console.log('[Committee Workflow] Successfully updated submission to status:', newStatus);
 
     // Send notification if status changed to a committee member assignment
-    // Note: with_coordinator is NOT included here - coordinators are notified on submission creation
     if (newStatus && ['with_proofreader', 'with_lead_design', 'with_editor_in_chief'].includes(newStatus)) {
       console.log('[Committee Workflow] Triggering notification for status:', newStatus);
-      
+
       try {
         // Fetch author name from profiles
         const { data: authorProfile } = await supabase
@@ -234,7 +231,6 @@ export async function POST(request: NextRequest) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Cookie': request.headers.get('cookie') || '',
           },
           body: JSON.stringify({
             submissionId,
@@ -248,14 +244,12 @@ export async function POST(request: NextRequest) {
         if (!notificationResponse.ok) {
           const errorData = await notificationResponse.json();
           console.error('[Committee Workflow] Notification failed:', errorData);
-          // Don't fail the workflow if notification fails, just log it
         } else {
           const notificationResult = await notificationResponse.json();
           console.log('[Committee Workflow] Notification sent:', notificationResult);
         }
       } catch (notificationError) {
         console.error('[Committee Workflow] Error sending notification:', notificationError);
-        // Don't fail the workflow if notification fails
       }
     }
 
@@ -272,7 +266,7 @@ export async function POST(request: NextRequest) {
 
     await supabase.from('audit_log').insert({
       submission_id: submissionId,
-      actor_id: user.id,
+      actor_id: profile.id,
       action: `committee_${auditAction}`,
       details: auditDetails,
     });

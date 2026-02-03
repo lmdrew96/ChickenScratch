@@ -1,19 +1,18 @@
 import { redirect } from 'next/navigation'
+import { auth } from '@clerk/nextjs/server'
 import { isAdmin, getAllUsersWithRoles } from '@/lib/actions/roles'
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly'
 import AdminPanel from './admin-panel'
 import CreateTestUser from './create-test-user'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminPage() {
-  const supabase = await createSupabaseServerReadOnlyClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) {
+  const { userId } = await auth()
+
+  if (!userId) {
     redirect('/login')
   }
-  
+
   const isUserAdmin = await isAdmin()
   
   if (!isUserAdmin) {

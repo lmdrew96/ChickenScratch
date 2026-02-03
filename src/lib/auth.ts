@@ -1,74 +1,56 @@
 import { redirect } from 'next/navigation';
 
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { getClerkUserId, ensureProfile } from '@/lib/auth/clerk';
 import { logHandledIssue } from '@/lib/logging';
 import type { Profile } from '@/types/database';
-import type { Session } from '@supabase/supabase-js';
 
 export type SessionWithProfile = {
-  session: Session | null;
+  userId: string | null;
   profile: Profile | null;
 };
 
 export async function getSessionWithProfile(): Promise<SessionWithProfile> {
   try {
-    const supabase = await createSupabaseServerReadOnlyClient();
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.getSession();
+    const userId = await getClerkUserId();
 
-    if (error) {
-      logHandledIssue('auth:get-session', {
-        reason: 'Supabase session lookup failed',
-        cause: error,
-      });
-      return { session: null, profile: null };
+    if (!userId) {
+      return { userId: null, profile: null };
     }
 
-    if (!session?.user) {
-      return { session: null, profile: null };
-    }
+    const profile = await ensureProfile(userId);
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .maybeSingle();
-
-    if (profileError) {
+    if (!profile) {
       logHandledIssue('auth:get-profile', {
-        reason: 'Supabase profile lookup failed',
-        cause: profileError,
-        context: { userId: session.user.id },
+        reason: 'Profile lookup/creation failed for Clerk user',
+        context: { clerkUserId: userId },
       });
-      return { session, profile: null };
+      return { userId, profile: null };
     }
 
-    return { session, profile: profile ?? null };
+    return { userId, profile };
   } catch (error) {
     logHandledIssue('auth:get-session:unexpected', {
       reason: 'Unexpected failure while retrieving session',
       cause: error,
     });
-    return { session: null, profile: null };
+    return { userId: null, profile: null };
   }
 }
 
 export async function requireProfile() {
-  const { session, profile } = await getSessionWithProfile();
-  if (!session || !profile) {
+  const { userId, profile } = await getSessionWithProfile();
+  if (!userId || !profile) {
     redirect('/login');
   }
-  return { session, profile };
+  return { userId, profile };
 }
 
 export async function requireEditorProfile() {
-  const { session, profile } = await requireProfile();
+  const { userId, profile } = await requireProfile();
   if (!profile || !profile.role || !['editor', 'admin'].includes(profile.role)) {
     return null;
   }
-  return { session, profile };
+  return { userId, profile };
 }
 
 export function roleLandingPath(role: Profile['role']) {

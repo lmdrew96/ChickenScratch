@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
 
-import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
-import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { auth } from '@clerk/nextjs/server';
+import { db } from '@/lib/supabase/db';
+import { ensureProfile } from '@/lib/auth/clerk';
 import { getSubmissionsBucketName } from '@/lib/storage';
 import type { Database, Submission } from '@/types/database';
 
@@ -15,20 +16,17 @@ export async function DELETE(
   const { id } = await context.params;
 
   // Authenticate user
-  const supabase = await createSupabaseRouteHandlerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const profile = await ensureProfile(userId);
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const supabase = db();
 
   // Check if user has admin permissions (BBEG or Dictator-in-Chief)
   const { data: userRoleData } = await supabase
     .from('user_roles')
     .select('positions')
-    .eq('user_id', user.id)
+    .eq('user_id', profile.id)
     .maybeSingle();
 
   const userRole = userRoleData as Pick<UserRole, 'positions'> | null;
@@ -64,8 +62,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
   }
 
-  // Use admin client for storage operations to bypass RLS
-  const adminClient = createSupabaseAdminClient();
+  // Use db() (service role) for storage operations
   const submissionsBucket = getSubmissionsBucketName();
 
   // Delete associated files from storage
@@ -87,7 +84,7 @@ export async function DELETE(
 
   // Delete files from storage
   if (filesToDelete.length > 0) {
-    const { error: storageError } = await adminClient.storage
+    const { error: storageError } = await supabase.storage
       .from(submissionsBucket)
       .remove(filesToDelete);
 
@@ -107,13 +104,13 @@ export async function DELETE(
 
   await supabase.from('audit_log').insert({
     submission_id: id,
-    actor_id: user.id,
+    actor_id: profile.id,
     action: 'submission_deleted',
     details: deletionDetails,
   });
 
-  // Delete the submission record from database using admin client to bypass RLS
-  const { data: deleteResult, error: deleteError } = await adminClient
+  // Delete the submission record from database (db() uses service role, bypasses RLS)
+  const { data: deleteResult, error: deleteError } = await supabase
     .from('submissions')
     .delete()
     .eq('id', id)

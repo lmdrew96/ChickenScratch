@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
+import { auth } from '@clerk/nextjs/server';
+import { db } from '@/lib/supabase/db';
+import { ensureProfile } from '@/lib/auth/clerk';
 
 export async function PATCH(
   request: NextRequest,
@@ -7,23 +9,22 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-    const supabase = await createSupabaseRouteHandlerClient();
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const profile = await ensureProfile(userId);
+    if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const supabase = db();
 
     // Check if user has officer access
     const { data: userRole } = await supabase
       .from('user_roles')
       .select('roles, positions')
-      .eq('user_id', user.id)
+      .eq('user_id', profile.id)
       .single();
 
-    const hasOfficerAccess = 
+    const hasOfficerAccess =
       userRole?.roles?.includes('officer') ||
-      userRole?.positions?.some((p: string) => 
+      userRole?.positions?.some((p: string) =>
         ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare'].includes(p)
       );
 
@@ -66,23 +67,22 @@ export async function DELETE(
 ) {
   try {
     const { id } = await context.params;
-    const supabase = await createSupabaseRouteHandlerClient();
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const profile = await ensureProfile(userId);
+    if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const supabase = db();
 
     // Check if user has officer access
     const { data: userRole } = await supabase
       .from('user_roles')
       .select('roles, positions')
-      .eq('user_id', user.id)
+      .eq('user_id', profile.id)
       .single();
 
-    const hasOfficerAccess = 
+    const hasOfficerAccess =
       userRole?.roles?.includes('officer') ||
-      userRole?.positions?.some((p: string) => 
+      userRole?.positions?.some((p: string) =>
         ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare'].includes(p)
       );
 

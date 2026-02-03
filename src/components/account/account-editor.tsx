@@ -2,38 +2,21 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useSupabase } from '@/components/providers/supabase-provider';
-import type { Database } from '@/types/database';
-import type { SupabaseClient } from '@supabase/supabase-js';
-
-type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
-type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
+import { updateProfile, uploadAvatar } from '@/lib/actions/account';
 
 type Props = {
-  userId: string;
   defaultName: string | null;
   defaultAvatar: string | null;
   defaultPronouns?: string | null;
 };
 
-export default function AccountEditor({ userId, defaultName, defaultAvatar, defaultPronouns }: Props) {
-  // Cast to properly typed client to work around SSR type inference issues
-  const supabase = useSupabase() as unknown as SupabaseClient<Database>;
-  
-  // Profile section state
+export default function AccountEditor({ defaultName, defaultAvatar, defaultPronouns }: Props) {
   const [name, setName] = useState(defaultName ?? '');
   const [pronouns, setPronouns] = useState(defaultPronouns ?? '');
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(defaultAvatar ?? null);
-  
-  // Password section state
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,57 +24,23 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar, defa
     setMsg(null);
 
     try {
-      let avatar_url = preview ?? null;
-
+      // Upload avatar if a new file was selected
       if (file) {
-        const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-        const path = `${userId}/avatar.${ext}`;
-        
-        const up = await supabase.storage.from('avatars').upload(path, file, {
-          cacheControl: '0', // Disable CDN caching for avatars
-          upsert: true,
-          contentType: file.type || undefined,
-        });
-        if (up.error) throw up.error;
-
-        // Add cache-busting timestamp to force browsers to fetch the new image
-        const pub = supabase.storage.from('avatars').getPublicUrl(path);
-        avatar_url = `${pub.data.publicUrl}?t=${Date.now()}`;
+        const avatarForm = new FormData();
+        avatarForm.set('avatar', file);
+        const avatarResult = await uploadAvatar(avatarForm);
+        if (avatarResult.error) throw new Error(avatarResult.error);
+        if (avatarResult.avatarUrl) setPreview(avatarResult.avatarUrl);
       }
 
-      // Try to update first
-      const updateData: ProfileUpdate = {
-        full_name: name || null,
-        avatar_url: avatar_url,
-        pronouns: pronouns || null
-      };
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', userId)
-        .select()
-        .single();
+      // Update profile fields
+      const profileForm = new FormData();
+      profileForm.set('name', name);
+      profileForm.set('pronouns', pronouns);
+      const profileResult = await updateProfile(profileForm);
+      if (profileResult.error) throw new Error(profileResult.error);
 
-      if (updateError) {
-        // If update failed (likely because row doesn't exist), try insert
-        const insertData: ProfileInsert = {
-          id: userId,
-          full_name: name || null,
-          avatar_url: avatar_url,
-          pronouns: pronouns || null
-        };
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert(insertData)
-          .select()
-          .single();
-          
-        if (insertError) {
-          throw insertError;
-        }
-      }
-
-      setMsg('Profile saved successfully ✔︎');
+      setMsg('Profile saved successfully');
       setTimeout(() => setMsg(null), 3000);
     } catch (err: unknown) {
       const error = err as { message?: string };
@@ -101,51 +50,11 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar, defa
     }
   }
 
-  async function onPasswordSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setPasswordSaving(true);
-    setPasswordMsg(null);
-    setPasswordError(null);
-
-    // Validation
-    if (newPassword !== confirmPassword) {
-      setPasswordError('New passwords do not match');
-      setPasswordSaving(false);
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setPasswordError('Password must be at least 8 characters');
-      setPasswordSaving(false);
-      return;
-    }
-
-    try {
-      // Update password using Supabase auth
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (error) throw error;
-
-      setPasswordMsg('Password changed successfully ✔︎');
-      setNewPassword('');
-      setConfirmPassword('');
-      setTimeout(() => setPasswordMsg(null), 3000);
-    } catch (err: unknown) {
-      const error = err as { message?: string };
-      setPasswordError(error?.message || 'Failed to change password');
-    } finally {
-      setPasswordSaving(false);
-    }
-  }
-
   return (
     <div className="space-y-6 max-w-2xl">
-      {/* Profile Information Section */}
       <form onSubmit={onSubmit} className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-6">
         <h2 className="text-xl font-semibold text-white mb-4">Profile Information</h2>
-        
+
         <div className="flex items-center gap-4">
           {preview ? (
             <Image src={preview} alt="" width={64} height={64} className="h-16 w-16 rounded-full object-cover ring-2 ring-[--accent]" unoptimized />
@@ -198,63 +107,18 @@ export default function AccountEditor({ userId, defaultName, defaultAvatar, defa
 
         <div className="flex items-center gap-3">
           <button type="submit" className="btn btn-accent" disabled={saving}>
-            {saving ? 'Saving…' : 'Save Profile'}
+            {saving ? 'Saving\u2026' : 'Save Profile'}
           </button>
           {msg && <span className="text-sm text-green-400">{msg}</span>}
         </div>
       </form>
 
-      {/* Change Password Section */}
-      <form onSubmit={onPasswordSubmit} className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Change Password</h2>
-        
-        {passwordError && (
-          <div className="p-3 bg-red-900/30 border border-red-500 rounded-lg text-red-300 text-sm">
-            {passwordError}
-          </div>
-        )}
-
-        {passwordMsg && (
-          <div className="p-3 bg-green-900/30 border border-green-500 rounded-lg text-green-300 text-sm">
-            {passwordMsg}
-          </div>
-        )}
-
-        <div>
-          <label className="block text-sm mb-1 text-gray-300">New Password</label>
-          <input
-            type="password"
-            className="w-full rounded-xl border border-white/15 bg-transparent px-3 py-2 text-white"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Enter new password"
-            minLength={8}
-          />
-          <p className="text-xs text-gray-400 mt-1">Must be at least 8 characters</p>
-        </div>
-
-        <div>
-          <label className="block text-sm mb-1 text-gray-300">Confirm New Password</label>
-          <input
-            type="password"
-            className="w-full rounded-xl border border-white/15 bg-transparent px-3 py-2 text-white"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Confirm new password"
-            minLength={8}
-          />
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button 
-            type="submit" 
-            className="btn btn-accent" 
-            disabled={passwordSaving || !newPassword || !confirmPassword}
-          >
-            {passwordSaving ? 'Changing…' : 'Change Password'}
-          </button>
-        </div>
-      </form>
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h2 className="text-xl font-semibold text-white mb-4">Password & Security</h2>
+        <p className="text-sm text-gray-300">
+          Password management is handled through Clerk. Use the button below or visit your Clerk profile to change your password.
+        </p>
+      </div>
     </div>
   );
 }

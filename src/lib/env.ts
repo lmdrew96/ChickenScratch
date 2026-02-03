@@ -1,18 +1,20 @@
 import { z } from 'zod';
 
-const DEFAULT_ALLOWED_DOMAINS = ['udel.edu', 'dtcc.edu'];
+const DEFAULT_ALLOWED_DOMAINS = ['udel.edu'];
 
 const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1),
+  CLERK_SECRET_KEY: z.string().min(1),
   ALLOWED_DOMAINS: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse({
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
   ALLOWED_DOMAINS: process.env.ALLOWED_DOMAINS,
 });
 
@@ -35,8 +37,5 @@ export function getAllowedDomains() {
 }
 
 export function requireServiceRoleKey() {
-  if (!env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for this operation');
-  }
   return env.SUPABASE_SERVICE_ROLE_KEY;
 }

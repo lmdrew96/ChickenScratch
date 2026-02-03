@@ -1,18 +1,15 @@
 import Link from 'next/link';
 import { FileText, Users, BookOpen, Shield } from 'lucide-react';
 import PageHeader from '@/components/shell/page-header';
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { auth } from '@clerk/nextjs/server';
 import { getCurrentUserRole } from '@/lib/actions/roles';
 
 export default async function HomePage() {
   // Get user session and role
-  const supabase = await createSupabaseServerReadOnlyClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { userId } = await auth();
 
   let userRole = null;
-  if (user) {
+  if (userId) {
     userRole = await getCurrentUserRole();
   }
 
@@ -35,7 +32,7 @@ export default async function HomePage() {
       </p>
 
       {/* Role-based cards */}
-      {user && (isCommittee || isEditor || isOfficer) && (
+      {userId && (isCommittee || isEditor || isOfficer) && (
         <section>
           <h2 className="mb-4 text-xl font-semibold" style={{ color: 'var(--accent)' }}>
             Your Roles

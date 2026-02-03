@@ -1,25 +1,24 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
+import { auth } from '@clerk/nextjs/server';
 
-import { createSupabaseRouteHandlerClient } from '@/lib/supabase/route';
+import { db } from '@/lib/supabase/db';
+import { ensureProfile } from '@/lib/auth/clerk';
 import { uploadFile, getSubmissionsBucketName, getBucketName } from '@/lib/storage';
 import type { Database } from '@/types/database';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export async function POST(request: NextRequest) {
-  const supabase = await createSupabaseRouteHandlerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const profile = await ensureProfile(userId);
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const supabase = db();
 
   try {
     const formData = await request.formData();
-    
+
     const title = formData.get('title') as string;
     const type = formData.get('type') as 'writing' | 'visual';
     const genre = formData.get('genre') as string | null;
@@ -27,7 +26,6 @@ export async function POST(request: NextRequest) {
     const contentWarnings = formData.get('contentWarnings') as string | null;
     const file = formData.get('file') as File | null;
 
-    // Validate required fields
     if (!title || title.length < 3 || title.length > 200) {
       return NextResponse.json({ error: 'Title must be between 3 and 200 characters.' }, { status: 400 });
     }
@@ -40,12 +38,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File is required.' }, { status: 400 });
     }
 
-    // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json({ error: 'File size must be less than 10MB.' }, { status: 400 });
     }
 
-    // Validate file type based on submission type
     if (type === 'writing') {
       const allowedTypes = [
         'application/msword',
@@ -55,23 +51,20 @@ export async function POST(request: NextRequest) {
       ];
       const allowedExtensions = ['.doc', '.docx', '.pdf', '.txt'];
       const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-      
+
       if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
-        return NextResponse.json({ 
-          error: 'Writing submissions must be .doc, .docx, .pdf, or .txt files.' 
+        return NextResponse.json({
+          error: 'Writing submissions must be .doc, .docx, .pdf, or .txt files.'
         }, { status: 400 });
       }
     }
 
-    // Generate unique file path
     const timestamp = Date.now();
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const filePath = `${user.id}/${timestamp}-${sanitizedFileName}`;
+    const filePath = `${profile.id}/${timestamp}-${sanitizedFileName}`;
 
-    // Determine which bucket to use
     const bucket = type === 'writing' ? getSubmissionsBucketName() : getBucketName();
 
-    // Upload file to Supabase Storage
     const { path: uploadedPath, error: uploadError } = await uploadFile(
       supabase,
       bucket,
@@ -81,14 +74,13 @@ export async function POST(request: NextRequest) {
 
     if (uploadError || !uploadedPath) {
       console.error('File upload error:', uploadError);
-      return NextResponse.json({ 
-        error: 'Failed to upload file. Please try again.' 
+      return NextResponse.json({
+        error: 'Failed to upload file. Please try again.'
       }, { status: 500 });
     }
 
-    // Create submission record
     const insertPayload: Database['public']['Tables']['submissions']['Insert'] = {
-      owner_id: user.id,
+      owner_id: profile.id,
       title,
       type,
       genre: genre || null,
@@ -101,7 +93,6 @@ export async function POST(request: NextRequest) {
       status: 'submitted',
     };
 
-    // For visual art, also set cover_image
     if (type === 'visual') {
       insertPayload.cover_image = uploadedPath;
       insertPayload.art_files = [uploadedPath];
@@ -120,18 +111,10 @@ export async function POST(request: NextRequest) {
 
     // Send notification to Submissions Coordinators about new submission
     try {
-      // Fetch author name from profiles
-      const { data: authorProfile } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', user.id)
-        .single();
-
       const notificationResponse = await fetch(`${request.nextUrl.origin}/api/notifications/submission-assigned`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Cookie': request.headers.get('cookie') || '',
         },
         body: JSON.stringify({
           submissionId: data.id,
@@ -140,18 +123,16 @@ export async function POST(request: NextRequest) {
           submissionType: data.type,
           submissionGenre: data.genre,
           submissionDate: data.created_at,
-          authorName: authorProfile?.full_name || authorProfile?.email || 'Unknown',
+          authorName: profile.full_name || profile.email || 'Unknown',
         }),
       });
 
       if (!notificationResponse.ok) {
         const errorData = await notificationResponse.json();
         console.error('Notification failed:', errorData);
-        // Don't fail the submission if notification fails, just log it
       }
     } catch (notificationError) {
       console.error('Error sending notification:', notificationError);
-      // Don't fail the submission if notification fails
     }
 
     revalidatePath('/mine');
@@ -159,26 +140,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, submission: data });
   } catch (error) {
     console.error('Submission error:', error);
-    return NextResponse.json({ 
-      error: 'An error occurred while processing your submission.' 
+    return NextResponse.json({
+      error: 'An error occurred while processing your submission.'
     }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = await createSupabaseRouteHandlerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const profile = await ensureProfile(userId);
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const supabase = db();
 
   const { searchParams } = new URL(request.url);
   const mine = searchParams.get('mine');
 
-  // If requesting own submissions, allow any authenticated user
   if (mine === '1') {
     const { data: submissions, error } = await supabase
       .from('submissions')
@@ -186,7 +163,7 @@ export async function GET(request: NextRequest) {
         *,
         assigned_editor_profile:profiles!submissions_assigned_editor_fkey(id, name, email)
       `)
-      .eq('owner_id', user.id)
+      .eq('owner_id', profile.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -197,13 +174,7 @@ export async function GET(request: NextRequest) {
   }
 
   // For all submissions, require editor or admin role
-  const { data: profileData } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (!profileData || !profileData.role || !['editor', 'admin'].includes(profileData.role)) {
+  if (!profile.role || !['editor', 'admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

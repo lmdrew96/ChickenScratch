@@ -3,7 +3,7 @@ import Link from 'next/link';
 import PageHeader from '@/components/shell/page-header';
 import { requireUser } from '@/lib/auth/guards';
 import { getCurrentUserRole } from '@/lib/actions/roles';
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { db } from '@/lib/supabase/db';
 import { SubmissionsListWithDelete } from '@/components/editor/submissions-list-with-delete';
 import { ExportReportButton } from '@/components/editor/export-report-button';
 import type { Submission } from '@/types/database';
@@ -71,7 +71,7 @@ export default async function EditorInChiefDashboard() {
   }
 
   // Fetch all submissions with author names
-  const supabase = await createSupabaseServerReadOnlyClient();
+  const supabase = db();
   let submissions: SubmissionWithAuthor[] = [];
 
   try {

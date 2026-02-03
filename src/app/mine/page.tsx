@@ -3,14 +3,14 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/navigation';
 import { EmptyState } from '@/components/ui';
 import { requireUser } from '@/lib/auth/guards';
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { db } from '@/lib/supabase/db';
 import type { Submission } from '@/types/database';
 
 export default async function MinePage() {
   const { profile } = await requireUser('/mine');
 
-  // Fetch user's submissions directly from Supabase
-  const supabase = await createSupabaseServerReadOnlyClient();
+  // Fetch user's submissions
+  const supabase = db();
   let submissions: Submission[] = [];
   
   try {

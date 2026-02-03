@@ -1,7 +1,7 @@
 import PageHeader from '@/components/shell/page-header';
 import KanbanBoard from '@/components/committee/kanban-board';
 import { requireCommitteeRole } from '@/lib/auth/guards';
-import { createSupabaseServerReadOnlyClient } from '@/lib/supabase/server-readonly';
+import { db } from '@/lib/supabase/db';
 import { getCurrentUserRole } from '@/lib/actions/roles';
 import { Submission } from '@/types/database';
 
@@ -12,7 +12,7 @@ export default async function CommitteePage() {
   const userRole = await getCurrentUserRole();
   
   // Fetch submissions relevant to this user's role
-  const supabase = await createSupabaseServerReadOnlyClient();
+  const supabase = db();
   let submissionsData: Submission[] = [];
   
   try {
