@@ -1,28 +1,27 @@
 'use server'
 
 import { auth } from '@clerk/nextjs/server'
-import { db } from '@/lib/supabase/db'
-import { ensureProfile } from '@/lib/auth/clerk'
-import type { Database } from '@/types/database'
+import { eq } from 'drizzle-orm'
 
-type UserRole = Database['public']['Tables']['user_roles']['Row']
+import { db } from '@/lib/db'
+import { profiles, userRoles } from '@/lib/db/schema'
+import { ensureProfile } from '@/lib/auth/clerk'
+import type { UserRole } from '@/types/database'
 
 type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief'
 
 export async function getUserRole(userId: string): Promise<UserRole | { is_member: false; roles: ('officer' | 'committee')[]; positions: Position[] }> {
-  const supabase = db()
+  const result = await db()
+    .select()
+    .from(userRoles)
+    .where(eq(userRoles.user_id, userId))
+    .limit(1)
 
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
-
-  if (error || !data) {
+  if (!result[0]) {
     return { is_member: false, roles: [], positions: [] }
   }
 
-  return data
+  return result[0] as UserRole
 }
 
 export async function getCurrentUserRole(): Promise<UserRole | { is_member: false; roles: ('officer' | 'committee')[]; positions: Position[] } | null> {
@@ -38,46 +37,48 @@ export async function getCurrentUserRole(): Promise<UserRole | { is_member: fals
 export async function isAdmin(): Promise<boolean> {
   const role = await getCurrentUserRole()
   if (!role) return false
-  return role.positions?.includes('BBEG') || role.positions?.includes('Dictator-in-Chief')
+  return role.positions?.includes('BBEG') === true || role.positions?.includes('Dictator-in-Chief') === true
 }
 
 export async function updateUserRole(
   userId: string,
-  updates: Database['public']['Tables']['user_roles']['Update']
+  updates: Partial<Pick<UserRole, 'is_member' | 'roles' | 'positions'>>
 ): Promise<{ data?: UserRole; error?: string | null }> {
   if (!await isAdmin()) {
     return { error: 'Unauthorized' }
   }
 
-  const supabase = db()
+  const database = db()
 
   // Check if user already has a role entry
-  const { data: existing } = await supabase
-    .from('user_roles')
-    .select('id')
-    .eq('user_id', userId)
-    .single()
+  const existing = await database
+    .select({ id: userRoles.id })
+    .from(userRoles)
+    .where(eq(userRoles.user_id, userId))
+    .limit(1)
 
-  if (existing) {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .update(updates)
-      .eq('user_id', userId)
-      .select()
-      .single()
+  if (existing[0]) {
+    const result = await database
+      .update(userRoles)
+      .set(updates)
+      .where(eq(userRoles.user_id, userId))
+      .returning()
 
-    return { data: data || undefined, error: error?.message }
+    return { data: result[0] as UserRole | undefined, error: null }
   } else {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .insert({
-        user_id: userId,
-        ...updates
-      })
-      .select()
-      .single()
+    try {
+      const result = await database
+        .insert(userRoles)
+        .values({
+          user_id: userId,
+          ...updates,
+        })
+        .returning()
 
-    return { data: data || undefined, error: error?.message }
+      return { data: result[0] as UserRole | undefined, error: null }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Insert failed' }
+    }
   }
 }
 
@@ -93,39 +94,26 @@ type UserWithRole = {
 
 export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   try {
-    const supabase = db()
+    const database = db()
 
     // Get all profiles
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('*')
-
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError)
-      return []
-    }
+    const allProfiles = await database.select().from(profiles)
 
     // Get all roles
-    const { data: roles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('*')
+    const allRoles = await database.select().from(userRoles)
 
-    if (rolesError) {
-      console.error('Error fetching roles:', rolesError)
-    }
-
-    return profiles?.map(profile => {
-      const role = roles?.find(r => r.user_id === profile.id)
+    return allProfiles.map(profile => {
+      const role = allRoles.find(r => r.user_id === profile.id)
       return {
         id: profile.id,
         email: profile.email,
         display_name: profile.full_name,
-        created_at: profile.updated_at,
+        created_at: profile.updated_at?.toISOString() ?? null,
         is_member: role?.is_member,
-        roles: role?.roles || [],
-        positions: role?.positions || []
+        roles: (role?.roles as ('officer' | 'committee')[]) || [],
+        positions: (role?.positions as Position[]) || []
       }
-    }) || []
+    })
   } catch (error) {
     console.error('Error in getAllUsersWithRoles:', error)
     return []
@@ -156,42 +144,41 @@ export async function createTestUser(params: CreateTestUserParams): Promise<Crea
   }
 
   try {
-    const supabase = db()
+    const database = db()
 
-    // Create profile entry directly (no Supabase Auth user needed)
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .insert({
+    // Create profile entry directly
+    const profileResult = await database
+      .insert(profiles)
+      .values({
         id: crypto.randomUUID(),
         email: params.email,
         name: params.email.split('@')[0],
       })
-      .select('id')
-      .single()
+      .returning({ id: profiles.id })
 
-    if (profileError || !profile) {
-      console.error('Error creating profile:', profileError)
+    const profile = profileResult[0]
+    if (!profile) {
       return {
         success: false,
-        error: profileError?.message || 'Failed to create profile'
+        error: 'Failed to create profile'
       }
     }
 
     // Create user_roles entry
-    const { error: rolesError } = await supabase
-      .from('user_roles')
-      .insert({
-        user_id: profile.id,
-        is_member: params.is_member,
-        roles: params.roles,
-        positions: params.positions,
-      })
-
-    if (rolesError) {
+    try {
+      await database
+        .insert(userRoles)
+        .values({
+          user_id: profile.id,
+          is_member: params.is_member,
+          roles: params.roles,
+          positions: params.positions,
+        })
+    } catch (rolesError) {
       console.error('Error creating user roles:', rolesError)
       return {
         success: false,
-        error: `Profile created but failed to assign roles: ${rolesError.message}`
+        error: `Profile created but failed to assign roles: ${rolesError instanceof Error ? rolesError.message : 'Unknown error'}`
       }
     }
 

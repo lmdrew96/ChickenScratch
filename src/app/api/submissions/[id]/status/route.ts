@@ -1,12 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/lib/supabase/db';
+import { db } from '@/lib/db';
+import { submissions, auditLog, profiles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { sendSubmissionEmail } from '@/lib/email';
-import type { Database, Json, Profile, Submission } from '@/types/database';
 
 const statusSchema = z.object({
   status: z.enum(['in_review', 'needs_revision', 'accepted', 'declined']),
@@ -29,26 +30,26 @@ export async function POST(
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const supabase = db();
 
   if (!profile.role || !['editor', 'admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { data: submissionData, error: fetchError } = await supabase
-    .from('submissions')
-    .select('id, title, status, owner_id, editor_notes')
-    .eq('id', id)
-    .maybeSingle();
+  const database = db();
 
-  const submission = submissionData as Pick<
-    Submission,
-    'id' | 'title' | 'status' | 'owner_id' | 'editor_notes'
-  > | null;
+  const submissionResult = await database
+    .select({
+      id: submissions.id,
+      title: submissions.title,
+      status: submissions.status,
+      owner_id: submissions.owner_id,
+      editor_notes: submissions.editor_notes,
+    })
+    .from(submissions)
+    .where(eq(submissions.id, id))
+    .limit(1);
 
-  if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 400 });
-  }
+  const submission = submissionResult[0];
 
   if (!submission) {
     return NextResponse.json({ error: 'Submission not found.' }, { status: 404 });
@@ -58,48 +59,46 @@ export async function POST(
     return NextResponse.json({ error: 'Editor notes are required for revisions.' }, { status: 400 });
   }
 
-  const updates: Database['public']['Tables']['submissions']['Update'] = {
+  const updates: Record<string, unknown> = {
     status: parsed.data.status,
   };
 
   if (['accepted', 'declined', 'needs_revision'].includes(parsed.data.status)) {
-    updates.decision_date = new Date().toISOString();
+    updates.decision_date = new Date();
   }
 
   if (parsed.data.editorNotes !== undefined) {
     updates.editor_notes = parsed.data.editorNotes;
   }
 
-  const { error: updateError } = await supabase
-    .from('submissions')
-    .update(updates)
-    .eq('id', id);
-
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 400 });
+  try {
+    await database
+      .update(submissions)
+      .set(updates)
+      .where(eq(submissions.id, id));
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Update failed' }, { status: 400 });
   }
 
-  const statusDetails: Json = {
-    from: submission.status,
-    to: parsed.data.status,
-  };
-
-  await supabase.from('audit_log').insert({
+  await database.insert(auditLog).values({
     submission_id: id,
     actor_id: profile.id,
     action: 'status_change',
-    details: statusDetails,
+    details: {
+      from: submission.status,
+      to: parsed.data.status,
+    },
   });
 
-  const { data: ownerProfileData } = await supabase
-    .from('profiles')
-    .select('email, name')
-    .eq('id', submission.owner_id)
-    .maybeSingle();
+  const ownerResult = await database
+    .select({ email: profiles.email, name: profiles.name })
+    .from(profiles)
+    .where(eq(profiles.id, submission.owner_id))
+    .limit(1);
 
-  const ownerProfile = ownerProfileData as Pick<Profile, 'email' | 'name'> | null;
-
+  const ownerProfile = ownerResult[0];
   const ownerEmail = ownerProfile?.email;
+
   if (ownerEmail) {
     const template = parsed.data.status === 'accepted'
       ? 'accepted'

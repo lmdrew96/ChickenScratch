@@ -11,9 +11,14 @@ export const SUBMISSION_STATUSES = [
 ] as const;
 export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 
-export const EDITABLE_STATUSES: SubmissionStatus[] = ['submitted', 'needs_revision'];
+export const EDITABLE_STATUSES: readonly string[] = ['submitted', 'needs_revision'];
 
-export function formatStatus(status: SubmissionStatus) {
+export function isSubmissionStatus(value: string | null | undefined): value is SubmissionStatus {
+  return typeof value === 'string' && (SUBMISSION_STATUSES as readonly string[]).includes(value);
+}
+
+export function formatStatus(status: string | null) {
+  if (!status) return 'Unknown';
   return status
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))

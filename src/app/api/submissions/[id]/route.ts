@@ -1,13 +1,15 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/lib/supabase/db';
+import { db } from '@/lib/db';
+import { submissions } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { EDITABLE_STATUSES, SUBMISSION_TYPES } from '@/lib/constants';
 import { assertUserOwnsPath } from '@/lib/storage';
-import type { Database, Submission } from '@/types/database';
+import type { Submission } from '@/types/database';
 
 const updateSchema = z.object({
   title: z.string().min(3).max(200).optional(),
@@ -37,19 +39,16 @@ export async function PATCH(
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const supabase = db();
 
-  const { data: submissionData, error: fetchError } = await supabase
-    .from('submissions')
-    .select('id, owner_id, status')
-    .eq('id', id)
-    .maybeSingle();
+  const database = db();
 
-  const submission = submissionData as Pick<Submission, 'id' | 'owner_id' | 'status'> | null;
+  const submissionResult = await database
+    .select({ id: submissions.id, owner_id: submissions.owner_id, status: submissions.status })
+    .from(submissions)
+    .where(eq(submissions.id, id))
+    .limit(1);
 
-  if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 400 });
-  }
+  const submission = submissionResult[0] as Pick<Submission, 'id' | 'owner_id' | 'status'> | undefined;
 
   if (!submission) {
     return NextResponse.json({ error: 'Submission not found.' }, { status: 404 });
@@ -63,7 +62,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'This submission is no longer editable.' }, { status: 403 });
   }
 
-  const updates: Database['public']['Tables']['submissions']['Update'] = {};
+  const updates: Record<string, unknown> = {};
 
   if (parsed.data.title) updates.title = parsed.data.title;
   if (parsed.data.type) updates.type = parsed.data.type;
@@ -96,13 +95,13 @@ export async function PATCH(
     updates.cover_image = null;
   }
 
-  const { error } = await supabase
-    .from('submissions')
-    .update(updates)
-    .eq('id', id);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  try {
+    await database
+      .update(submissions)
+      .set(updates)
+      .where(eq(submissions.id, id));
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Update failed' }, { status: 400 });
   }
 
   revalidatePath('/mine');

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/lib/supabase/db';
+import { eq, desc, inArray } from 'drizzle-orm';
+
+import { db } from '@/lib/db';
+import { officerAnnouncements, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 
 export async function GET() {
@@ -9,15 +12,16 @@ export async function GET() {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const profile = await ensureProfile(userId);
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const supabase = db();
+    const database = db();
 
     // Check if user has officer access
-    const { data: userRole } = await supabase
-      .from('user_roles')
-      .select('roles, positions')
-      .eq('user_id', profile.id)
-      .single();
+    const userRoleRows = await database
+      .select({ roles: userRoles.roles, positions: userRoles.positions })
+      .from(userRoles)
+      .where(eq(userRoles.user_id, profile.id))
+      .limit(1);
 
+    const userRole = userRoleRows[0];
     const hasOfficerAccess =
       userRole?.roles?.includes('officer') ||
       userRole?.positions?.some((p: string) =>
@@ -29,19 +33,36 @@ export async function GET() {
     }
 
     // Fetch last 10 announcements
-    const { data: announcements, error } = await supabase
-      .from('officer_announcements')
-      .select(`
-        *,
-        created_by_profile:profiles!officer_announcements_created_by_fkey(display_name, email)
-      `)
-      .order('created_at', { ascending: false })
+    const announcementRows = await database
+      .select()
+      .from(officerAnnouncements)
+      .orderBy(desc(officerAnnouncements.created_at))
       .limit(10);
 
-    if (error) {
-      console.error('Error fetching announcements:', error);
-      return NextResponse.json({ error: 'Failed to fetch announcements' }, { status: 500 });
+    if (announcementRows.length === 0) {
+      return NextResponse.json({ announcements: [] });
     }
+
+    // Fetch profiles for creators
+    const createdByIds = [...new Set(announcementRows.map((a) => a.created_by))];
+    const profileRows = createdByIds.length > 0
+      ? await database
+          .select({ id: profiles.id, name: profiles.name, email: profiles.email })
+          .from(profiles)
+          .where(inArray(profiles.id, createdByIds))
+      : [];
+    const profileMap = new Map(profileRows.map((p) => [p.id, { display_name: p.name, email: p.email }]));
+
+    // Assemble the response matching the old nested shape
+    const announcements = announcementRows.map((announcement) => {
+      const creatorProfile = profileMap.get(announcement.created_by);
+      return {
+        ...announcement,
+        created_by_profile: creatorProfile
+          ? { display_name: creatorProfile.display_name, email: creatorProfile.email }
+          : null,
+      };
+    });
 
     return NextResponse.json({ announcements });
   } catch (error) {
@@ -56,15 +77,16 @@ export async function POST(request: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const profile = await ensureProfile(userId);
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const supabase = db();
+    const database = db();
 
     // Check if user has officer access
-    const { data: userRole } = await supabase
-      .from('user_roles')
-      .select('roles, positions')
-      .eq('user_id', profile.id)
-      .single();
+    const userRoleRows = await database
+      .select({ roles: userRoles.roles, positions: userRoles.positions })
+      .from(userRoles)
+      .where(eq(userRoles.user_id, profile.id))
+      .limit(1);
 
+    const userRole = userRoleRows[0];
     const hasOfficerAccess =
       userRole?.roles?.includes('officer') ||
       userRole?.positions?.some((p: string) =>
@@ -82,19 +104,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    const { data: announcement, error } = await supabase
-      .from('officer_announcements')
-      .insert({
+    const result = await database
+      .insert(officerAnnouncements)
+      .values({
         message,
         created_by: profile.id,
-      } as never)
-      .select()
-      .single();
+      })
+      .returning();
 
-    if (error) {
-      console.error('Error creating announcement:', error);
-      return NextResponse.json({ error: 'Failed to create announcement' }, { status: 500 });
-    }
+    const announcement = result[0];
 
     return NextResponse.json({ announcement }, { status: 201 });
   } catch (error) {

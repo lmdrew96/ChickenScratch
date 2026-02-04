@@ -1,44 +1,51 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import { eq, and } from 'drizzle-orm';
 
 import { StatusBadge } from '@/components/common/status-badge';
 import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl, createSignedUrls } from '@/lib/storage';
-import { db } from '@/lib/supabase/db';
-import type { PublishedDetailRow } from '@/types/database';
+import { db } from '@/lib/db';
+import { submissions } from '@/lib/db/schema';
 
 export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = db();
-  let submission: PublishedDetailRow | null = null;
+  let submission: {
+    id: string;
+    title: string;
+    summary: string | null;
+    type: string;
+    cover_image: string | null;
+    content_warnings: string | null;
+    art_files: unknown;
+    text_body: string | null;
+    published_url: string | null;
+    issue: string | null;
+    updated_at: Date | null;
+  } | null = null;
   let encounteredLoadIssue = false;
 
   try {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select(
-        'id, title, summary, type, cover_image, content_warnings, art_files, text_body, published_url, issue, updated_at'
-      )
-      .eq('id', id)
-      .eq('published', true)
-      .maybeSingle();
+    const result = await db()
+      .select({
+        id: submissions.id,
+        title: submissions.title,
+        summary: submissions.summary,
+        type: submissions.type,
+        cover_image: submissions.cover_image,
+        content_warnings: submissions.content_warnings,
+        art_files: submissions.art_files,
+        text_body: submissions.text_body,
+        published_url: submissions.published_url,
+        issue: submissions.issue,
+        updated_at: submissions.updated_at,
+      })
+      .from(submissions)
+      .where(and(eq(submissions.id, id), eq(submissions.published, true)))
+      .limit(1);
 
-    if (error) {
-      encounteredLoadIssue = true;
-      logHandledIssue('published:detail:query', {
-        reason: 'Supabase query for published submission failed',
-        context: {
-          submissionId: id,
-          supabaseMessage: error.message,
-          supabaseDetails: error.details,
-          supabaseHint: error.hint,
-          supabaseCode: error.code,
-        },
-      });
-    } else {
-      submission = (data as PublishedDetailRow | null) ?? null;
-    }
+    submission = result[0] ?? null;
   } catch (error) {
     encounteredLoadIssue = true;
     logHandledIssue('published:detail:unexpected', {
@@ -95,12 +102,12 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
 
       {coverUrl ? (
         <div className="relative w-full aspect-video">
-          <Image 
-            src={coverUrl} 
-            alt={submission.title} 
+          <Image
+            src={coverUrl}
+            alt={submission.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-            className="rounded-xl border border-white/10 object-cover" 
+            className="rounded-xl border border-white/10 object-cover"
           />
         </div>
       ) : null}
@@ -108,7 +115,7 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
       {submission.type === 'writing' ? (
         <article className="space-y-4 rounded-xl border border-white/10 bg-white/5 p-6 text-sm leading-relaxed text-white/80">
           <p className="text-xs uppercase tracking-wide text-white/50">
-            Published {submission.updated_at ? new Date(submission.updated_at).toLocaleDateString() : 'recently'}
+            Published {submission.updated_at ? submission.updated_at.toLocaleDateString() : 'recently'}
           </p>
           <div className="whitespace-pre-wrap">{submission.text_body ?? 'No text available.'}</div>
           {submission.published_url ? (

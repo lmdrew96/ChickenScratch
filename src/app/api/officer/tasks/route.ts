@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/lib/supabase/db';
+import { eq, desc, inArray } from 'drizzle-orm';
+
+import { db } from '@/lib/db';
+import { officerTasks, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 
 export async function GET() {
@@ -9,15 +12,16 @@ export async function GET() {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const profile = await ensureProfile(userId);
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const supabase = db();
+    const database = db();
 
     // Check if user has officer access
-    const { data: userRole } = await supabase
-      .from('user_roles')
-      .select('roles, positions')
-      .eq('user_id', profile.id)
-      .single();
+    const userRoleRows = await database
+      .select({ roles: userRoles.roles, positions: userRoles.positions })
+      .from(userRoles)
+      .where(eq(userRoles.user_id, profile.id))
+      .limit(1);
 
+    const userRole = userRoleRows[0];
     const hasOfficerAccess =
       userRole?.roles?.includes('officer') ||
       userRole?.positions?.some((p: string) =>
@@ -28,20 +32,42 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Fetch all tasks with user profiles
-    const { data: tasks, error } = await supabase
-      .from('officer_tasks')
-      .select(`
-        *,
-        assigned_to_profile:profiles!officer_tasks_assigned_to_fkey(display_name, email),
-        created_by_profile:profiles!officer_tasks_created_by_fkey(display_name, email)
-      `)
-      .order('created_at', { ascending: false });
+    // Fetch all tasks
+    const taskRows = await database
+      .select()
+      .from(officerTasks)
+      .orderBy(desc(officerTasks.created_at));
 
-    if (error) {
-      console.error('Error fetching tasks:', error);
-      return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
+    if (taskRows.length === 0) {
+      return NextResponse.json({ tasks: [] });
     }
+
+    // Collect all user IDs (assigned_to + created_by)
+    const userIds = [...new Set([
+      ...taskRows.map((t) => t.assigned_to).filter((id): id is string => !!id),
+      ...taskRows.map((t) => t.created_by),
+    ])];
+
+    // Fetch profiles for all referenced users
+    const profileRows = userIds.length > 0
+      ? await database
+          .select({ id: profiles.id, name: profiles.name, email: profiles.email })
+          .from(profiles)
+          .where(inArray(profiles.id, userIds))
+      : [];
+    const profileMap = new Map(profileRows.map((p) => [p.id, { display_name: p.name, email: p.email }]));
+
+    // Assemble the response matching the old nested shape
+    const tasks = taskRows.map((task) => {
+      const assignedProfile = task.assigned_to ? profileMap.get(task.assigned_to) : null;
+      const createdProfile = profileMap.get(task.created_by);
+
+      return {
+        ...task,
+        assigned_to_profile: assignedProfile ? { display_name: assignedProfile.display_name, email: assignedProfile.email } : null,
+        created_by_profile: createdProfile ? { display_name: createdProfile.display_name, email: createdProfile.email } : null,
+      };
+    });
 
     return NextResponse.json({ tasks });
   } catch (error) {
@@ -56,15 +82,16 @@ export async function POST(request: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const profile = await ensureProfile(userId);
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const supabase = db();
+    const database = db();
 
     // Check if user has officer access
-    const { data: userRole } = await supabase
-      .from('user_roles')
-      .select('roles, positions')
-      .eq('user_id', profile.id)
-      .single();
+    const userRoleRows = await database
+      .select({ roles: userRoles.roles, positions: userRoles.positions })
+      .from(userRoles)
+      .where(eq(userRoles.user_id, profile.id))
+      .limit(1);
 
+    const userRole = userRoleRows[0];
     const hasOfficerAccess =
       userRole?.roles?.includes('officer') ||
       userRole?.positions?.some((p: string) =>
@@ -82,9 +109,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
-    const { data: task, error } = await supabase
-      .from('officer_tasks')
-      .insert({
+    const result = await database
+      .insert(officerTasks)
+      .values({
         title,
         description,
         assigned_to,
@@ -92,14 +119,10 @@ export async function POST(request: NextRequest) {
         due_date,
         created_by: profile.id,
         status: 'todo',
-      } as never)
-      .select()
-      .single();
+      })
+      .returning();
 
-    if (error) {
-      console.error('Error creating task:', error);
-      return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
-    }
+    const task = result[0];
 
     return NextResponse.json({ task }, { status: 201 });
   } catch (error) {

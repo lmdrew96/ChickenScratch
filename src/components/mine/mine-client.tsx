@@ -46,7 +46,7 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
     );
   }
 
-  const canEdit = EDITABLE_STATUSES.includes(selectedSubmission.status);
+  const canEdit = selectedSubmission.status ? EDITABLE_STATUSES.includes(selectedSubmission.status) : false;
 
   async function downloadPath(path: string) {
     const { signedUrl, error } = await getSignedDownloadUrl(path);

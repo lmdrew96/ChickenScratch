@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { createClient } from '@supabase/supabase-js';
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
+import { sql as dsql } from 'drizzle-orm';
 
 type ManifestEntry = {
   path: string;
@@ -112,25 +114,27 @@ async function performCleanup() {
     return;
   }
 
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!serviceRoleKey || !supabaseUrl) {
-    console.warn('Skipping Supabase cleanup because service role credentials are missing.');
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    console.warn('Skipping cleanup because DATABASE_URL is missing.');
     return;
   }
 
-  const client = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const client = neon(databaseUrl);
+  const database = drizzle(client);
 
   for (const task of tasks) {
-    if (task.type !== 'supabase' || !task.table || !task.value) {
+    if (!task.table || !task.value) {
       continue;
     }
     const column = task.column ?? 'id';
-    const { error } = await client.from(task.table).delete().eq(column, task.value);
-    if (error) {
-      console.warn(`Failed to clean up ${task.table}.${column}=${task.value}: ${error.message}`);
+    try {
+      await database.execute(
+        dsql.raw(`DELETE FROM "${task.table}" WHERE "${column}" = '${task.value.replace(/'/g, "''")}'`)
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Failed to clean up ${task.table}.${column}=${task.value}: ${message}`);
     }
   }
 }

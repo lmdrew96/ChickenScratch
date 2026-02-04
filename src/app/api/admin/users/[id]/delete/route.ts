@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/supabase/db';
+import { eq } from 'drizzle-orm';
+
+import { db } from '@/lib/db';
+import { profiles, userRoles } from '@/lib/db/schema';
 import { isAdmin } from '@/lib/actions/roles';
 
 export async function DELETE(
@@ -19,34 +22,30 @@ export async function DELETE(
     }
 
     const userId = id;
-
-    // Create Supabase admin client with service role key
-    const supabaseAdmin = db();
+    const database = db();
 
     // Delete from user_roles table first (foreign key constraint)
-    const { error: rolesError } = await supabaseAdmin
-      .from('user_roles')
-      .delete()
-      .eq('user_id', userId);
-
-    if (rolesError) {
+    try {
+      await database
+        .delete(userRoles)
+        .where(eq(userRoles.user_id, userId));
+    } catch (rolesError) {
       console.error('Error deleting user roles:', rolesError);
       return NextResponse.json(
-        { error: 'Failed to delete user roles: ' + rolesError.message },
+        { error: 'Failed to delete user roles: ' + (rolesError instanceof Error ? rolesError.message : 'Unknown error') },
         { status: 500 }
       );
     }
 
     // Delete from profiles table
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .delete()
-      .eq('id', userId);
-
-    if (profileError) {
+    try {
+      await database
+        .delete(profiles)
+        .where(eq(profiles.id, userId));
+    } catch (profileError) {
       console.error('Error deleting profile:', profileError);
       return NextResponse.json(
-        { error: 'Failed to delete profile: ' + profileError.message },
+        { error: 'Failed to delete profile: ' + (profileError instanceof Error ? profileError.message : 'Unknown error') },
         { status: 500 }
       );
     }

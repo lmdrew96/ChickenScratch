@@ -34,7 +34,7 @@ export default async function AdminPage() {
             {error instanceof Error ? error.message : 'An unexpected error occurred'}
           </p>
           <p className="text-sm text-red-600 mt-2">
-            Check the server logs for more details. Make sure SUPABASE_SERVICE_ROLE_KEY is set.
+            Check the server logs for more details. Make sure DATABASE_URL is set.
           </p>
         </div>
       </div>
@@ -47,7 +47,7 @@ export default async function AdminPage() {
         <h1 className="text-3xl font-bold mb-6">Manage Member Roles</h1>
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <p className="text-yellow-800">
-            No users found. This might be due to missing SUPABASE_SERVICE_ROLE_KEY in your environment variables.
+            No users found. This might be due to missing DATABASE_URL in your environment variables.
             Check the server logs for more details.
           </p>
         </div>

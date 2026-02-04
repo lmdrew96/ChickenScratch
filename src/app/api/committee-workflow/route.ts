@@ -2,11 +2,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
+import { eq } from 'drizzle-orm';
 
-import { db } from '@/lib/supabase/db';
+import { db } from '@/lib/db';
+import { submissions, userRoles, profiles, auditLog } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
-import type { Database, Json } from '@/types/database';
 
 const workflowActionSchema = z.object({
   submissionId: z.string().uuid(),
@@ -28,14 +29,16 @@ export async function POST(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const supabase = db();
+  const database = db();
 
   // Get user's roles from user_roles table
-  const { data: userRoleData } = await supabase
-    .from('user_roles')
-    .select('*')
-    .eq('user_id', profile.id)
-    .maybeSingle();
+  const userRoleRows = await database
+    .select()
+    .from(userRoles)
+    .where(eq(userRoles.user_id, profile.id))
+    .limit(1);
+
+  const userRoleData = userRoleRows[0] ?? null;
 
   // Check if user has committee or officer access
   if (!userRoleData || !userRoleData.is_member) {
@@ -72,18 +75,20 @@ export async function POST(request: NextRequest) {
 
   try {
     // Get current submission state
-    const { data: submission, error: fetchError } = await supabase
-      .from('submissions')
-      .select('*')
-      .eq('id', submissionId)
-      .single();
+    const submissionRows = await database
+      .select()
+      .from(submissions)
+      .where(eq(submissions.id, submissionId))
+      .limit(1);
 
-    if (fetchError || !submission) {
+    const submission = submissionRows[0];
+
+    if (!submission) {
       return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
     }
 
     // Process action based on user role and action type
-    const updatePayload: Database['public']['Tables']['submissions']['Update'] = {};
+    const updatePayload: Record<string, unknown> = {};
     let newStatus: string | null = null;
     const auditAction = action;
 
@@ -94,7 +99,7 @@ export async function POST(request: NextRequest) {
           if (!submission.committee_status || submission.committee_status === 'pending_coordinator') {
             // New Submissions → Under Review (status change only)
             newStatus = 'with_coordinator';
-            updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
+            updatePayload.committee_status = newStatus;
             console.log('[Committee Workflow] Review action (new submission) - setting status to:', newStatus);
           } else if (submission.committee_status === 'with_coordinator') {
             // Under Review → Trigger Make webhook for file conversion
@@ -139,14 +144,14 @@ export async function POST(request: NextRequest) {
         } else if (action === 'approve') {
           // Move to "Approved" column and route to next step
           newStatus = 'coordinator_approved';
-          updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
-          updatePayload.coordinator_reviewed_at = new Date().toISOString();
+          updatePayload.committee_status = newStatus;
+          updatePayload.coordinator_reviewed_at = new Date();
           console.log('[Committee Workflow] Approve action - setting status to:', newStatus, 'for submission type:', submission.type);
         } else if (action === 'decline') {
           newStatus = 'coordinator_declined';
-          updatePayload.committee_status = newStatus as Database['public']['Tables']['submissions']['Row']['committee_status'];
+          updatePayload.committee_status = newStatus;
           updatePayload.decline_reason = comment;
-          updatePayload.coordinator_reviewed_at = new Date().toISOString();
+          updatePayload.coordinator_reviewed_at = new Date();
           console.log('[Committee Workflow] Decline action - setting status to:', newStatus);
         }
         break;
@@ -155,7 +160,7 @@ export async function POST(request: NextRequest) {
         if (action === 'commit' && linkUrl) {
           updatePayload.google_docs_link = linkUrl;
           updatePayload.committee_status = 'proofreader_committed';
-          updatePayload.proofreader_committed_at = new Date().toISOString();
+          updatePayload.proofreader_committed_at = new Date();
           console.log('[Committee Workflow] Proofreader commit - setting status to: proofreader_committed');
         }
         break;
@@ -164,7 +169,7 @@ export async function POST(request: NextRequest) {
         if (action === 'commit' && linkUrl) {
           updatePayload.lead_design_commit_link = linkUrl;
           updatePayload.committee_status = 'lead_design_committed';
-          updatePayload.lead_design_committed_at = new Date().toISOString();
+          updatePayload.lead_design_committed_at = new Date();
           console.log('[Committee Workflow] Lead Design commit - setting status to: lead_design_committed');
         }
         break;
@@ -172,13 +177,13 @@ export async function POST(request: NextRequest) {
       case 'editor_in_chief':
         if (action === 'approve') {
           updatePayload.committee_status = 'editor_approved';
-          updatePayload.editor_reviewed_at = new Date().toISOString();
+          updatePayload.editor_reviewed_at = new Date();
           console.log('[Committee Workflow] Editor approve - setting status to: editor_approved');
         } else if (action === 'decline') {
           // Special handling: EIC decline overrides all other statuses and moves directly to editor_declined
           updatePayload.committee_status = 'editor_declined';
           updatePayload.decline_reason = comment;
-          updatePayload.editor_reviewed_at = new Date().toISOString();
+          updatePayload.editor_reviewed_at = new Date();
           console.log('[Committee Workflow] Editor-in-Chief decline - setting status to: editor_declined (overrides current stage)');
         }
         break;
@@ -198,20 +203,15 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
         action
       };
-      updatePayload.committee_comments = [...existingComments, newComment] as Json;
+      updatePayload.committee_comments = [...existingComments, newComment];
     }
 
     // Update the submission
     console.log('[Committee Workflow] Updating submission:', submissionId, 'with payload:', updatePayload);
-    const { error: updateError } = await supabase
-      .from('submissions')
-      .update(updatePayload)
-      .eq('id', submissionId);
-
-    if (updateError) {
-      console.error('[Committee Workflow] Update error:', updateError);
-      return NextResponse.json({ error: updateError.message }, { status: 400 });
-    }
+    await database
+      .update(submissions)
+      .set(updatePayload)
+      .where(eq(submissions.id, submissionId));
 
     console.log('[Committee Workflow] Successfully updated submission to status:', newStatus);
 
@@ -221,11 +221,13 @@ export async function POST(request: NextRequest) {
 
       try {
         // Fetch author name from profiles
-        const { data: authorProfile } = await supabase
-          .from('profiles')
-          .select('full_name, email')
-          .eq('id', submission.owner_id)
-          .single();
+        const authorRows = await database
+          .select({ full_name: profiles.full_name, email: profiles.email })
+          .from(profiles)
+          .where(eq(profiles.id, submission.owner_id))
+          .limit(1);
+
+        const authorProfile = authorRows[0];
 
         const notificationResponse = await fetch(`${request.nextUrl.origin}/api/notifications/submission-assigned`, {
           method: 'POST',
@@ -254,7 +256,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log the action in audit trail
-    const auditDetails: Json = {
+    const auditDetails = {
       action,
       previousStatus: submission.committee_status,
       newStatus,
@@ -264,7 +266,7 @@ export async function POST(request: NextRequest) {
       userRole
     };
 
-    await supabase.from('audit_log').insert({
+    await database.insert(auditLog).values({
       submission_id: submissionId,
       actor_id: profile.id,
       action: `committee_${auditAction}`,

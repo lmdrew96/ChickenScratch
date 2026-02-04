@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import { auth } from '@clerk/nextjs/server';
 
-import { db } from '@/lib/supabase/db';
+import { db } from '@/lib/db';
+import { submissions, auditLog, userRoles, profiles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { createSignedUrl, getSubmissionsBucketName } from '@/lib/storage';
 import { hasCommitteeAccess } from '@/lib/auth/guards';
@@ -24,21 +26,23 @@ export async function POST(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const supabase = db();
+  const database = db();
 
   // Check if user has committee access
-  const { data: userRoleData } = await supabase
-    .from('user_roles')
-    .select('*')
-    .eq('user_id', profile.id)
-    .maybeSingle();
+  const userRoleResult = await database
+    .select()
+    .from(userRoles)
+    .where(eq(userRoles.user_id, profile.id))
+    .limit(1);
+
+  const userRoleData = userRoleResult[0];
 
   if (!userRoleData || !userRoleData.is_member) {
     return NextResponse.json({ error: 'Forbidden - Committee access required' }, { status: 403 });
   }
 
-  const positions = userRoleData.positions || [];
-  const roles = userRoleData.roles || [];
+  const positions = (userRoleData.positions as string[]) || [];
+  const roles = (userRoleData.roles as string[]) || [];
 
   if (!hasCommitteeAccess(positions, roles)) {
     return NextResponse.json({ error: 'Forbidden - Committee access required' }, { status: 403 });
@@ -48,14 +52,22 @@ export async function POST(request: NextRequest) {
 
   try {
     // Fetch submission from database
-    const { data: submission, error: fetchError } = await supabase
-      .from('submissions')
-      .select('id, title, file_url, file_name, owner_id')
-      .eq('id', submission_id)
-      .single();
+    const submissionResult = await database
+      .select({
+        id: submissions.id,
+        title: submissions.title,
+        file_url: submissions.file_url,
+        file_name: submissions.file_name,
+        owner_id: submissions.owner_id,
+      })
+      .from(submissions)
+      .where(eq(submissions.id, submission_id))
+      .limit(1);
 
-    if (fetchError || !submission) {
-      console.error('[Convert to GDoc] Submission not found:', submission_id, fetchError);
+    const submission = submissionResult[0];
+
+    if (!submission) {
+      console.error('[Convert to GDoc] Submission not found:', submission_id);
       return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
     }
 
@@ -65,12 +77,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Get author information
-    const { data: authorProfile } = await supabase
-      .from('profiles')
-      .select('name, full_name, email')
-      .eq('id', submission.owner_id)
-      .single();
+    const authorResult = await database
+      .select({ name: profiles.name, full_name: profiles.full_name, email: profiles.email })
+      .from(profiles)
+      .where(eq(profiles.id, submission.owner_id))
+      .limit(1);
 
+    const authorProfile = authorResult[0];
     const authorName = authorProfile?.full_name || authorProfile?.name || authorProfile?.email || 'Unknown Author';
 
     // Create a signed URL for the file (valid for 1 hour)
@@ -130,20 +143,15 @@ export async function POST(request: NextRequest) {
     const google_doc_url = `https://docs.google.com/document/d/${webhookResult.google_doc_id}/edit`;
 
     // Save google_docs_link to submission
-    const { error: updateError } = await supabase
-      .from('submissions')
-      .update({ google_docs_link: google_doc_url })
-      .eq('id', submission_id);
-
-    if (updateError) {
-      console.error('[Convert to GDoc] Failed to update submission:', updateError);
-      return NextResponse.json({ error: 'Failed to save Google Doc link' }, { status: 500 });
-    }
+    await database
+      .update(submissions)
+      .set({ google_docs_link: google_doc_url })
+      .where(eq(submissions.id, submission_id));
 
     console.log('[Convert to GDoc] Successfully converted and saved Google Doc link:', google_doc_url);
 
     // Log the action in audit trail
-    await supabase.from('audit_log').insert({
+    await database.insert(auditLog).values({
       submission_id,
       actor_id: profile.id,
       action: 'convert_to_gdoc',

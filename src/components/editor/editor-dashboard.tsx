@@ -90,7 +90,7 @@ export function EditorDashboard({
   const [publishIssue, setPublishIssue] = useState(selectedSubmission?.issue ?? '');
   const [published, setPublished] = useState(!!selectedSubmission?.published);
 
-  const canStudentEdit = selectedSubmission ? EDITABLE_STATUSES.includes(selectedSubmission.status) : false;
+  const canStudentEdit = selectedSubmission?.status ? EDITABLE_STATUSES.includes(selectedSubmission.status) : false;
 
   const filters = ['all', ...SUBMISSION_STATUSES] as const;
 
@@ -256,8 +256,8 @@ export function EditorDashboard({
               ...sub, 
               status, 
               editor_notes: payloadNotes,
-              decision_date: ['accepted', 'declined', 'needs_revision'].includes(status)
-                ? new Date().toISOString()
+              decision_date: status && ['accepted', 'declined', 'needs_revision'].includes(status)
+                ? new Date()
                 : sub.decision_date
             }
           : sub

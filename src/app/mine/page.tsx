@@ -1,38 +1,32 @@
 import Link from 'next/link';
+import { eq, desc } from 'drizzle-orm';
 
 import { PageHeader } from '@/components/navigation';
 import { EmptyState } from '@/components/ui';
 import { requireUser } from '@/lib/auth/guards';
-import { db } from '@/lib/supabase/db';
+import { db } from '@/lib/db';
+import { submissions } from '@/lib/db/schema';
 import type { Submission } from '@/types/database';
 
 export default async function MinePage() {
   const { profile } = await requireUser('/mine');
 
-  // Fetch user's submissions
-  const supabase = db();
-  let submissions: Submission[] = [];
-  
+  let userSubmissions: Submission[] = [];
+
   try {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select('*')
-      .eq('owner_id', profile.id)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching submissions:', error);
-    } else if (data) {
-      submissions = data;
-    }
+    userSubmissions = await db()
+      .select()
+      .from(submissions)
+      .where(eq(submissions.owner_id, profile.id))
+      .orderBy(desc(submissions.created_at));
   } catch (error) {
     console.error('Failed to fetch submissions:', error);
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader 
-        title="My Submissions" 
+      <PageHeader
+        title="My Submissions"
         description="View and manage your submitted works"
         action={
           <Link href="/submit" className="btn btn-accent">
@@ -40,7 +34,7 @@ export default async function MinePage() {
           </Link>
         }
       />
-      {submissions.length === 0 ? (
+      {userSubmissions.length === 0 ? (
         <EmptyState
           variant="submissions"
           title="No submissions yet"
@@ -56,7 +50,7 @@ export default async function MinePage() {
         />
       ) : (
         <ul className="space-y-4">
-          {submissions.map((submission) => {
+          {userSubmissions.map((submission) => {
             const title = submission.title?.trim() || 'Untitled submission';
             const status = formatStatus(submission.status);
             const updated = formatDate(submission.updated_at ?? submission.created_at);
@@ -96,12 +90,12 @@ function formatStatus(status?: string | null) {
     .join(' ');
 }
 
-function formatDate(value?: string | null) {
+function formatDate(value?: Date | string | null) {
   if (!value) {
     return '—';
   }
 
-  const date = new Date(value);
+  const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) {
     return '—';
   }

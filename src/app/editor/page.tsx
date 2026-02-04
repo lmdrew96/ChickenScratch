@@ -1,9 +1,12 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { desc, inArray } from 'drizzle-orm';
+
 import PageHeader from '@/components/shell/page-header';
 import { requireUser } from '@/lib/auth/guards';
 import { getCurrentUserRole } from '@/lib/actions/roles';
-import { db } from '@/lib/supabase/db';
+import { db } from '@/lib/db';
+import { submissions, profiles } from '@/lib/db/schema';
 import { SubmissionsListWithDelete } from '@/components/editor/submissions-list-with-delete';
 import { ExportReportButton } from '@/components/editor/export-report-button';
 import type { Submission } from '@/types/database';
@@ -42,10 +45,10 @@ function getStatusColor(status: CommitteeStatus): string {
 }
 
 // Calculate days since last update
-function getDaysSince(date: string | null): number {
+function getDaysSince(date: Date | string | null): number {
   if (!date) return 0;
   const now = new Date();
-  const updated = new Date(date);
+  const updated = date instanceof Date ? date : new Date(date);
   const diffTime = Math.abs(now.getTime() - updated.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
@@ -71,28 +74,29 @@ export default async function EditorInChiefDashboard() {
   }
 
   // Fetch all submissions with author names
-  const supabase = db();
-  let submissions: SubmissionWithAuthor[] = [];
+  const database = db();
+  let allSubmissions: SubmissionWithAuthor[] = [];
 
   try {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const data = await database
+      .select()
+      .from(submissions)
+      .orderBy(desc(submissions.created_at));
 
-    if (error) {
-      console.error('Error fetching submissions:', error);
-    } else if (data) {
+    if (data) {
       // Fetch author names for all submissions
       const ownerIds = [...new Set(data.map((s) => s.owner_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, name')
-        .in('id', ownerIds);
+      let profileMap = new Map<string, string | null>();
 
-      const profileMap = new Map(profiles?.map((p) => [p.id, p.name]) || []);
+      if (ownerIds.length > 0) {
+        const profileRows = await database
+          .select({ id: profiles.id, name: profiles.name })
+          .from(profiles)
+          .where(inArray(profiles.id, ownerIds));
+        profileMap = new Map(profileRows.map((p) => [p.id, p.name]));
+      }
 
-      submissions = data.map((submission) => ({
+      allSubmissions = data.map((submission) => ({
         ...submission,
         author_name: profileMap.get(submission.owner_id) || undefined,
       }));
@@ -108,33 +112,33 @@ export default async function EditorInChiefDashboard() {
   );
 
   // Calculate metrics
-  const totalSubmissions = submissions.length;
-  const pendingReview = submissions.filter(
+  const totalSubmissions = allSubmissions.length;
+  const pendingReview = allSubmissions.filter(
     (s) => !s.committee_status || s.committee_status === 'pending_coordinator'
   ).length;
-  const inProgress = submissions.filter(
+  const inProgress = allSubmissions.filter(
     (s) =>
       s.committee_status &&
       ['with_coordinator', 'with_proofreader', 'with_lead_design'].includes(s.committee_status)
   ).length;
-  const published = submissions.filter((s) => s.status === 'published').length;
+  const published = allSubmissions.filter((s) => s.status === 'published').length;
 
   // Workflow status breakdown
   const statusCounts: Record<string, number> = {
-    new: submissions.filter((s) => !s.committee_status).length,
-    pending_coordinator: submissions.filter((s) => s.committee_status === 'pending_coordinator').length,
-    with_coordinator: submissions.filter((s) => s.committee_status === 'with_coordinator').length,
-    coordinator_approved: submissions.filter((s) => s.committee_status === 'coordinator_approved').length,
-    with_proofreader: submissions.filter((s) => s.committee_status === 'with_proofreader').length,
-    proofreader_committed: submissions.filter((s) => s.committee_status === 'proofreader_committed').length,
-    with_lead_design: submissions.filter((s) => s.committee_status === 'with_lead_design').length,
-    lead_design_committed: submissions.filter((s) => s.committee_status === 'lead_design_committed').length,
-    with_editor_in_chief: submissions.filter((s) => s.committee_status === 'with_editor_in_chief').length,
-    published: submissions.filter((s) => s.status === 'published').length,
+    new: allSubmissions.filter((s) => !s.committee_status).length,
+    pending_coordinator: allSubmissions.filter((s) => s.committee_status === 'pending_coordinator').length,
+    with_coordinator: allSubmissions.filter((s) => s.committee_status === 'with_coordinator').length,
+    coordinator_approved: allSubmissions.filter((s) => s.committee_status === 'coordinator_approved').length,
+    with_proofreader: allSubmissions.filter((s) => s.committee_status === 'with_proofreader').length,
+    proofreader_committed: allSubmissions.filter((s) => s.committee_status === 'proofreader_committed').length,
+    with_lead_design: allSubmissions.filter((s) => s.committee_status === 'with_lead_design').length,
+    lead_design_committed: allSubmissions.filter((s) => s.committee_status === 'lead_design_committed').length,
+    with_editor_in_chief: allSubmissions.filter((s) => s.committee_status === 'with_editor_in_chief').length,
+    published: allSubmissions.filter((s) => s.status === 'published').length,
   };
 
   // Bottleneck detection - submissions stuck for >7 days
-  const bottlenecks = submissions
+  const bottlenecks = allSubmissions
     .filter((s) => getDaysSince(s.updated_at) > 7 && s.status !== 'published')
     .sort((a, b) => getDaysSince(b.updated_at) - getDaysSince(a.updated_at));
 
@@ -143,18 +147,22 @@ export default async function EditorInChiefDashboard() {
   const backlogStage = Object.entries(statusCounts).find(([, count]) => count === maxBacklog)?.[0];
 
   // Recent activity - get last 10 submissions with status changes
-  const recentActivity = submissions
+  const recentActivity = allSubmissions
     .filter((s) => s.updated_at)
-    .sort((a, b) => new Date(b.updated_at!).getTime() - new Date(a.updated_at!).getTime())
+    .sort((a, b) => {
+      const aTime = a.updated_at instanceof Date ? a.updated_at.getTime() : new Date(a.updated_at!).getTime();
+      const bTime = b.updated_at instanceof Date ? b.updated_at.getTime() : new Date(b.updated_at!).getTime();
+      return bTime - aTime;
+    })
     .slice(0, 10);
 
   // Submissions by type
-  const writingCount = submissions.filter((s) => s.type === 'writing').length;
-  const visualCount = submissions.filter((s) => s.type === 'visual').length;
+  const writingCount = allSubmissions.filter((s) => s.type === 'writing').length;
+  const visualCount = allSubmissions.filter((s) => s.type === 'visual').length;
 
   // Genre distribution
   const genreCounts: Record<string, number> = {};
-  submissions.forEach((s) => {
+  allSubmissions.forEach((s) => {
     if (s.genre) {
       genreCounts[s.genre] = (genreCounts[s.genre] || 0) + 1;
     }
@@ -216,7 +224,7 @@ export default async function EditorInChiefDashboard() {
       {/* Bottleneck Detection */}
       <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg md:p-8">
         <h2 className="mb-4 text-xl font-semibold text-[var(--text)]">Bottleneck Detection</h2>
-        
+
         {backlogStage && (
           <div className="mb-4 rounded-xl border border-amber-500/50 bg-amber-900/20 p-4">
             <div className="flex items-center gap-2">
@@ -284,7 +292,7 @@ export default async function EditorInChiefDashboard() {
                   </p>
                   <p className="text-xs text-slate-400">
                     {submission.updated_at
-                      ? new Date(submission.updated_at).toLocaleDateString('en-US', {
+                      ? (submission.updated_at instanceof Date ? submission.updated_at : new Date(submission.updated_at)).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           hour: '2-digit',
@@ -301,7 +309,7 @@ export default async function EditorInChiefDashboard() {
         {/* Submissions by Type */}
         <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg md:p-8">
           <h2 className="mb-4 text-xl font-semibold text-[var(--text)]">Submissions by Type</h2>
-          
+
           <div className="space-y-4">
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
               <div className="flex items-center justify-between">
@@ -368,7 +376,7 @@ export default async function EditorInChiefDashboard() {
       </section>
 
       {/* All Submissions List with Delete Functionality */}
-      <SubmissionsListWithDelete submissions={submissions} isAdmin={isAdmin} />
+      <SubmissionsListWithDelete submissions={allSubmissions} isAdmin={isAdmin} />
     </div>
   );
 }

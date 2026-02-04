@@ -1,6 +1,9 @@
 import { headers } from 'next/headers';
 import { Webhook } from 'svix';
-import { db } from '@/lib/supabase/db';
+import { eq, and, isNull } from 'drizzle-orm';
+
+import { db } from '@/lib/db';
+import { profiles } from '@/lib/db/schema';
 
 type ClerkWebhookEvent = {
   type: string;
@@ -43,7 +46,7 @@ export async function POST(req: Request) {
     return new Response('Invalid signature', { status: 400 });
   }
 
-  const supabase = db();
+  const database = db();
   const { type, data } = evt;
   const clerkId = data.id;
   const email = data.email_addresses?.[0]?.email_address ?? null;
@@ -51,39 +54,38 @@ export async function POST(req: Request) {
 
   if (type === 'user.created' || type === 'user.updated') {
     // Try to find existing profile by clerk_id
-    const { data: existing } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('clerk_id', clerkId)
-      .maybeSingle();
+    const existing = await database
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.clerk_id, clerkId))
+      .limit(1);
 
-    if (existing) {
+    if (existing[0]) {
       // Update existing profile
-      await supabase
-        .from('profiles')
-        .update({
+      await database
+        .update(profiles)
+        .set({
           email,
           full_name: fullName,
           name: fullName,
         })
-        .eq('clerk_id', clerkId);
+        .where(eq(profiles.clerk_id, clerkId));
     } else if (email) {
       // Try email-matching fallback for migration
-      const { data: emailMatch } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email)
-        .is('clerk_id', null)
-        .maybeSingle();
+      const emailMatch = await database
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(and(eq(profiles.email, email), isNull(profiles.clerk_id)))
+        .limit(1);
 
-      if (emailMatch) {
-        await supabase
-          .from('profiles')
-          .update({ clerk_id: clerkId, full_name: fullName, name: fullName })
-          .eq('id', emailMatch.id);
+      if (emailMatch[0]) {
+        await database
+          .update(profiles)
+          .set({ clerk_id: clerkId, full_name: fullName, name: fullName })
+          .where(eq(profiles.id, emailMatch[0].id));
       } else {
         // Create new profile
-        await supabase.from('profiles').insert({
+        await database.insert(profiles).values({
           id: crypto.randomUUID(),
           email,
           clerk_id: clerkId,
@@ -96,10 +98,10 @@ export async function POST(req: Request) {
 
   if (type === 'user.deleted') {
     // Soft handling: just clear the clerk_id so the profile is orphaned but data preserved
-    await supabase
-      .from('profiles')
-      .update({ clerk_id: null })
-      .eq('clerk_id', clerkId);
+    await database
+      .update(profiles)
+      .set({ clerk_id: null })
+      .where(eq(profiles.clerk_id, clerkId));
   }
 
   return new Response('OK', { status: 200 });

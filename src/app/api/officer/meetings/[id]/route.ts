@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { eq, and } from 'drizzle-orm';
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/lib/supabase/db';
+
+import { db } from '@/lib/db';
+import { userRoles, meetingProposals, officerAvailability } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 
 export async function PATCH(
@@ -13,15 +16,16 @@ export async function PATCH(
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const profile = await ensureProfile(userId);
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const supabase = db();
+    const database = db();
 
     // Check if user has officer access
-    const { data: userRole } = await supabase
-      .from('user_roles')
-      .select('roles, positions')
-      .eq('user_id', profile.id)
-      .single();
+    const userRoleResult = await database
+      .select({ roles: userRoles.roles, positions: userRoles.positions })
+      .from(userRoles)
+      .where(eq(userRoles.user_id, profile.id))
+      .limit(1);
 
+    const userRole = userRoleResult[0];
     const hasOfficerAccess =
       userRole?.roles?.includes('officer') ||
       userRole?.positions?.some((p: string) =>
@@ -37,16 +41,15 @@ export async function PATCH(
 
     // If finalizing a meeting
     if (finalized_date !== undefined) {
-      const { data: proposal, error } = await supabase
-        .from('meeting_proposals')
-        .update({ finalized_date } as never)
-        .eq('id', id)
-        .select()
-        .single();
+      const result = await database
+        .update(meetingProposals)
+        .set({ finalized_date })
+        .where(eq(meetingProposals.id, id))
+        .returning();
 
-      if (error) {
-        console.error('Error finalizing meeting:', error);
-        return NextResponse.json({ error: 'Failed to finalize meeting' }, { status: 500 });
+      const proposal = result[0];
+      if (!proposal) {
+        return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
       }
 
       return NextResponse.json({ proposal });
@@ -54,19 +57,36 @@ export async function PATCH(
 
     // If updating availability
     if (available_slots !== undefined) {
-      const { data: availability, error } = await supabase
-        .from('officer_availability')
-        .upsert({
-          user_id: profile.id,
-          meeting_proposal_id: id,
-          available_slots,
-        } as never)
-        .select()
-        .single();
+      // Try to find existing availability
+      const existingResult = await database
+        .select({ id: officerAvailability.id })
+        .from(officerAvailability)
+        .where(
+          and(
+            eq(officerAvailability.user_id, profile.id),
+            eq(officerAvailability.meeting_proposal_id, id)
+          )
+        )
+        .limit(1);
 
-      if (error) {
-        console.error('Error updating availability:', error);
-        return NextResponse.json({ error: 'Failed to update availability' }, { status: 500 });
+      let availability;
+      if (existingResult[0]) {
+        const updateResult = await database
+          .update(officerAvailability)
+          .set({ available_slots })
+          .where(eq(officerAvailability.id, existingResult[0].id))
+          .returning();
+        availability = updateResult[0];
+      } else {
+        const insertResult = await database
+          .insert(officerAvailability)
+          .values({
+            user_id: profile.id,
+            meeting_proposal_id: id,
+            available_slots,
+          })
+          .returning();
+        availability = insertResult[0];
       }
 
       return NextResponse.json({ availability });

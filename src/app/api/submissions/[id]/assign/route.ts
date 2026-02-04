@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/lib/supabase/db';
+import { db } from '@/lib/db';
+import { submissions, auditLog } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
-import type { Database, Json } from '@/types/database';
 
 const assignSchema = z.object({
   editorId: z.string().uuid().nullable(),
@@ -27,34 +28,27 @@ export async function POST(
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const supabase = db();
 
   if (!profile.role || !['editor', 'admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const updatePayload: Database['public']['Tables']['submissions']['Update'] = {
-    assigned_editor: parsed.data.editorId ?? null,
-  };
+  const database = db();
 
-  const { error } = await supabase
-    .from('submissions')
-    .update(updatePayload)
-    .eq('id', id);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  try {
+    await database
+      .update(submissions)
+      .set({ assigned_editor: parsed.data.editorId ?? null })
+      .where(eq(submissions.id, id));
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Update failed' }, { status: 400 });
   }
 
-  const auditDetails: Json = {
-    assigned_editor: parsed.data.editorId ?? null,
-  };
-
-  await supabase.from('audit_log').insert({
+  await database.insert(auditLog).values({
     submission_id: id,
     actor_id: profile.id,
     action: 'assign',
-    details: auditDetails,
+    details: { assigned_editor: parsed.data.editorId ?? null },
   });
 
   revalidatePath('/editor');

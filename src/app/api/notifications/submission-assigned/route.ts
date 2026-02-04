@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { db } from '@/lib/supabase/db';
+import { inArray } from 'drizzle-orm';
+
+import { db } from '@/lib/db';
+import { userRoles, profiles } from '@/lib/db/schema';
+import { arrayContains } from 'drizzle-orm';
 
 const notificationSchema = z.object({
   submissionId: z.string().uuid(),
@@ -33,20 +37,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { 
-      submissionId, 
-      committeeStatus, 
+    const {
+      submissionId,
+      committeeStatus,
       notificationType,
-      submissionTitle, 
+      submissionTitle,
       submissionType,
       submissionGenre,
       submissionDate,
-      authorName 
+      authorName
     } = parsed.data;
 
     // Determine which position should be notified
     let targetPosition: string;
-    
+
     if (notificationType === 'new_submission') {
       // New submissions always go to Submissions Coordinator
       targetPosition = 'Submissions Coordinator';
@@ -58,41 +62,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Get users with the target position
-    const supabase = db();
-    const { data: userRoles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select(`
-        user_id,
-        positions,
-        profiles!user_roles_user_id_fkey(
-          email,
-          full_name
-        )
-      `)
-      .contains('positions', [targetPosition]);
+    const database = db();
+    const roleRows = await database
+      .select({ user_id: userRoles.user_id, positions: userRoles.positions })
+      .from(userRoles)
+      .where(arrayContains(userRoles.positions, [targetPosition]));
 
-    if (rolesError) {
-      console.error('[Notification] Error fetching user roles:', rolesError);
-      return NextResponse.json(
-        { error: 'Failed to fetch committee members' },
-        { status: 500 }
-      );
-    }
-
-    if (!userRoles || userRoles.length === 0) {
+    if (!roleRows || roleRows.length === 0) {
       console.warn('[Notification] No users found with position:', targetPosition);
       return NextResponse.json(
         { success: true, message: 'No users found with required position' }
       );
     }
 
+    // Fetch profiles for these users
+    const roleUserIds = roleRows.map((r) => r.user_id);
+    const profileRows = await database
+      .select({ id: profiles.id, email: profiles.email, full_name: profiles.full_name })
+      .from(profiles)
+      .where(inArray(profiles.id, roleUserIds));
+
+    const profileMap = new Map(profileRows.map((p) => [p.id, p]));
+
     // Extract emails
-    const recipients = userRoles
+    const recipients = roleRows
       .map((role) => {
-        const profiles = role.profiles as unknown as Array<{ email: string | null; full_name: string | null }>;
-        return profiles?.[0]?.email;
+        const prof = profileMap.get(role.user_id);
+        return prof?.email;
       })
-      .filter((email: string | null | undefined): email is string => !!email);
+      .filter((email): email is string => !!email);
 
     if (recipients.length === 0) {
       return NextResponse.json(
@@ -102,18 +100,18 @@ export async function POST(request: NextRequest) {
 
     // Check if Resend API key is configured
     const resendApiKey = process.env.RESEND_API_KEY;
-    
+
     // Determine email subject and content based on notification type
     const isNewSubmission = notificationType === 'new_submission';
-    const emailSubject = isNewSubmission 
+    const emailSubject = isNewSubmission
       ? `New Submission Received: ${submissionTitle}`
       : `New Submission Assigned: ${submissionTitle}`;
 
     if (!resendApiKey) {
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'Email logged (Resend not configured)',
-        recipients 
+        recipients
       });
     }
 
@@ -130,9 +128,9 @@ export async function POST(request: NextRequest) {
           to: recipients,
           subject: emailSubject,
           html: generateEmailHtml(
-            submissionTitle, 
-            submissionType, 
-            authorName, 
+            submissionTitle,
+            submissionType,
+            authorName,
             submissionId,
             submissionGenre,
             submissionDate,
@@ -185,10 +183,10 @@ function generateEmailHtml(
 ): string {
   const committeeUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/committee`;
   const headerText = isNewSubmission ? 'New Submission Received' : 'New Submission Assigned';
-  const bodyText = isNewSubmission 
+  const bodyText = isNewSubmission
     ? 'A new submission has been received and is ready for your review.'
     : 'A new submission has been assigned to you for review.';
-  
+
   return `
     <!DOCTYPE html>
     <html>
@@ -204,7 +202,7 @@ function generateEmailHtml(
             ${bodyText}
           </p>
         </div>
-        
+
         <div style="background-color: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
           <h2 style="color: #2c3e50; margin-top: 0; font-size: 18px;">Submission Details</h2>
           <table style="width: 100%; border-collapse: collapse;">
@@ -240,17 +238,17 @@ function generateEmailHtml(
             </tr>
           </table>
         </div>
-        
+
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${committeeUrl}" 
+          <a href="${committeeUrl}"
              style="display: inline-block; background-color: #007bff; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 5px; font-weight: bold; font-size: 16px;">
             View in Committee Dashboard
           </a>
         </div>
-        
+
         <div style="border-top: 1px solid #e0e0e0; padding-top: 20px; margin-top: 30px; font-size: 14px; color: #777;">
           <p>
-            This is an automated notification from Chicken Scratch. 
+            This is an automated notification from Chicken Scratch.
             Please log in to the committee dashboard to review and take action on this submission.
           </p>
           <p style="margin-bottom: 0;">

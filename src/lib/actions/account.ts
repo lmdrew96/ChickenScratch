@@ -1,9 +1,12 @@
 'use server';
 
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/lib/supabase/db';
+import { eq } from 'drizzle-orm';
+
+import { db } from '@/lib/db';
+import { profiles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
-import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { uploadFile, getPublicUrl } from '@/lib/storage';
 
 export async function updateProfile(formData: FormData) {
   const { userId } = await auth();
@@ -15,16 +18,18 @@ export async function updateProfile(formData: FormData) {
   const name = formData.get('name') as string | null;
   const pronouns = formData.get('pronouns') as string | null;
 
-  const supabase = db();
-  const { error } = await supabase
-    .from('profiles')
-    .update({
-      full_name: name || null,
-      pronouns: pronouns || null,
-    })
-    .eq('id', profile.id);
+  try {
+    await db()
+      .update(profiles)
+      .set({
+        full_name: name || null,
+        pronouns: pronouns || null,
+      })
+      .where(eq(profiles.id, profile.id));
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Update failed' };
+  }
 
-  if (error) return { error: error.message };
   return { success: true };
 }
 
@@ -41,29 +46,26 @@ export async function uploadAvatar(formData: FormData) {
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
   const path = `${profile.id}/avatar.${ext}`;
 
-  const adminClient = createSupabaseAdminClient();
-
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
-  const { error: uploadError } = await adminClient.storage
-    .from('avatars')
-    .upload(path, buffer, {
-      cacheControl: '0',
-      upsert: true,
-      contentType: file.type || undefined,
-    });
+  const { error: uploadError } = await uploadFile('avatars', path, buffer, {
+    contentType: file.type || undefined,
+    upsert: true,
+  });
 
   if (uploadError) return { error: uploadError.message };
 
-  const pub = adminClient.storage.from('avatars').getPublicUrl(path);
-  const avatarUrl = `${pub.data.publicUrl}?t=${Date.now()}`;
+  const avatarUrl = `${getPublicUrl('avatars', path)}?t=${Date.now()}`;
 
-  const { error: updateError } = await adminClient
-    .from('profiles')
-    .update({ avatar_url: avatarUrl })
-    .eq('id', profile.id);
+  try {
+    await db()
+      .update(profiles)
+      .set({ avatar_url: avatarUrl })
+      .where(eq(profiles.id, profile.id));
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to update avatar' };
+  }
 
-  if (updateError) return { error: updateError.message };
   return { success: true, avatarUrl };
 }

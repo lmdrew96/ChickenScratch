@@ -1,6 +1,8 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { eq, and, isNull } from 'drizzle-orm';
 
-import { db } from '@/lib/supabase/db';
+import { db } from '@/lib/db';
+import { profiles } from '@/lib/db/schema';
 import type { Profile } from '@/types/database';
 
 /**
@@ -15,24 +17,24 @@ export async function getClerkUserId(): Promise<string | null> {
  * Look up a profile by its clerk_id column.
  */
 export async function getProfileByClerkId(clerkId: string): Promise<Profile | null> {
-  const supabase = db();
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('clerk_id', clerkId)
-    .maybeSingle();
+  try {
+    const result = await db()
+      .select()
+      .from(profiles)
+      .where(eq(profiles.clerk_id, clerkId))
+      .limit(1);
 
-  if (error) {
+    return result[0] ?? null;
+  } catch (error) {
     console.error('getProfileByClerkId error:', error);
     return null;
   }
-  return data;
 }
 
 /**
  * Find-or-create a profile for a Clerk user.
  * On first login after migration, matches by email as a fallback so existing
- * Supabase users get linked to their Clerk account automatically.
+ * users get linked to their Clerk account automatically.
  */
 export async function ensureProfile(clerkId: string): Promise<Profile | null> {
   // 1. Try direct clerk_id lookup
@@ -46,43 +48,41 @@ export async function ensureProfile(clerkId: string): Promise<Profile | null> {
   const email = user.emailAddresses[0]?.emailAddress;
   if (!email) return null;
 
-  const supabase = db();
+  const database = db();
 
-  // 3. Try email-matching fallback (migration path for existing Supabase users)
-  const { data: emailMatch } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('email', email)
-    .is('clerk_id', null)
-    .maybeSingle();
+  // 3. Try email-matching fallback (migration path for existing users)
+  const emailMatch = await database
+    .select()
+    .from(profiles)
+    .where(and(eq(profiles.email, email), isNull(profiles.clerk_id)))
+    .limit(1);
 
-  if (emailMatch) {
+  if (emailMatch[0]) {
     // Link existing profile to Clerk user
-    const { data: updated } = await supabase
-      .from('profiles')
-      .update({ clerk_id: clerkId })
-      .eq('id', emailMatch.id)
-      .select('*')
-      .single();
-    return updated ?? emailMatch;
+    const updated = await database
+      .update(profiles)
+      .set({ clerk_id: clerkId })
+      .where(eq(profiles.id, emailMatch[0].id))
+      .returning();
+    return updated[0] ?? emailMatch[0];
   }
 
   // 4. Create new profile
-  const { data: created, error } = await supabase
-    .from('profiles')
-    .insert({
-      id: crypto.randomUUID(),
-      email,
-      clerk_id: clerkId,
-      full_name: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
-      name: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
-    })
-    .select('*')
-    .single();
+  try {
+    const created = await database
+      .insert(profiles)
+      .values({
+        id: crypto.randomUUID(),
+        email,
+        clerk_id: clerkId,
+        full_name: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
+        name: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
+      })
+      .returning();
 
-  if (error) {
+    return created[0] ?? null;
+  } catch (error) {
     console.error('ensureProfile insert error:', error);
     return null;
   }
-  return created;
 }

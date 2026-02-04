@@ -10,9 +10,12 @@ const statusStyles: Record<SubmissionStatus, string> = {
   published: 'bg-purple-900/60 text-purple-100 border-purple-500/70',
 };
 
-export function StatusBadge({ status, className }: { status: SubmissionStatus; className?: string }) {
+const fallbackStyle = 'bg-slate-800/70 text-slate-200 border-slate-500/50';
+
+export function StatusBadge({ status, className }: { status: string | null; className?: string }) {
+  const style = (status && status in statusStyles) ? statusStyles[status as SubmissionStatus] : fallbackStyle;
   return (
-    <span className={cn('inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase', statusStyles[status], className)}>
+    <span className={cn('inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase', style, className)}>
       {formatStatus(status)}
     </span>
   );

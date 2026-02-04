@@ -1,7 +1,9 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { eq, gte, count } from 'drizzle-orm';
+import { and } from 'drizzle-orm';
 
 import { logHandledIssue } from '@/lib/logging';
-import type { Database } from '@/types/database';
+import { db } from '@/lib/db';
+import { submissions } from '@/lib/db/schema';
 
 export class SubmissionRateLimitError extends Error {
   constructor(limit: number) {
@@ -11,27 +13,30 @@ export class SubmissionRateLimitError extends Error {
 }
 
 export async function enforceSubmissionRateLimit(
-  supabase: SupabaseClient<Database>,
   userId: string,
   limit = 5
 ) {
-  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { error, count } = await supabase
-    .from('submissions')
-    .select('id', { count: 'exact', head: true })
-    .eq('owner_id', userId)
-    .gte('created_at', since);
+  const since = new Date(Date.now() - 60 * 60 * 1000);
 
-  if (error) {
+  try {
+    const result = await db()
+      .select({ count: count() })
+      .from(submissions)
+      .where(and(eq(submissions.owner_id, userId), gte(submissions.created_at, since)));
+
+    const total = result[0]?.count ?? 0;
+
+    if (total >= limit) {
+      throw new SubmissionRateLimitError(limit);
+    }
+  } catch (error) {
+    if (error instanceof SubmissionRateLimitError) throw error;
+
     logHandledIssue('rate-limit:submission', {
       reason: 'Failed to verify submission rate limit',
       cause: error,
-      context: { userId, since, limit },
+      context: { userId, since: since.toISOString(), limit },
     });
     throw new Error('Could not verify submission rate limit.');
-  }
-
-  if ((count ?? 0) >= limit) {
-    throw new SubmissionRateLimitError(limit);
   }
 }

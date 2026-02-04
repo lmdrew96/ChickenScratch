@@ -1,13 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
+import { eq } from 'drizzle-orm';
 
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/lib/supabase/db';
+import { db } from '@/lib/db';
+import { submissions, auditLog, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
-import { getSubmissionsBucketName } from '@/lib/storage';
-import type { Database, Submission } from '@/types/database';
-
-type UserRole = Database['public']['Tables']['user_roles']['Row'];
+import { getSubmissionsBucketName, deleteFiles } from '@/lib/storage';
 
 export async function DELETE(
   request: NextRequest,
@@ -20,16 +19,16 @@ export async function DELETE(
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const supabase = db();
+  const database = db();
 
   // Check if user has admin permissions (BBEG or Dictator-in-Chief)
-  const { data: userRoleData } = await supabase
-    .from('user_roles')
-    .select('positions')
-    .eq('user_id', profile.id)
-    .maybeSingle();
+  const userRoleResult = await database
+    .select({ positions: userRoles.positions })
+    .from(userRoles)
+    .where(eq(userRoles.user_id, profile.id))
+    .limit(1);
 
-  const userRole = userRoleData as Pick<UserRole, 'positions'> | null;
+  const userRole = userRoleResult[0];
 
   const isAdmin =
     userRole?.positions?.includes('BBEG') ||
@@ -43,50 +42,47 @@ export async function DELETE(
   }
 
   // Fetch submission details
-  const { data: submissionData, error: fetchError } = await supabase
-    .from('submissions')
-    .select('id, title, owner_id, file_url, google_docs_link')
-    .eq('id', id)
-    .maybeSingle();
+  const submissionResult = await database
+    .select({
+      id: submissions.id,
+      title: submissions.title,
+      owner_id: submissions.owner_id,
+      file_url: submissions.file_url,
+      google_docs_link: submissions.google_docs_link,
+    })
+    .from(submissions)
+    .where(eq(submissions.id, id))
+    .limit(1);
 
-  const submission = submissionData as Pick<
-    Submission,
-    'id' | 'title' | 'owner_id' | 'file_url' | 'google_docs_link'
-  > | null;
-
-  if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 400 });
-  }
+  const submission = submissionResult[0];
 
   if (!submission) {
     return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
   }
 
-  // Use db() (service role) for storage operations
   const submissionsBucket = getSubmissionsBucketName();
 
   // Delete associated files from storage
   const filesToDelete: string[] = [];
 
   if (submission.file_url) {
-    // Extract path from file_url
-    // file_url format: https://{project}.supabase.co/storage/v1/object/public/submissions/{path}
+    // file_url is a relative path; handle legacy full URLs too
+    let filePath = submission.file_url;
     try {
       const url = new URL(submission.file_url);
       const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/submissions\/(.+)/);
       if (pathMatch && pathMatch[1]) {
-        filesToDelete.push(pathMatch[1]);
+        filePath = pathMatch[1];
       }
-    } catch (error) {
-      console.error('Error parsing file_url:', error);
+    } catch {
+      // Not a URL, use as-is (relative path)
     }
+    filesToDelete.push(filePath);
   }
 
   // Delete files from storage
   if (filesToDelete.length > 0) {
-    const { error: storageError } = await supabase.storage
-      .from(submissionsBucket)
-      .remove(filesToDelete);
+    const { error: storageError } = await deleteFiles(submissionsBucket, filesToDelete);
 
     if (storageError) {
       console.error('Error deleting files from storage:', storageError);
@@ -95,34 +91,23 @@ export async function DELETE(
   }
 
   // Log the deletion action for audit trail
-  const deletionDetails: Database['public']['Tables']['audit_log']['Insert']['details'] = {
-    submission_title: submission.title,
-    submission_owner_id: submission.owner_id,
-    deleted_files: filesToDelete,
-    google_docs_link: submission.google_docs_link,
-  };
-
-  await supabase.from('audit_log').insert({
+  await database.insert(auditLog).values({
     submission_id: id,
     actor_id: profile.id,
     action: 'submission_deleted',
-    details: deletionDetails,
+    details: {
+      submission_title: submission.title,
+      submission_owner_id: submission.owner_id,
+      deleted_files: filesToDelete,
+      google_docs_link: submission.google_docs_link,
+    },
   });
 
-  // Delete the submission record from database (db() uses service role, bypasses RLS)
-  const { data: deleteResult, error: deleteError } = await supabase
-    .from('submissions')
-    .delete()
-    .eq('id', id)
-    .select();
-
-  if (deleteError) {
-    console.error('Failed to delete submission:', deleteError.message);
-    return NextResponse.json(
-      { error: `Failed to delete submission: ${deleteError.message}` },
-      { status: 400 }
-    );
-  }
+  // Delete the submission record from database
+  const deleteResult = await database
+    .delete(submissions)
+    .where(eq(submissions.id, id))
+    .returning();
 
   if (!deleteResult || deleteResult.length === 0) {
     return NextResponse.json(

@@ -1,36 +1,45 @@
+import { eq, desc } from 'drizzle-orm';
+
 import { PublishedGalleryClient } from '@/components/gallery';
 import { EmptyState } from '@/components/ui';
 import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl } from '@/lib/storage';
-import { db } from '@/lib/supabase/db';
-import type { PublishedSubmissionRow, PublishedSubmission } from '@/types/database';
+import { db } from '@/lib/db';
+import { submissions } from '@/lib/db/schema';
+import type { PublishedSubmission } from '@/types/database';
 
 export default async function PublishedPage() {
-  const supabase = db();
-  let rawSubmissions: PublishedSubmissionRow[] = [];
+  let rawSubmissions: {
+    id: string;
+    title: string;
+    summary: string | null;
+    type: string;
+    cover_image: string | null;
+    published_url: string | null;
+    issue: string | null;
+    art_files: unknown;
+    updated_at: Date | null;
+    created_at: Date | null;
+  }[] = [];
   let encounteredLoadIssue = false;
 
   try {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select('id, title, summary, type, cover_image, published_url, issue, art_files, updated_at, created_at')
-      .eq('published', true)
-      .order('updated_at', { ascending: false });
-
-    if (error) {
-      encounteredLoadIssue = true;
-      logHandledIssue('published:index:query', {
-        reason: 'Supabase query for published submissions failed',
-        context: {
-          supabaseMessage: error.message,
-          supabaseDetails: error.details,
-          supabaseHint: error.hint,
-          supabaseCode: error.code,
-        },
-      });
-    } else {
-      rawSubmissions = (data ?? []) as unknown as PublishedSubmissionRow[];
-    }
+    rawSubmissions = await db()
+      .select({
+        id: submissions.id,
+        title: submissions.title,
+        summary: submissions.summary,
+        type: submissions.type,
+        cover_image: submissions.cover_image,
+        published_url: submissions.published_url,
+        issue: submissions.issue,
+        art_files: submissions.art_files,
+        updated_at: submissions.updated_at,
+        created_at: submissions.created_at,
+      })
+      .from(submissions)
+      .where(eq(submissions.published, true))
+      .orderBy(desc(submissions.updated_at));
   } catch (error) {
     encounteredLoadIssue = true;
     logHandledIssue('published:index:unexpected', {
@@ -39,7 +48,7 @@ export default async function PublishedPage() {
     });
   }
 
-  const submissions: PublishedSubmission[] = await Promise.all(
+  const publishedSubmissions: PublishedSubmission[] = await Promise.all(
     rawSubmissions.map(async (submission) => ({
       ...submission,
       art_files: Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [],
@@ -48,7 +57,7 @@ export default async function PublishedPage() {
   );
 
   // Show error state if there was a loading issue
-  if (encounteredLoadIssue && submissions.length === 0) {
+  if (encounteredLoadIssue && publishedSubmissions.length === 0) {
     return (
       <div className="space-y-6">
         <header className="space-y-2">
@@ -75,7 +84,7 @@ export default async function PublishedPage() {
   }
 
   // Show empty state if no published works exist
-  if (submissions.length === 0) {
+  if (publishedSubmissions.length === 0) {
     return (
       <div className="space-y-6">
         <header className="space-y-2">
@@ -101,5 +110,5 @@ export default async function PublishedPage() {
     );
   }
 
-  return <PublishedGalleryClient submissions={submissions} />;
+  return <PublishedGalleryClient submissions={publishedSubmissions} />;
 }

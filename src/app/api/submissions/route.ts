@@ -1,11 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
+import { eq, desc } from 'drizzle-orm';
 import { auth } from '@clerk/nextjs/server';
 
-import { db } from '@/lib/supabase/db';
+import { db } from '@/lib/db';
+import { submissions, profiles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { uploadFile, getSubmissionsBucketName, getBucketName } from '@/lib/storage';
-import type { Database } from '@/types/database';
+import type { NewSubmission } from '@/types/database';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -14,7 +16,6 @@ export async function POST(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const supabase = db();
 
   try {
     const formData = await request.formData();
@@ -66,7 +67,6 @@ export async function POST(request: NextRequest) {
     const bucket = type === 'writing' ? getSubmissionsBucketName() : getBucketName();
 
     const { path: uploadedPath, error: uploadError } = await uploadFile(
-      supabase,
       bucket,
       filePath,
       file
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    const insertPayload: Database['public']['Tables']['submissions']['Insert'] = {
+    const insertPayload: NewSubmission = {
       owner_id: profile.id,
       title,
       type,
@@ -98,15 +98,15 @@ export async function POST(request: NextRequest) {
       insertPayload.art_files = [uploadedPath];
     }
 
-    const { data, error } = await supabase
-      .from('submissions')
-      .insert(insertPayload)
-      .select()
-      .single();
+    const database = db();
+    const result = await database
+      .insert(submissions)
+      .values(insertPayload)
+      .returning();
 
-    if (error) {
-      console.error('Database insert error:', error);
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    const data = result[0];
+    if (!data) {
+      return NextResponse.json({ error: 'Failed to create submission' }, { status: 400 });
     }
 
     // Send notification to Submissions Coordinators about new submission
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
           submissionTitle: data.title,
           submissionType: data.type,
           submissionGenre: data.genre,
-          submissionDate: data.created_at,
+          submissionDate: data.created_at?.toISOString(),
           authorName: profile.full_name || profile.email || 'Unknown',
         }),
       });
@@ -151,26 +151,36 @@ export async function GET(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const supabase = db();
 
+  const database = db();
   const { searchParams } = new URL(request.url);
   const mine = searchParams.get('mine');
 
   if (mine === '1') {
-    const { data: submissions, error } = await supabase
-      .from('submissions')
-      .select(`
-        *,
-        assigned_editor_profile:profiles!submissions_assigned_editor_fkey(id, name, email)
-      `)
-      .eq('owner_id', profile.id)
-      .order('created_at', { ascending: false });
+    // Fetch user's own submissions
+    const userSubmissions = await database
+      .select()
+      .from(submissions)
+      .where(eq(submissions.owner_id, profile.id))
+      .orderBy(desc(submissions.created_at));
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    // Lookup assigned editors
+    const editorIds = [...new Set(userSubmissions.map(s => s.assigned_editor).filter(Boolean))] as string[];
+    let editorMap = new Map<string, { id: string; name: string | null; email: string | null }>();
+
+    if (editorIds.length > 0) {
+      const editors = await database
+        .select({ id: profiles.id, name: profiles.name, email: profiles.email })
+        .from(profiles);
+      editorMap = new Map(editors.filter(e => editorIds.includes(e.id)).map(e => [e.id, e]));
     }
 
-    return NextResponse.json({ submissions });
+    const submissionsWithEditor = userSubmissions.map(s => ({
+      ...s,
+      assigned_editor_profile: s.assigned_editor ? editorMap.get(s.assigned_editor) ?? null : null,
+    }));
+
+    return NextResponse.json({ submissions: submissionsWithEditor });
   }
 
   // For all submissions, require editor or admin role
@@ -178,17 +188,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { data: submissions, error } = await supabase
-    .from('submissions')
-    .select(`
-      *,
-      assigned_editor_profile:profiles!submissions_assigned_editor_fkey(id, name, email)
-    `)
-    .order('created_at', { ascending: false });
+  const allSubmissions = await database
+    .select()
+    .from(submissions)
+    .orderBy(desc(submissions.created_at));
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  // Lookup assigned editors
+  const editorIds = [...new Set(allSubmissions.map(s => s.assigned_editor).filter(Boolean))] as string[];
+  let editorMap = new Map<string, { id: string; name: string | null; email: string | null }>();
+
+  if (editorIds.length > 0) {
+    const editors = await database
+      .select({ id: profiles.id, name: profiles.name, email: profiles.email })
+      .from(profiles);
+    editorMap = new Map(editors.filter(e => editorIds.includes(e.id)).map(e => [e.id, e]));
   }
 
-  return NextResponse.json({ submissions });
+  const submissionsWithEditor = allSubmissions.map(s => ({
+    ...s,
+    assigned_editor_profile: s.assigned_editor ? editorMap.get(s.assigned_editor) ?? null : null,
+  }));
+
+  return NextResponse.json({ submissions: submissionsWithEditor });
 }

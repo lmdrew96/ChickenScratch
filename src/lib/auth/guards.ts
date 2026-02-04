@@ -61,7 +61,7 @@ export function isCommitteePosition(position: string): boolean {
   return (COMMITTEE_POSITIONS as readonly string[]).includes(position);
 }
 
-export function hasOfficerAccess(positions?: string[], roles?: string[]): boolean {
+export function hasOfficerAccess(positions?: string[] | null, roles?: string[] | null): boolean {
   if (positions && positions.some(p => isOfficerPosition(p))) {
     return true;
   }
@@ -71,7 +71,7 @@ export function hasOfficerAccess(positions?: string[], roles?: string[]): boolea
   return false;
 }
 
-export function hasCommitteeAccess(positions?: string[], roles?: string[]): boolean {
+export function hasCommitteeAccess(positions?: string[] | null, roles?: string[] | null): boolean {
   if (positions && positions.some(p => isCommitteePosition(p))) {
     return true;
   }
@@ -81,7 +81,7 @@ export function hasCommitteeAccess(positions?: string[], roles?: string[]): bool
   return false;
 }
 
-export function hasEditorAccess(positions?: string[], roles?: string[]): boolean {
+export function hasEditorAccess(positions?: string[] | null, roles?: string[] | null): boolean {
   if (positions && positions.includes('Editor-in-Chief')) {
     return true;
   }

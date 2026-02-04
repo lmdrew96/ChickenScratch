@@ -1,7 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { eq } from 'drizzle-orm';
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/lib/supabase/db';
+
+import { db } from '@/lib/db';
+import { userRoles, officerTasks } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
+
+async function checkOfficerAccess(profileId: string) {
+  const database = db();
+  const userRoleResult = await database
+    .select({ roles: userRoles.roles, positions: userRoles.positions })
+    .from(userRoles)
+    .where(eq(userRoles.user_id, profileId))
+    .limit(1);
+
+  const userRole = userRoleResult[0];
+  return (
+    userRole?.roles?.includes('officer') ||
+    userRole?.positions?.some((p: string) =>
+      ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare'].includes(p)
+    )
+  );
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -13,27 +33,13 @@ export async function PATCH(
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const profile = await ensureProfile(userId);
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const supabase = db();
 
-    // Check if user has officer access
-    const { data: userRole } = await supabase
-      .from('user_roles')
-      .select('roles, positions')
-      .eq('user_id', profile.id)
-      .single();
-
-    const hasOfficerAccess =
-      userRole?.roles?.includes('officer') ||
-      userRole?.positions?.some((p: string) =>
-        ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare'].includes(p)
-      );
-
-    if (!hasOfficerAccess) {
+    if (!await checkOfficerAccess(profile.id)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
-    const updates: Record<string, string | null> = {};
+    const updates: Record<string, unknown> = {};
 
     if (body.title !== undefined) updates.title = body.title;
     if (body.description !== undefined) updates.description = body.description;
@@ -42,16 +48,15 @@ export async function PATCH(
     if (body.priority !== undefined) updates.priority = body.priority;
     if (body.due_date !== undefined) updates.due_date = body.due_date;
 
-    const { data: task, error } = await supabase
-      .from('officer_tasks')
-      .update(updates as never)
-      .eq('id', id)
-      .select()
-      .single();
+    const result = await db()
+      .update(officerTasks)
+      .set(updates)
+      .where(eq(officerTasks.id, id))
+      .returning();
 
-    if (error) {
-      console.error('Error updating task:', error);
-      return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
+    const task = result[0];
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
     return NextResponse.json({ task });
@@ -71,34 +76,14 @@ export async function DELETE(
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const profile = await ensureProfile(userId);
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const supabase = db();
 
-    // Check if user has officer access
-    const { data: userRole } = await supabase
-      .from('user_roles')
-      .select('roles, positions')
-      .eq('user_id', profile.id)
-      .single();
-
-    const hasOfficerAccess =
-      userRole?.roles?.includes('officer') ||
-      userRole?.positions?.some((p: string) =>
-        ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare'].includes(p)
-      );
-
-    if (!hasOfficerAccess) {
+    if (!await checkOfficerAccess(profile.id)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { error } = await supabase
-      .from('officer_tasks')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting task:', error);
-      return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
-    }
+    await db()
+      .delete(officerTasks)
+      .where(eq(officerTasks.id, id));
 
     return NextResponse.json({ success: true });
   } catch (error) {

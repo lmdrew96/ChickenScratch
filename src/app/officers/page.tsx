@@ -1,6 +1,9 @@
+import { eq, gte, count, arrayContains, arrayOverlaps, inArray } from 'drizzle-orm';
+
 import PageHeader from '@/components/shell/page-header';
 import { requireOfficerRole } from '@/lib/auth/guards';
-import { db } from '@/lib/supabase/db';
+import { db } from '@/lib/db';
+import { userRoles, profiles, submissions } from '@/lib/db/schema';
 import { MeetingScheduler } from '@/components/officers/meeting-scheduler';
 import { TaskManager } from '@/components/officers/task-manager';
 import { Announcements } from '@/components/officers/announcements';
@@ -9,22 +12,36 @@ import { StatsDashboard } from '@/components/officers/stats-dashboard';
 
 export default async function OfficersPage() {
   const { profile } = await requireOfficerRole('/officers');
-  const supabase = db();
+  const database = db();
 
   // Fetch officers for task assignment
-  const { data: officerRoles } = await supabase
-    .from('user_roles')
-    .select('user_id')
-    .or('roles.cs.{"officer"},positions.ov.{BBEG,Dictator-in-Chief,Scroll Gremlin,Chief Hoarder,PR Nightmare}');
+  const officerRoleRows = await database
+    .select({ user_id: userRoles.user_id })
+    .from(userRoles)
+    .where(
+      arrayContains(userRoles.roles, ['officer'])
+    );
 
-  const officerUserIds = officerRoles?.map((r) => r.user_id) || [];
+  // Also fetch by positions
+  const officerPositionRows = await database
+    .select({ user_id: userRoles.user_id })
+    .from(userRoles)
+    .where(
+      arrayOverlaps(userRoles.positions, ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare'])
+    );
 
-  const { data: officerProfiles } = officerUserIds.length > 0
-    ? await supabase
-        .from('profiles')
-        .select('id, name, email')
-        .in('id', officerUserIds)
-    : { data: [] };
+  const officerUserIds = [...new Set([
+    ...officerRoleRows.map(r => r.user_id),
+    ...officerPositionRows.map(r => r.user_id),
+  ])];
+
+  let officerProfiles: { id: string; name: string | null; email: string | null }[] = [];
+  if (officerUserIds.length > 0) {
+    officerProfiles = await database
+      .select({ id: profiles.id, name: profiles.name, email: profiles.email })
+      .from(profiles)
+      .where(inArray(profiles.id, officerUserIds));
+  }
 
   interface OfficerProfile {
     id: string;
@@ -32,7 +49,7 @@ export default async function OfficersPage() {
     email: string;
   }
 
-  const officersList = (officerProfiles || [])
+  const officersList = officerProfiles
     .map((p) => ({
       id: p.id,
       display_name: p.name || '',
@@ -41,12 +58,13 @@ export default async function OfficersPage() {
     .filter((o): o is OfficerProfile => !!o.id && (!!o.display_name || !!o.email));
 
   // Check if user has admin access (BBEG or Dictator-in-Chief)
-  const { data: userRole } = await supabase
-    .from('user_roles')
-    .select('positions')
-    .eq('user_id', profile.id)
-    .single();
+  const userRoleResult = await database
+    .select({ positions: userRoles.positions })
+    .from(userRoles)
+    .where(eq(userRoles.user_id, profile.id))
+    .limit(1);
 
+  const userRole = userRoleResult[0];
   const hasAdminAccess = userRole?.positions?.some((p: string) =>
     ['BBEG', 'Dictator-in-Chief'].includes(p)
   );
@@ -56,55 +74,35 @@ export default async function OfficersPage() {
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const [
-    { count: submissionsThisMonth },
-    { count: pendingReviews },
-    { count: publishedPieces },
-    { count: activeCommittee },
-    { count: totalUsers },
-    { count: committeeMembers },
-    { count: pendingSubmissions },
+    submissionsThisMonthResult,
+    pendingReviewsResult,
+    publishedPiecesResult,
+    activeCommitteeResult,
+    totalUsersResult,
+    committeeMembersResult,
+    pendingSubmissionsResult,
   ] = await Promise.all([
-    supabase
-      .from('submissions')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', firstDayOfMonth.toISOString()),
-    supabase
-      .from('submissions')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'submitted'),
-    supabase
-      .from('submissions')
-      .select('*', { count: 'exact', head: true })
-      .eq('published', true),
-    supabase
-      .from('user_roles')
-      .select('*', { count: 'exact', head: true })
-      .or('roles.cs.{"committee"},positions.ov.{Editor-in-Chief,Submissions Coordinator,Proofreader,Lead Design}'),
-    supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true }),
-    supabase
-      .from('user_roles')
-      .select('*', { count: 'exact', head: true })
-      .or('roles.cs.{"committee"},positions.ov.{Editor-in-Chief,Submissions Coordinator,Proofreader,Lead Design}'),
-    supabase
-      .from('submissions')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'submitted'),
+    database.select({ count: count() }).from(submissions).where(gte(submissions.created_at, firstDayOfMonth)),
+    database.select({ count: count() }).from(submissions).where(eq(submissions.status, 'submitted')),
+    database.select({ count: count() }).from(submissions).where(eq(submissions.published, true)),
+    database.select({ count: count() }).from(userRoles).where(arrayContains(userRoles.roles, ['committee'])),
+    database.select({ count: count() }).from(profiles),
+    database.select({ count: count() }).from(userRoles).where(arrayContains(userRoles.roles, ['committee'])),
+    database.select({ count: count() }).from(submissions).where(eq(submissions.status, 'submitted')),
   ]);
 
   const stats = {
-    submissionsThisMonth: submissionsThisMonth || 0,
-    pendingReviews: pendingReviews || 0,
-    publishedPieces: publishedPieces || 0,
-    activeCommittee: activeCommittee || 0,
+    submissionsThisMonth: submissionsThisMonthResult[0]?.count || 0,
+    pendingReviews: pendingReviewsResult[0]?.count || 0,
+    publishedPieces: publishedPiecesResult[0]?.count || 0,
+    activeCommittee: activeCommitteeResult[0]?.count || 0,
   };
 
   const adminStats = hasAdminAccess
     ? {
-        totalUsers: totalUsers || 0,
-        committeeMembers: committeeMembers || 0,
-        pendingSubmissions: pendingSubmissions || 0,
+        totalUsers: totalUsersResult[0]?.count || 0,
+        committeeMembers: committeeMembersResult[0]?.count || 0,
+        pendingSubmissions: pendingSubmissionsResult[0]?.count || 0,
       }
     : undefined;
 

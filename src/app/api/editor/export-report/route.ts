@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import Papa from 'papaparse';
-import { db } from '@/lib/supabase/db';
+import { desc, inArray } from 'drizzle-orm';
+
+import { db } from '@/lib/db';
+import { submissions, profiles } from '@/lib/db/schema';
 import { getCurrentUserRole } from '@/lib/actions/roles';
 import type { Submission } from '@/types/database';
 
@@ -18,10 +21,10 @@ function formatCommitteeStatus(status: string | null): string {
 }
 
 // Calculate days since last update
-function getDaysSince(date: string | null): number {
+function getDaysSince(date: Date | string | null): number {
   if (!date) return 0;
   const now = new Date();
-  const updated = new Date(date);
+  const updated = date instanceof Date ? date : new Date(date);
   const diffTime = Math.abs(now.getTime() - updated.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
@@ -40,22 +43,15 @@ export async function GET() {
       );
     }
 
-    // Fetch all submissions with author names
-    const supabase = db();
-    const { data, error } = await supabase
-      .from('submissions')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const database = db();
 
-    if (error) {
-      console.error('Error fetching submissions:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch submissions' },
-        { status: 500 }
-      );
-    }
+    // Fetch all submissions
+    const data = await database
+      .select()
+      .from(submissions)
+      .orderBy(desc(submissions.created_at));
 
-    if (!data) {
+    if (!data || data.length === 0) {
       return NextResponse.json(
         { error: 'No submissions found' },
         { status: 404 }
@@ -64,16 +60,17 @@ export async function GET() {
 
     // Fetch author names for all submissions
     const ownerIds = [...new Set(data.map((s) => s.owner_id))];
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, name, email')
-      .in('id', ownerIds);
+    let profileMap = new Map<string, { name: string | null; email: string | null }>();
 
-    const profileMap = new Map(
-      profiles?.map((p) => [p.id, { name: p.name, email: p.email }]) || []
-    );
+    if (ownerIds.length > 0) {
+      const profileRows = await database
+        .select({ id: profiles.id, name: profiles.name, email: profiles.email })
+        .from(profiles)
+        .where(inArray(profiles.id, ownerIds));
+      profileMap = new Map(profileRows.map((p) => [p.id, { name: p.name, email: p.email }]));
+    }
 
-    const submissions: SubmissionWithAuthor[] = data.map((submission) => {
+    const allSubmissions: SubmissionWithAuthor[] = data.map((submission) => {
       const profile = profileMap.get(submission.owner_id);
       return {
         ...submission,
@@ -82,12 +79,12 @@ export async function GET() {
     });
 
     // Calculate summary statistics
-    const totalSubmissions = submissions.length;
+    const totalSubmissions = allSubmissions.length;
     const statusCounts: Record<string, number> = {};
     const typeCounts: Record<string, number> = {};
     const genreCounts: Record<string, number> = {};
 
-    submissions.forEach((s) => {
+    allSubmissions.forEach((s) => {
       const status = s.committee_status || 'new';
       statusCounts[status] = (statusCounts[status] || 0) + 1;
 
@@ -101,7 +98,7 @@ export async function GET() {
     });
 
     // Bottleneck count (stuck >7 days)
-    const bottleneckCount = submissions.filter(
+    const bottleneckCount = allSubmissions.filter(
       (s) => getDaysSince(s.updated_at) > 7 && s.status !== 'published'
     ).length;
 
@@ -162,7 +159,11 @@ export async function GET() {
       'Issue',
     ]);
 
-    submissions.forEach((submission) => {
+    allSubmissions.forEach((submission) => {
+      const createdAt = submission.created_at instanceof Date ? submission.created_at : submission.created_at ? new Date(submission.created_at) : null;
+      const updatedAt = submission.updated_at instanceof Date ? submission.updated_at : submission.updated_at ? new Date(submission.updated_at) : null;
+      const decisionDate = submission.decision_date instanceof Date ? submission.decision_date : submission.decision_date ? new Date(submission.decision_date) : null;
+
       csvData.push([
         submission.title || '',
         submission.author_name || '',
@@ -171,16 +172,10 @@ export async function GET() {
         submission.status || '',
         formatCommitteeStatus(submission.committee_status),
         submission.word_count || '',
-        submission.created_at
-          ? new Date(submission.created_at).toLocaleDateString()
-          : '',
-        submission.updated_at
-          ? new Date(submission.updated_at).toLocaleDateString()
-          : '',
+        createdAt ? createdAt.toLocaleDateString() : '',
+        updatedAt ? updatedAt.toLocaleDateString() : '',
         getDaysSince(submission.updated_at),
-        submission.decision_date
-          ? new Date(submission.decision_date).toLocaleDateString()
-          : '',
+        decisionDate ? decisionDate.toLocaleDateString() : '',
         submission.published ? 'Yes' : 'No',
         submission.published_url || '',
         submission.issue || '',

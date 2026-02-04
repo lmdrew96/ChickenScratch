@@ -1,14 +1,36 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectsCommand,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-import { createSupabaseAdminClient } from '@/lib/supabase/admin';
-
-import type { Database } from '@/types/database';
+import { env } from '@/lib/env';
 
 const ART_BUCKET = 'art';
 const SUBMISSIONS_BUCKET = 'submissions';
 
-let cachedAdminClient: SupabaseClient<Database> | null = null;
-let attemptedAdminClientInitialization = false;
+let cachedS3Client: S3Client | null = null;
+
+function getS3Client(): S3Client {
+  if (!cachedS3Client) {
+    cachedS3Client = new S3Client({
+      region: 'auto',
+      endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: env.R2_ACCESS_KEY_ID,
+        secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+      },
+    });
+  }
+  return cachedS3Client;
+}
+
+/** Build the full R2 object key: `{bucket}/{path}` */
+function objectKey(bucket: string, path: string): string {
+  return `${bucket}/${path}`;
+}
 
 export function assertUserOwnsPath(userId: string, path: string) {
   if (!path.startsWith(`${userId}/`)) {
@@ -16,40 +38,18 @@ export function assertUserOwnsPath(userId: string, path: string) {
   }
 }
 
-function getAdminClient(): SupabaseClient<Database> | null {
-  if (!attemptedAdminClientInitialization) {
-    attemptedAdminClientInitialization = true;
-    try {
-      cachedAdminClient = createSupabaseAdminClient();
-    } catch (error) {
-      cachedAdminClient = null;
-      console.warn(
-        'Supabase service role key missing or invalid. Signed URLs will be skipped until it is configured.',
-        error
-      );
-    }
-  }
-
-  return cachedAdminClient;
-}
-
 export async function createSignedUrl(
   path: string,
   expiresInSeconds = 60 * 60 * 24 * 7,
   bucket: string = ART_BUCKET
 ): Promise<string | null> {
-  const supabase = getAdminClient();
-  if (!supabase) {
-    return null;
-  }
-
   try {
-    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
-    if (error || !data?.signedUrl) {
-      console.warn('Unable to create signed URL for path', path, error);
-      return null;
-    }
-    return data.signedUrl;
+    const client = getS3Client();
+    const command = new GetObjectCommand({
+      Bucket: env.R2_BUCKET_NAME,
+      Key: objectKey(bucket, path),
+    });
+    return await getSignedUrl(client, command, { expiresIn: expiresInSeconds });
   } catch (error) {
     console.warn('Failed to create signed URL for path', path, error);
     return null;
@@ -57,7 +57,7 @@ export async function createSignedUrl(
 }
 
 export async function createSignedUrls(
-  paths: string[], 
+  paths: string[],
   expiresInSeconds = 60 * 60 * 24 * 7,
   bucket: string = ART_BUCKET
 ) {
@@ -77,29 +77,54 @@ export function getSubmissionsBucketName() {
   return SUBMISSIONS_BUCKET;
 }
 
-/**
- * Upload a file to Supabase Storage
- */
+export function getPublicUrl(bucket: string, path: string): string {
+  return `${env.R2_PUBLIC_URL}/${objectKey(bucket, path)}`;
+}
+
 export async function uploadFile(
-  supabase: SupabaseClient<Database>,
   bucket: string,
   path: string,
-  file: File
+  file: File | Buffer,
+  options?: { contentType?: string; upsert?: boolean }
 ): Promise<{ path: string; error: Error | null }> {
   try {
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(path, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
+    const client = getS3Client();
+    const body = file instanceof Buffer ? file : Buffer.from(await file.arrayBuffer());
 
-    if (error) {
-      return { path: '', error };
-    }
+    await client.send(
+      new PutObjectCommand({
+        Bucket: env.R2_BUCKET_NAME,
+        Key: objectKey(bucket, path),
+        Body: body,
+        ContentType: options?.contentType ?? (file instanceof File ? file.type : undefined),
+        CacheControl: 'max-age=3600',
+      })
+    );
 
-    return { path: data.path, error: null };
+    return { path, error: null };
   } catch (error) {
     return { path: '', error: error as Error };
+  }
+}
+
+export async function deleteFiles(
+  bucket: string,
+  paths: string[]
+): Promise<{ error: Error | null }> {
+  if (paths.length === 0) return { error: null };
+
+  try {
+    const client = getS3Client();
+    await client.send(
+      new DeleteObjectsCommand({
+        Bucket: env.R2_BUCKET_NAME,
+        Delete: {
+          Objects: paths.map((p) => ({ Key: objectKey(bucket, p) })),
+        },
+      })
+    );
+    return { error: null };
+  } catch (error) {
+    return { error: error as Error };
   }
 }
