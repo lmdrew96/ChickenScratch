@@ -20,9 +20,6 @@ importers:
       '@neondatabase/serverless':
         specifier: ^1.0.2
         version: 1.0.2
-      '@types/papaparse':
-        specifier: ^5.3.16
-        version: 5.3.16
       clsx:
         specifier: 2.1.1
         version: 2.1.1
@@ -63,6 +60,9 @@ importers:
       '@types/node':
         specifier: 20.19.17
         version: 20.19.17
+      '@types/papaparse':
+        specifier: ^5.3.16
+        version: 5.3.16
       '@types/react':
         specifier: 19.1.13
         version: 19.1.13
