@@ -50,8 +50,3 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-
-# supabase local artifacts
-supabase/.branches
-supabase/.temp
-supabase/.cache

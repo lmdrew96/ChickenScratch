@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { Resend } from 'resend';
+import { escapeHtml } from '@/lib/utils';
+import { env } from '@/lib/env';
+
+const CONTACT_RECIPIENTS = env.CONTACT_FORM_RECIPIENTS
+  ? env.CONTACT_FORM_RECIPIENTS.split(',').map(e => e.trim()).filter(Boolean)
+  : [];
 
 const contactFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -9,7 +15,11 @@ const contactFormSchema = z.object({
   message: z.string().min(1, 'Message is required'),
 });
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend) _resend = new Resend(env.RESEND_API_KEY);
+  return _resend;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,17 +37,17 @@ export async function POST(request: NextRequest) {
     const timestamp = new Date().toISOString();
 
     try {
-      await resend.emails.send({
+      await getResend().emails.send({
         from: 'Chicken Scratch <contact@chickenscratch.me>',
-        to: ['mbdorsch@udel.edu', 'lmdrew@udel.edu'],
+        to: CONTACT_RECIPIENTS,
         replyTo: email,
         subject: `Contact Form: ${subject || 'New Message'}`,
         html: `
           <h2>New Contact Form Submission</h2>
-          <p><strong>From:</strong> ${name} (${email})</p>
-          <p><strong>Subject:</strong> ${subject || 'No subject'}</p>
+          <p><strong>From:</strong> ${escapeHtml(name)} (${escapeHtml(email)})</p>
+          <p><strong>Subject:</strong> ${escapeHtml(subject || 'No subject')}</p>
           <p><strong>Message:</strong></p>
-          <p>${message.replace(/\n/g, '<br>')}</p>
+          <p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>
           <hr>
           <p><em>Submitted: ${new Date(timestamp).toLocaleString()}</em></p>
         `,
@@ -55,10 +65,7 @@ export async function POST(request: NextRequest) {
     console.error('Contact form error:', error instanceof Error ? error.message : 'Unknown error');
     
     return NextResponse.json(
-      { 
-        error: 'Failed to process contact form submission',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: 'Failed to process contact form submission' },
       { status: 500 }
     );
   }

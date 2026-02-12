@@ -1,12 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, inArray } from 'drizzle-orm';
 import { auth } from '@clerk/nextjs/server';
 
 import { db } from '@/lib/db';
-import { submissions, profiles } from '@/lib/db/schema';
+import { submissions, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
+import { hasCommitteeAccess, hasOfficerAccess, hasEditorAccess } from '@/lib/auth/guards';
 import { uploadFile, getSubmissionsBucketName, getBucketName } from '@/lib/storage';
+import { sendSubmissionNotification } from '@/lib/notifications';
 import type { NewSubmission } from '@/types/database';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -20,18 +22,18 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
 
-    const title = formData.get('title') as string;
-    const type = formData.get('type') as 'writing' | 'visual';
-    const genre = formData.get('genre') as string | null;
-    const summary = formData.get('summary') as string | null;
-    const contentWarnings = formData.get('contentWarnings') as string | null;
+    const title = formData.get('title')?.toString() ?? '';
+    const type = formData.get('type')?.toString() ?? '';
+    const genre = formData.get('genre')?.toString() || null;
+    const summary = formData.get('summary')?.toString() || null;
+    const contentWarnings = formData.get('contentWarnings')?.toString() || null;
     const file = formData.get('file') as File | null;
 
     if (!title || title.length < 3 || title.length > 200) {
       return NextResponse.json({ error: 'Title must be between 3 and 200 characters.' }, { status: 400 });
     }
 
-    if (!type || !['writing', 'visual'].includes(type)) {
+    if (type !== 'writing' && type !== 'visual') {
       return NextResponse.json({ error: 'Invalid submission type.' }, { status: 400 });
     }
 
@@ -111,26 +113,15 @@ export async function POST(request: NextRequest) {
 
     // Send notification to Submissions Coordinators about new submission
     try {
-      const notificationResponse = await fetch(`${request.nextUrl.origin}/api/notifications/submission-assigned`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          submissionId: data.id,
-          notificationType: 'new_submission',
-          submissionTitle: data.title,
-          submissionType: data.type,
-          submissionGenre: data.genre,
-          submissionDate: data.created_at?.toISOString(),
-          authorName: profile.full_name || profile.email || 'Unknown',
-        }),
+      await sendSubmissionNotification({
+        submissionId: data.id,
+        notificationType: 'new_submission',
+        submissionTitle: data.title,
+        submissionType: data.type,
+        submissionGenre: data.genre ?? undefined,
+        submissionDate: data.created_at?.toISOString(),
+        authorName: profile.full_name || profile.email || 'Unknown',
       });
-
-      if (!notificationResponse.ok) {
-        const errorData = await notificationResponse.json();
-        console.error('Notification failed:', errorData);
-      }
     } catch (notificationError) {
       console.error('Error sending notification:', notificationError);
     }
@@ -171,8 +162,9 @@ export async function GET(request: NextRequest) {
     if (editorIds.length > 0) {
       const editors = await database
         .select({ id: profiles.id, name: profiles.name, email: profiles.email })
-        .from(profiles);
-      editorMap = new Map(editors.filter(e => editorIds.includes(e.id)).map(e => [e.id, e]));
+        .from(profiles)
+        .where(inArray(profiles.id, editorIds));
+      editorMap = new Map(editors.map(e => [e.id, e]));
     }
 
     const submissionsWithEditor = userSubmissions.map(s => ({
@@ -183,8 +175,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ submissions: submissionsWithEditor });
   }
 
-  // For all submissions, require editor or admin role
-  if (!profile.role || !['editor', 'admin'].includes(profile.role)) {
+  // For all submissions, require editor/committee/officer role
+  const userRoleRows = await database
+    .select()
+    .from(userRoles)
+    .where(eq(userRoles.user_id, profile.id))
+    .limit(1);
+  const userRoleData = userRoleRows[0];
+
+  const hasNewRoleAccess = userRoleData?.is_member && (
+    hasOfficerAccess(userRoleData.positions, userRoleData.roles) ||
+    hasCommitteeAccess(userRoleData.positions, userRoleData.roles) ||
+    hasEditorAccess(userRoleData.positions, userRoleData.roles)
+  );
+  const hasLegacyAccess = profile.role === 'editor' || profile.role === 'admin';
+
+  if (!hasNewRoleAccess && !hasLegacyAccess) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -200,8 +206,9 @@ export async function GET(request: NextRequest) {
   if (editorIds.length > 0) {
     const editors = await database
       .select({ id: profiles.id, name: profiles.name, email: profiles.email })
-      .from(profiles);
-    editorMap = new Map(editors.filter(e => editorIds.includes(e.id)).map(e => [e.id, e]));
+      .from(profiles)
+      .where(inArray(profiles.id, editorIds));
+    editorMap = new Map(editors.map(e => [e.id, e]));
   }
 
   const submissionsWithEditor = allSubmissions.map(s => ({

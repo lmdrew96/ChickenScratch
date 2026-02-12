@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { auth } from '@clerk/nextjs/server';
 
 import { db } from '@/lib/db';
 import { userRoles, officerTasks } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
+
+const taskUpdateSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  assigned_to: z.string().uuid().nullable().optional(),
+  status: z.enum(['todo', 'in_progress', 'done']).optional(),
+  priority: z.enum(['low', 'medium', 'high']).optional(),
+  due_date: z.string().datetime().nullable().optional(),
+});
 
 async function checkOfficerAccess(profileId: string) {
   const database = db();
@@ -38,15 +48,22 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    const parsed = taskUpdateSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid update payload', details: parsed.error.errors }, { status: 400 });
+    }
+
+    const { title, description, assigned_to, status, priority, due_date } = parsed.data;
     const updates: Record<string, unknown> = {};
 
-    if (body.title !== undefined) updates.title = body.title;
-    if (body.description !== undefined) updates.description = body.description;
-    if (body.assigned_to !== undefined) updates.assigned_to = body.assigned_to;
-    if (body.status !== undefined) updates.status = body.status;
-    if (body.priority !== undefined) updates.priority = body.priority;
-    if (body.due_date !== undefined) updates.due_date = body.due_date;
+    if (title !== undefined) updates.title = title;
+    if (description !== undefined) updates.description = description;
+    if (assigned_to !== undefined) updates.assigned_to = assigned_to;
+    if (status !== undefined) updates.status = status;
+    if (priority !== undefined) updates.priority = priority;
+    if (due_date !== undefined) updates.due_date = due_date ? new Date(due_date) : null;
 
     const result = await db()
       .update(officerTasks)

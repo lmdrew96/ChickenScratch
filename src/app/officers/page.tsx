@@ -77,32 +77,31 @@ export default async function OfficersPage() {
     submissionsThisMonthResult,
     pendingReviewsResult,
     publishedPiecesResult,
-    activeCommitteeResult,
-    totalUsersResult,
     committeeMembersResult,
-    pendingSubmissionsResult,
+    totalUsersResult,
   ] = await Promise.all([
     database.select({ count: count() }).from(submissions).where(gte(submissions.created_at, firstDayOfMonth)),
     database.select({ count: count() }).from(submissions).where(eq(submissions.status, 'submitted')),
     database.select({ count: count() }).from(submissions).where(eq(submissions.published, true)),
     database.select({ count: count() }).from(userRoles).where(arrayContains(userRoles.roles, ['committee'])),
     database.select({ count: count() }).from(profiles),
-    database.select({ count: count() }).from(userRoles).where(arrayContains(userRoles.roles, ['committee'])),
-    database.select({ count: count() }).from(submissions).where(eq(submissions.status, 'submitted')),
   ]);
+
+  const pendingCount = pendingReviewsResult[0]?.count || 0;
+  const committeeMemberCount = committeeMembersResult[0]?.count || 0;
 
   const stats = {
     submissionsThisMonth: submissionsThisMonthResult[0]?.count || 0,
-    pendingReviews: pendingReviewsResult[0]?.count || 0,
+    pendingReviews: pendingCount,
     publishedPieces: publishedPiecesResult[0]?.count || 0,
-    activeCommittee: activeCommitteeResult[0]?.count || 0,
+    activeCommittee: committeeMemberCount,
   };
 
   const adminStats = hasAdminAccess
     ? {
         totalUsers: totalUsersResult[0]?.count || 0,
-        committeeMembers: committeeMembersResult[0]?.count || 0,
-        pendingSubmissions: pendingSubmissionsResult[0]?.count || 0,
+        committeeMembers: committeeMemberCount,
+        pendingSubmissions: pendingCount,
       }
     : undefined;
 

@@ -8,9 +8,10 @@ import { SignOutButton } from '@clerk/nextjs'
 interface SidebarProps {
   signedIn?: boolean;
   userProfile?: { avatarUrl: string | null; initials: string } | null;
+  navAccess?: { officer: boolean; committee: boolean; editor: boolean };
 }
 
-export default function Sidebar({ signedIn = false, userProfile }: SidebarProps) {
+export default function Sidebar({ signedIn = false, userProfile, navAccess }: SidebarProps) {
   const pathname = usePathname()
   const is = (href: string) => pathname === href || pathname.startsWith(href + '/')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -148,30 +149,36 @@ export default function Sidebar({ signedIn = false, userProfile }: SidebarProps)
         >
           Contact
         </Link>
-        <Link 
-          href="/officers" 
-          className={is('/officers') ? 'active' : ''} 
-          onClick={closeMobileMenu}
-          aria-current={is('/officers') ? 'page' : undefined}
-        >
-          Officers
-        </Link>
-        <Link 
-          href="/committee" 
-          className={is('/committee') ? 'active' : ''} 
-          onClick={closeMobileMenu}
-          aria-current={is('/committee') ? 'page' : undefined}
-        >
-          Committee
-        </Link>
-        <Link 
-          href="/editor" 
-          className={is('/editor') ? 'active' : ''} 
-          onClick={closeMobileMenu}
-          aria-current={is('/editor') ? 'page' : undefined}
-        >
-          Editor
-        </Link>
+        {navAccess?.officer && (
+          <Link
+            href="/officers"
+            className={is('/officers') ? 'active' : ''}
+            onClick={closeMobileMenu}
+            aria-current={is('/officers') ? 'page' : undefined}
+          >
+            Officers
+          </Link>
+        )}
+        {(navAccess?.officer || navAccess?.committee) && (
+          <Link
+            href="/committee"
+            className={is('/committee') ? 'active' : ''}
+            onClick={closeMobileMenu}
+            aria-current={is('/committee') ? 'page' : undefined}
+          >
+            Committee
+          </Link>
+        )}
+        {(navAccess?.officer || navAccess?.editor) && (
+          <Link
+            href="/editor"
+            className={is('/editor') ? 'active' : ''}
+            onClick={closeMobileMenu}
+            aria-current={is('/editor') ? 'page' : undefined}
+          >
+            Editor
+          </Link>
+        )}
       </nav>
       
       <div className="sidebar-auth">

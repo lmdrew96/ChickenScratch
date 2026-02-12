@@ -30,9 +30,8 @@ export function ExportReportButton() {
       // Get filename from Content-Disposition header or use default
       const contentDisposition = response.headers.get('Content-Disposition');
       const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
-      const filename = filenameMatch
-        ? filenameMatch[1]
-        : `chicken-scratch-report-${new Date().toISOString().split('T')[0]}.csv`;
+      const filename = filenameMatch?.[1]
+        ?? `chicken-scratch-report-${new Date().toISOString().split('T')[0]}.csv`;
 
       a.download = filename;
       document.body.appendChild(a);

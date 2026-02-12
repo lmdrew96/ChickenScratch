@@ -182,7 +182,8 @@ export function MeetingScheduler({ userId }: { userId: string }) {
                     value={slot.date}
                     onChange={(e) => {
                       const newDates = [...formData.proposed_dates];
-                      newDates[index].date = e.target.value;
+                      const entry = newDates[index];
+                      if (entry) entry.date = e.target.value;
                       setFormData({ ...formData, proposed_dates: newDates });
                     }}
                     className="flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white focus:border-white/20 focus:outline-none"
@@ -192,7 +193,8 @@ export function MeetingScheduler({ userId }: { userId: string }) {
                     value={slot.time}
                     onChange={(e) => {
                       const newDates = [...formData.proposed_dates];
-                      newDates[index].time = e.target.value;
+                      const entry = newDates[index];
+                      if (entry) entry.time = e.target.value;
                       setFormData({ ...formData, proposed_dates: newDates });
                     }}
                     className="flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white focus:border-white/20 focus:outline-none"
@@ -272,7 +274,9 @@ function MeetingProposalCard({
       index,
       count: getSlotAvailability(index).length,
     }));
-    return counts.reduce((max, curr) => (curr.count > max.count ? curr : max), counts[0]);
+    const first = counts[0];
+    if (!first) return { index: 0, count: 0 };
+    return counts.reduce((max, curr) => (curr.count > max.count ? curr : max), first);
   };
 
   const mostPopular = getMostPopularSlot();
@@ -368,6 +372,7 @@ function MeetingProposalCard({
               <button
                 onClick={() => {
                   const slot = proposal.proposed_dates[mostPopular.index];
+                  if (!slot) return;
                   const dateTime = new Date(slot.date + 'T' + slot.time).toISOString();
                   if (confirm('Finalize this meeting time?')) {
                     onFinalize(proposal.id, dateTime);

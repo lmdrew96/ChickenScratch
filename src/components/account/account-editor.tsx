@@ -63,8 +63,9 @@ export default function AccountEditor({ defaultName, defaultAvatar, defaultProno
           )}
 
           <div className="flex-1">
-            <label className="block text-sm mb-1 text-gray-300">Profile photo</label>
+            <label htmlFor="avatar-upload" className="block text-sm mb-1 text-gray-300">Profile photo</label>
             <input
+              id="avatar-upload"
               type="file"
               accept="image/*"
               className="text-sm text-gray-300"
@@ -72,6 +73,10 @@ export default function AccountEditor({ defaultName, defaultAvatar, defaultProno
                 const f = e.target.files?.[0] ?? null;
                 setFile(f);
                 if (f) {
+                  // Revoke previous blob URL to prevent memory leak
+                  if (preview && preview.startsWith('blob:')) {
+                    URL.revokeObjectURL(preview);
+                  }
                   const url = URL.createObjectURL(f);
                   setPreview(url);
                 }

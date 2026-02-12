@@ -15,8 +15,8 @@ export async function updateProfile(formData: FormData) {
   const profile = await ensureProfile(userId);
   if (!profile) return { error: 'Profile not found' };
 
-  const name = formData.get('name') as string | null;
-  const pronouns = formData.get('pronouns') as string | null;
+  const name = formData.get('name')?.toString() || null;
+  const pronouns = formData.get('pronouns')?.toString() || null;
 
   try {
     await db()
@@ -40,7 +40,8 @@ export async function uploadAvatar(formData: FormData) {
   const profile = await ensureProfile(userId);
   if (!profile) return { error: 'Profile not found' };
 
-  const file = formData.get('avatar') as File | null;
+  const fileEntry = formData.get('avatar');
+  const file = fileEntry instanceof File ? fileEntry : null;
   if (!file) return { error: 'No file provided' };
 
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();

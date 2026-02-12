@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { LoadingSpinner } from '@/components/shared/loading-states';
 import type { Submission } from '@/types/database';
 
@@ -12,22 +13,60 @@ interface KanbanBoardProps {
 interface KanbanColumn {
   id: string;
   title: string;
-  submissions: Submission[];  
+  submissions: Submission[];
   canInteract: boolean;
 }
 
+type PromptState = {
+  type: 'google_docs' | 'canva_link' | 'decline' | 'final_decline';
+  submission: Submission;
+  value: string;
+};
+
 export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps) {
+  const router = useRouter();
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [googleDocUrl, setGoogleDocUrl] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [promptState, setPromptState] = useState<PromptState | null>(null);
+  const promptInputRef = useRef<HTMLInputElement | null>(null);
+  const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Define columns based on user role
-  const getColumns = (): KanbanColumn[] => {
-    // Editor-in-Chief sees ALL columns from all positions
+  // Focus the prompt input when it opens
+  useEffect(() => {
+    if (promptState) {
+      if (promptState.type === 'decline' || promptState.type === 'final_decline') {
+        promptTextareaRef.current?.focus();
+      } else {
+        promptInputRef.current?.focus();
+      }
+    }
+  }, [promptState]);
+
+  // Close modals on Escape key
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        if (promptState) {
+          setPromptState(null);
+          setIsProcessing(null);
+        } else if (googleDocUrl) {
+          setGoogleDocUrl(null);
+          router.refresh();
+        } else if (selectedSubmission) {
+          setSelectedSubmission(null);
+        }
+      }
+    }
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [promptState, googleDocUrl, selectedSubmission, router]);
+
+  // Memoize columns to avoid recalculating on every render
+  const columns = useMemo((): KanbanColumn[] => {
     if (userRole === 'editor_in_chief') {
-      const columns = [
-        // Submissions Coordinator columns
+      return [
         {
           id: 'new',
           title: 'New Submissions',
@@ -35,7 +74,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           canInteract: true
         },
         {
-          id: 'coordinator_reviewing', 
+          id: 'coordinator_reviewing',
           title: 'Coordinator Review',
           submissions: submissions.filter(s => s.committee_status === 'with_coordinator'),
           canInteract: true
@@ -46,19 +85,18 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           submissions: submissions.filter(s => s.committee_status === 'coordinator_approved'),
           canInteract: true
         },
-        // Proofreader columns (writing only)
         {
           id: 'proofreader_assigned',
           title: 'Proofreader Assigned',
-          submissions: submissions.filter(s => 
+          submissions: submissions.filter(s =>
             s.committee_status === 'coordinator_approved' && s.type === 'writing'
           ),
           canInteract: true
         },
         {
           id: 'proofreader_in_progress',
-          title: 'Proofreading', 
-          submissions: submissions.filter(s => 
+          title: 'Proofreading',
+          submissions: submissions.filter(s =>
             s.google_docs_link && !s.proofreader_committed_at && s.type === 'writing'
           ),
           canInteract: true
@@ -69,11 +107,10 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           submissions: submissions.filter(s => s.committee_status === 'proofreader_committed'),
           canInteract: true
         },
-        // Lead Design columns
         {
           id: 'design_visual_assigned',
           title: 'Design: Visual Art',
-          submissions: submissions.filter(s => 
+          submissions: submissions.filter(s =>
             s.committee_status === 'coordinator_approved' && s.type === 'visual'
           ),
           canInteract: true
@@ -87,7 +124,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
         {
           id: 'design_in_canva',
           title: 'In Canva',
-          submissions: submissions.filter(s => 
+          submissions: submissions.filter(s =>
             s.lead_design_commit_link && !s.lead_design_committed_at
           ),
           canInteract: true
@@ -98,12 +135,11 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           submissions: submissions.filter(s => s.committee_status === 'lead_design_committed'),
           canInteract: true
         },
-        // Editor-in-Chief final review columns
         {
           id: 'eic_ready_for_review',
           title: 'EIC: Final Review',
-          submissions: submissions.filter(s => 
-            s.committee_status === 'with_editor_in_chief' || 
+          submissions: submissions.filter(s =>
+            s.committee_status === 'with_editor_in_chief' ||
             s.committee_status === 'lead_design_committed' ||
             s.committee_status === 'proofreader_committed'
           ),
@@ -122,15 +158,11 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           canInteract: true
         }
       ];
-      console.log('[KanbanBoard] EIC columns:', columns.length, 'columns generated');
-      return columns;
     }
-    
-    console.log('[KanbanBoard] Checking switch statement for role:', userRole);
+
     switch (userRole) {
       case 'submissions_coordinator':
-        console.log('[KanbanBoard] Matched submissions_coordinator');
-        const coordColumns = [
+        return [
           {
             id: 'new',
             title: 'New Submissions',
@@ -138,7 +170,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             canInteract: true
           },
           {
-            id: 'reviewing', 
+            id: 'reviewing',
             title: 'Under Review',
             submissions: submissions.filter(s => s.committee_status === 'with_coordinator'),
             canInteract: true
@@ -150,24 +182,21 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             canInteract: false
           }
         ];
-        console.log('[KanbanBoard] Coordinator columns:', coordColumns.length);
-        return coordColumns;
 
       case 'proofreader':
-        console.log('[KanbanBoard] Matched proofreader');
-        const proofColumns = [
+        return [
           {
             id: 'assigned',
             title: 'Assigned to Me',
-            submissions: submissions.filter(s => 
+            submissions: submissions.filter(s =>
               s.committee_status === 'coordinator_approved' && s.type === 'writing'
             ),
             canInteract: true
           },
           {
             id: 'in_progress',
-            title: 'In Progress', 
-            submissions: submissions.filter(s => 
+            title: 'In Progress',
+            submissions: submissions.filter(s =>
               s.google_docs_link && !s.proofreader_committed_at
             ),
             canInteract: true
@@ -179,16 +208,13 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             canInteract: false
           }
         ];
-        console.log('[KanbanBoard] Proofreader columns:', proofColumns.length);
-        return proofColumns;
 
       case 'lead_design':
-        console.log('[KanbanBoard] Matched lead_design');
-        const designColumns = [
+        return [
           {
             id: 'visual_assigned',
             title: 'Visual Art Assigned',
-            submissions: submissions.filter(s => 
+            submissions: submissions.filter(s =>
               s.committee_status === 'coordinator_approved' && s.type === 'visual'
             ),
             canInteract: true
@@ -202,7 +228,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           {
             id: 'in_canva',
             title: 'In Canva',
-            submissions: submissions.filter(s => 
+            submissions: submissions.filter(s =>
               s.lead_design_commit_link && !s.lead_design_committed_at
             ),
             canInteract: true
@@ -214,11 +240,8 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             canInteract: false
           }
         ];
-        console.log('[KanbanBoard] Lead Design columns:', designColumns.length);
-        return designColumns;
 
       default:
-        console.log('[KanbanBoard] No role match, using default');
         return [
           {
             id: 'all',
@@ -228,82 +251,34 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           }
         ];
     }
-  };
-
-  const columns = getColumns();
-  
-  // Log column details after generation
-  useEffect(() => {
-    console.log('[KanbanBoard] Columns generated:', columns.length);
-    columns.forEach((col, idx) => {
-      console.log(`[KanbanBoard] Column ${idx + 1}: "${col.title}" - ${col.submissions.length} submissions`);
-      if (col.submissions.length > 0) {
-        console.log(`  Sample submission statuses:`, col.submissions.slice(0, 3).map(s => ({
-          title: s.title,
-          status: s.committee_status,
-          type: s.type
-        })));
-      }
-    });
-  }, [columns]);
+  }, [userRole, submissions]);
 
   const handleSubmissionClick = (submission: Submission) => {
     setSelectedSubmission(submission);
   };
 
-  const handleAction = async (submission: Submission, action: string) => {
+  const submitAction = useCallback(async (
+    submission: Submission,
+    action: string,
+    linkUrl?: string,
+    comment?: string,
+  ) => {
     try {
       setIsProcessing(submission.id);
-      
+
       const payload: {
         submissionId: string;
         action: string;
         linkUrl?: string;
         comment?: string;
-      } = {
-        submissionId: submission.id,
-        action,
-      };
+      } = { submissionId: submission.id, action };
 
-      // Handle specific actions
-      if (action === 'open_docs') {
-        // If google_docs_link exists, open it directly in edit mode
-        if (submission.google_docs_link) {
-          setGoogleDocUrl(submission.google_docs_link);
-          setIsProcessing(null);
-          return;
-        }
-        // Otherwise, prompt for URL (fallback for manual entry)
-        const url = prompt('Enter Google Docs link:');
-        if (!url) {
-          setIsProcessing(null);
-          return;
-        }
-        payload.action = 'commit';
-        payload.linkUrl = url;
-      } else if (action === 'canva_link') {
-        const url = prompt('Enter Canva share link:');
-        if (!url) {
-          setIsProcessing(null);
-          return;
-        }
-        payload.action = 'commit';
-        payload.linkUrl = url;
-      } else if (action === 'decline' || action === 'final_decline') {
-        const comment = prompt('Enter decline reason (required):');
-        if (!comment) {
-          setIsProcessing(null);
-          return;
-        }
-        payload.comment = comment;
-        payload.action = action.includes('final') ? 'decline' : 'decline';
-      }
+      if (linkUrl) payload.linkUrl = linkUrl;
+      if (comment) payload.comment = comment;
 
       const response = await fetch('/api/committee-workflow', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
@@ -314,32 +289,74 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
 
       const result = await response.json();
 
-      // If response contains google_doc_url, show it in modal (keep in edit mode)
       if (result.google_doc_url) {
         setGoogleDocUrl(result.google_doc_url);
         setIsProcessing(null);
         return;
       }
 
-      // Refresh the page to show updated data
-      window.location.reload();
+      router.refresh();
     } catch (error) {
-      console.error('Action failed:', error);
-      alert(`Action failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setActionError(error instanceof Error ? error.message : 'Unknown error');
       setIsProcessing(null);
+    }
+  }, [router]);
+
+  const handleAction = async (submission: Submission, action: string) => {
+    setActionError(null);
+
+    if (action === 'open_docs') {
+      if (submission.google_docs_link) {
+        setGoogleDocUrl(submission.google_docs_link);
+        return;
+      }
+      setIsProcessing(submission.id);
+      setPromptState({ type: 'google_docs', submission, value: '' });
+      return;
+    }
+
+    if (action === 'canva_link') {
+      setIsProcessing(submission.id);
+      setPromptState({ type: 'canva_link', submission, value: '' });
+      return;
+    }
+
+    if (action === 'decline' || action === 'final_decline') {
+      setIsProcessing(submission.id);
+      setPromptState({ type: action as 'decline' | 'final_decline', submission, value: '' });
+      return;
+    }
+
+    await submitAction(submission, action);
+  };
+
+  const handlePromptSubmit = async () => {
+    if (!promptState) return;
+    const { type, submission, value } = promptState;
+
+    if (!value.trim()) return;
+
+    setPromptState(null);
+
+    if (type === 'google_docs' || type === 'canva_link') {
+      await submitAction(submission, 'commit', value.trim());
+    } else {
+      await submitAction(submission, 'decline', undefined, value.trim());
     }
   };
 
-  // Get context-aware button configuration for a submission
+  const handlePromptCancel = () => {
+    setPromptState(null);
+    setIsProcessing(null);
+  };
+
   const getSubmissionButtons = (submission: Submission, columnId: string) => {
     if (userRole === 'submissions_coordinator') {
-      // New Submissions column - only show Review button
       if (columnId === 'new') {
         return [
           { label: 'Review', action: 'review', variant: 'primary' as const }
         ];
       }
-      // Under Review column - show Review (webhook) and Approve/Decline buttons
       if (columnId === 'reviewing') {
         return [
           { label: 'Review', action: 'review', variant: 'primary' as const },
@@ -348,8 +365,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
         ];
       }
     }
-    
-    // Default single button for other roles
+
     if (userRole === 'proofreader') {
       return [{ label: 'Edit Docs', action: 'open_docs', variant: 'primary' as const }];
     }
@@ -359,7 +375,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
     if (userRole === 'editor_in_chief') {
       return [{ label: 'Final Review', action: 'approve', variant: 'primary' as const }];
     }
-    
+
     return [];
   };
 
@@ -374,24 +390,14 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
             Manage submissions in your role-specific workflow
           </p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search submissions..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="form-input w-64"
-            />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-              <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-          </div>
-        </div>
       </div>
+
+      {actionError && (
+        <div className="rounded-lg border border-red-500/50 bg-red-900/20 px-4 py-3 text-sm text-red-200 flex items-center justify-between">
+          <span>Action failed: {actionError}</span>
+          <button onClick={() => setActionError(null)} className="ml-4 text-red-300 hover:text-white">Dismiss</button>
+        </div>
+      )}
 
       <div className={`grid gap-6 ${userRole === 'editor_in_chief' ? 'lg:grid-cols-4 xl:grid-cols-5' : 'lg:grid-cols-3'}`}>
         {columns.map((column) => (
@@ -468,13 +474,71 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
         ))}
       </div>
 
+      {/* Inline Prompt Dialog */}
+      {promptState && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="prompt-dialog-title"
+        >
+          <div className="bg-[var(--bg)] border border-white/10 rounded-2xl p-6 max-w-md w-full">
+            <h2 id="prompt-dialog-title" className="text-lg font-semibold text-[var(--text)] mb-4">
+              {promptState.type === 'google_docs' && 'Enter Google Docs Link'}
+              {promptState.type === 'canva_link' && 'Enter Canva Share Link'}
+              {(promptState.type === 'decline' || promptState.type === 'final_decline') && 'Enter Decline Reason'}
+            </h2>
+            {(promptState.type === 'decline' || promptState.type === 'final_decline') ? (
+              <textarea
+                ref={promptTextareaRef}
+                value={promptState.value}
+                onChange={(e) => setPromptState({ ...promptState, value: e.target.value })}
+                onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) handlePromptSubmit(); }}
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white placeholder-slate-400 focus:border-white/20 focus:outline-none"
+                rows={3}
+                placeholder="Reason for declining this submission..."
+              />
+            ) : (
+              <input
+                ref={promptInputRef}
+                type="url"
+                value={promptState.value}
+                onChange={(e) => setPromptState({ ...promptState, value: e.target.value })}
+                onKeyDown={(e) => { if (e.key === 'Enter') handlePromptSubmit(); }}
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white placeholder-slate-400 focus:border-white/20 focus:outline-none"
+                placeholder={promptState.type === 'google_docs' ? 'https://docs.google.com/...' : 'https://www.canva.com/...'}
+              />
+            )}
+            <div className="flex gap-2 mt-4 justify-end">
+              <button
+                onClick={handlePromptCancel}
+                className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePromptSubmit}
+                disabled={!promptState.value.trim()}
+                className="px-4 py-2 rounded-lg bg-white/10 text-sm font-medium text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Google Doc Modal */}
       {googleDocUrl && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="gdoc-modal-title"
+        >
           <div className="bg-[var(--bg)] border border-white/10 rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col">
-            {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <h2 className="text-lg font-semibold text-[var(--text)]">
+              <h2 id="gdoc-modal-title" className="text-lg font-semibold text-[var(--text)]">
                 Google Doc Editor
               </h2>
               <div className="flex items-center gap-3">
@@ -492,16 +556,16 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                 <button
                   onClick={() => {
                     setGoogleDocUrl(null);
-                    window.location.reload();
+                    router.refresh();
                   }}
                   className="text-slate-400 hover:text-white text-2xl leading-none"
+                  aria-label="Close modal"
                 >
                   ✕
                 </button>
               </div>
             </div>
-            
-            {/* Modal Body - Iframe */}
+
             <div className="flex-1 p-4 overflow-hidden">
               <iframe
                 src={googleDocUrl}
@@ -516,20 +580,26 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
 
       {/* Submission Detail Modal */}
       {selectedSubmission && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="detail-modal-title"
+        >
           <div className="bg-[var(--bg)] border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-[var(--text)]">
+              <h2 id="detail-modal-title" className="text-xl font-semibold text-[var(--text)]">
                 {selectedSubmission.title}
               </h2>
               <button
                 onClick={() => setSelectedSubmission(null)}
                 className="text-slate-400 hover:text-white"
+                aria-label="Close modal"
               >
                 ✕
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <dt className="text-sm font-medium text-white/80 mb-1">Type & Genre</dt>
@@ -537,7 +607,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                   {selectedSubmission.type} • {selectedSubmission.genre || 'No genre specified'}
                 </dd>
               </div>
-              
+
               <div>
                 <dt className="text-sm font-medium text-white/80 mb-1">Summary</dt>
                 <dd className="text-sm text-white/70">
@@ -561,7 +631,6 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
 
               {/* Role-specific actions */}
               <div className="flex gap-3 pt-4 border-t border-white/10">
-                {/* Show "Open Google Doc" button if google_docs_link exists */}
                 {selectedSubmission.google_docs_link && (
                   <button
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm flex items-center gap-2"
@@ -575,7 +644,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                     Open Google Doc
                   </button>
                 )}
-                
+
                 {userRole === 'submissions_coordinator' && (
                   <>
                     <button

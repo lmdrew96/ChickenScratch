@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/ui';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { submissions } from '@/lib/db/schema';
+import { formatStatus } from '@/lib/constants';
 import type { Submission } from '@/types/database';
 
 export default async function MinePage() {
@@ -19,8 +20,8 @@ export default async function MinePage() {
       .from(submissions)
       .where(eq(submissions.owner_id, profile.id))
       .orderBy(desc(submissions.created_at));
-  } catch (error) {
-    console.error('Failed to fetch submissions:', error);
+  } catch {
+    // Query failure handled by empty array default
   }
 
   return (
@@ -52,7 +53,7 @@ export default async function MinePage() {
         <ul className="space-y-4">
           {userSubmissions.map((submission) => {
             const title = submission.title?.trim() || 'Untitled submission';
-            const status = formatStatus(submission.status);
+            const status = formatStatus(submission.status) || 'Submitted';
             const updated = formatDate(submission.updated_at ?? submission.created_at);
 
             return (
@@ -75,19 +76,6 @@ export default async function MinePage() {
       )}
     </div>
   );
-}
-
-function formatStatus(status?: string | null) {
-  if (!status) {
-    return 'Submitted';
-  }
-
-  return status
-    .toLowerCase()
-    .split(/[_\s]+/)
-    .filter(Boolean)
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(' ');
 }
 
 function formatDate(value?: Date | string | null) {

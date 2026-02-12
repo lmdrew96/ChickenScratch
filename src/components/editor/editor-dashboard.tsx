@@ -80,7 +80,7 @@ export function EditorDashboard({
 
   useEffect(() => {
     if (filteredSubmissions.length > 0 && !filteredSubmissions.some((submission) => submission.id === selectedId)) {
-      setSelectedId(filteredSubmissions[0].id);
+      setSelectedId(filteredSubmissions[0]!.id);
     }
   }, [filteredSubmissions, selectedId]);
 

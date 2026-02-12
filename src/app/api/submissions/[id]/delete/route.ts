@@ -90,20 +90,7 @@ export async function DELETE(
     }
   }
 
-  // Log the deletion action for audit trail
-  await database.insert(auditLog).values({
-    submission_id: id,
-    actor_id: profile.id,
-    action: 'submission_deleted',
-    details: {
-      submission_title: submission.title,
-      submission_owner_id: submission.owner_id,
-      deleted_files: filesToDelete,
-      google_docs_link: submission.google_docs_link,
-    },
-  });
-
-  // Delete the submission record from database
+  // Delete the submission record from database first
   const deleteResult = await database
     .delete(submissions)
     .where(eq(submissions.id, id))
@@ -115,6 +102,19 @@ export async function DELETE(
       { status: 400 }
     );
   }
+
+  // Log the deletion action for audit trail after successful delete
+  await database.insert(auditLog).values({
+    submission_id: id,
+    actor_id: profile.id,
+    action: 'submission_deleted',
+    details: {
+      submission_title: submission.title,
+      submission_owner_id: submission.owner_id,
+      deleted_files: filesToDelete,
+      google_docs_link: submission.google_docs_link,
+    },
+  });
 
   // Revalidate relevant pages
   revalidatePath('/editor');

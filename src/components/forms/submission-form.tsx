@@ -8,6 +8,7 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from 'react';
+import { useRouter } from 'next/navigation';
 import { LoadingSpinner } from '@/components/shared/loading-states';
 import { ErrorMessage, SuccessMessage, FieldError } from '@/components/ui/feedback';
 import { useFeedback } from '@/hooks/use-feedback';
@@ -59,8 +60,8 @@ type SubmissionFormProps = {
   redirectTo?: string;
 };
 
-export function SubmissionForm(props: SubmissionFormProps = {}) {
-  void props;
+export function SubmissionForm(_props: SubmissionFormProps = {}) {
+  const router = useRouter();
   const [kind, setKind] = useState<SubmissionKind>('visual');
   const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGORIES;
   const [category, setCategory] = useState('');
@@ -182,7 +183,8 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
     }
 
     const nextFile = files[0];
-    
+    if (!nextFile) return;
+
     // Validate file type for writing submissions
     const allowedTypes = [
       'application/msword', // .doc
@@ -190,14 +192,14 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
       'application/pdf', // .pdf
       'text/plain', // .txt
     ];
-    
+
     const allowedExtensions = ['.doc', '.docx', '.pdf', '.txt'];
     const fileExtension = nextFile.name.toLowerCase().substring(nextFile.name.lastIndexOf('.'));
-    
+
     if (!allowedTypes.includes(nextFile.type) && !allowedExtensions.includes(fileExtension)) {
-      setErrors((prev) => ({ 
-        ...prev, 
-        file: 'Please upload a .doc, .docx, .pdf, or .txt file.' 
+      setErrors((prev) => ({
+        ...prev,
+        file: 'Please upload a .doc, .docx, .pdf, or .txt file.'
       }));
       setWritingFile(null);
       event.target.value = '';
@@ -226,6 +228,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
     }
 
     const nextFile = files[0];
+    if (!nextFile) return;
     setVisualFile(nextFile);
     setErrors((prev) => ({ ...prev, file: undefined }));
   }
@@ -322,7 +325,7 @@ export function SubmissionForm(props: SubmissionFormProps = {}) {
       
       // Redirect after showing success message
       setTimeout(() => {
-        window.location.href = '/mine';
+        router.push('/mine');
       }, 2000);
     } catch {
       showError(

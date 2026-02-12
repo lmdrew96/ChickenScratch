@@ -8,6 +8,8 @@ import { db } from '@/lib/db';
 import { submissions, userRoles, profiles, auditLog } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
+import { sendSubmissionNotification } from '@/lib/notifications';
+import type { NewSubmission } from '@/types/database';
 
 const workflowActionSchema = z.object({
   submissionId: z.string().uuid(),
@@ -88,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Process action based on user role and action type
-    const updatePayload: Record<string, unknown> = {};
+    const updatePayload: Partial<NewSubmission> = {};
     let newStatus: string | null = null;
     const auditAction = action;
 
@@ -100,11 +102,8 @@ export async function POST(request: NextRequest) {
             // New Submissions → Under Review (status change only)
             newStatus = 'with_coordinator';
             updatePayload.committee_status = newStatus;
-            console.log('[Committee Workflow] Review action (new submission) - setting status to:', newStatus);
           } else if (submission.committee_status === 'with_coordinator') {
             // Under Review → Trigger Make webhook for file conversion
-            console.log('[Committee Workflow] Review action (under review) - triggering Make webhook for file conversion');
-
             try {
               // Call the convert-to-gdoc endpoint
               const convertResponse = await fetch(`${request.nextUrl.origin}/api/convert-to-gdoc`, {
@@ -117,7 +116,6 @@ export async function POST(request: NextRequest) {
 
               if (!convertResponse.ok) {
                 const errorData = await convertResponse.json();
-                console.error('[Committee Workflow] Convert to GDoc failed:', errorData);
                 return NextResponse.json(
                   { error: errorData.error || 'Failed to convert file to Google Doc' },
                   { status: convertResponse.status }
@@ -125,7 +123,6 @@ export async function POST(request: NextRequest) {
               }
 
               const convertResult = await convertResponse.json();
-              console.log('[Committee Workflow] Successfully converted to Google Doc:', convertResult.google_doc_url);
 
               // Return the Google Doc URL so frontend can open it
               revalidatePath('/committee');
@@ -133,8 +130,7 @@ export async function POST(request: NextRequest) {
                 success: true,
                 google_doc_url: convertResult.google_doc_url
               });
-            } catch (error) {
-              console.error('[Committee Workflow] Error calling convert-to-gdoc:', error);
+            } catch {
               return NextResponse.json(
                 { error: 'Failed to convert file to Google Doc' },
                 { status: 500 }
@@ -146,13 +142,11 @@ export async function POST(request: NextRequest) {
           newStatus = 'coordinator_approved';
           updatePayload.committee_status = newStatus;
           updatePayload.coordinator_reviewed_at = new Date();
-          console.log('[Committee Workflow] Approve action - setting status to:', newStatus, 'for submission type:', submission.type);
         } else if (action === 'decline') {
           newStatus = 'coordinator_declined';
           updatePayload.committee_status = newStatus;
           updatePayload.decline_reason = comment;
           updatePayload.coordinator_reviewed_at = new Date();
-          console.log('[Committee Workflow] Decline action - setting status to:', newStatus);
         }
         break;
 
@@ -161,7 +155,6 @@ export async function POST(request: NextRequest) {
           updatePayload.google_docs_link = linkUrl;
           updatePayload.committee_status = 'proofreader_committed';
           updatePayload.proofreader_committed_at = new Date();
-          console.log('[Committee Workflow] Proofreader commit - setting status to: proofreader_committed');
         }
         break;
 
@@ -170,7 +163,6 @@ export async function POST(request: NextRequest) {
           updatePayload.lead_design_commit_link = linkUrl;
           updatePayload.committee_status = 'lead_design_committed';
           updatePayload.lead_design_committed_at = new Date();
-          console.log('[Committee Workflow] Lead Design commit - setting status to: lead_design_committed');
         }
         break;
 
@@ -178,13 +170,11 @@ export async function POST(request: NextRequest) {
         if (action === 'approve') {
           updatePayload.committee_status = 'editor_approved';
           updatePayload.editor_reviewed_at = new Date();
-          console.log('[Committee Workflow] Editor approve - setting status to: editor_approved');
         } else if (action === 'decline') {
           // Special handling: EIC decline overrides all other statuses and moves directly to editor_declined
           updatePayload.committee_status = 'editor_declined';
           updatePayload.decline_reason = comment;
           updatePayload.editor_reviewed_at = new Date();
-          console.log('[Committee Workflow] Editor-in-Chief decline - setting status to: editor_declined (overrides current stage)');
         }
         break;
 
@@ -207,20 +197,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Update the submission
-    console.log('[Committee Workflow] Updating submission:', submissionId, 'with payload:', updatePayload);
     await database
       .update(submissions)
       .set(updatePayload)
       .where(eq(submissions.id, submissionId));
 
-    console.log('[Committee Workflow] Successfully updated submission to status:', newStatus);
-
     // Send notification if status changed to a committee member assignment
     if (newStatus && ['with_proofreader', 'with_lead_design', 'with_editor_in_chief'].includes(newStatus)) {
-      console.log('[Committee Workflow] Triggering notification for status:', newStatus);
-
       try {
-        // Fetch author name from profiles
         const authorRows = await database
           .select({ full_name: profiles.full_name, email: profiles.email })
           .from(profiles)
@@ -229,29 +213,15 @@ export async function POST(request: NextRequest) {
 
         const authorProfile = authorRows[0];
 
-        const notificationResponse = await fetch(`${request.nextUrl.origin}/api/notifications/submission-assigned`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            submissionId,
-            committeeStatus: newStatus,
-            submissionTitle: submission.title,
-            submissionType: submission.type,
-            authorName: authorProfile?.full_name || authorProfile?.email || 'Unknown',
-          }),
+        await sendSubmissionNotification({
+          submissionId,
+          committeeStatus: newStatus,
+          submissionTitle: submission.title,
+          submissionType: submission.type,
+          authorName: authorProfile?.full_name || authorProfile?.email || 'Unknown',
         });
-
-        if (!notificationResponse.ok) {
-          const errorData = await notificationResponse.json();
-          console.error('[Committee Workflow] Notification failed:', errorData);
-        } else {
-          const notificationResult = await notificationResponse.json();
-          console.log('[Committee Workflow] Notification sent:', notificationResult);
-        }
-      } catch (notificationError) {
-        console.error('[Committee Workflow] Error sending notification:', notificationError);
+      } catch {
+        // Notification failure should not block the workflow
       }
     }
 
@@ -276,8 +246,7 @@ export async function POST(request: NextRequest) {
     revalidatePath('/committee');
     return NextResponse.json({ success: true, newStatus });
 
-  } catch (error) {
-    console.error('Committee workflow error:', error);
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

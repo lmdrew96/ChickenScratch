@@ -9,7 +9,7 @@ import { submissions } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { EDITABLE_STATUSES, SUBMISSION_TYPES } from '@/lib/constants';
 import { assertUserOwnsPath } from '@/lib/storage';
-import type { Submission } from '@/types/database';
+import type { Submission, NewSubmission } from '@/types/database';
 
 const updateSchema = z.object({
   title: z.string().min(3).max(200).optional(),
@@ -62,7 +62,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'This submission is no longer editable.' }, { status: 403 });
   }
 
-  const updates: Record<string, unknown> = {};
+  const updates: Partial<NewSubmission> = {};
 
   if (parsed.data.title) updates.title = parsed.data.title;
   if (parsed.data.type) updates.type = parsed.data.type;

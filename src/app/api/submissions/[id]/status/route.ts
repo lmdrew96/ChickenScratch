@@ -5,9 +5,11 @@ import { eq } from 'drizzle-orm';
 
 import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
-import { submissions, auditLog, profiles } from '@/lib/db/schema';
+import { submissions, auditLog, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
+import { hasCommitteeAccess, hasOfficerAccess, hasEditorAccess } from '@/lib/auth/guards';
 import { sendSubmissionEmail } from '@/lib/email';
+import type { NewSubmission } from '@/types/database';
 
 const statusSchema = z.object({
   status: z.enum(['in_review', 'needs_revision', 'accepted', 'declined']),
@@ -31,11 +33,28 @@ export async function POST(
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  if (!profile.role || !['editor', 'admin'].includes(profile.role)) {
+  const database = db();
+
+  // Check new user_roles table first
+  const userRoleRows = await database
+    .select()
+    .from(userRoles)
+    .where(eq(userRoles.user_id, profile.id))
+    .limit(1);
+  const userRoleData = userRoleRows[0];
+
+  const hasNewRoleAccess = userRoleData?.is_member && (
+    hasOfficerAccess(userRoleData.positions, userRoleData.roles) ||
+    hasCommitteeAccess(userRoleData.positions, userRoleData.roles) ||
+    hasEditorAccess(userRoleData.positions, userRoleData.roles)
+  );
+
+  // Fall back to legacy profile.role
+  const hasLegacyAccess = profile.role === 'editor' || profile.role === 'admin';
+
+  if (!hasNewRoleAccess && !hasLegacyAccess) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-
-  const database = db();
 
   const submissionResult = await database
     .select({
@@ -59,7 +78,7 @@ export async function POST(
     return NextResponse.json({ error: 'Editor notes are required for revisions.' }, { status: 400 });
   }
 
-  const updates: Record<string, unknown> = {
+  const updates: Partial<NewSubmission> = {
     status: parsed.data.status,
   };
 
