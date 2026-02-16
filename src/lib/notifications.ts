@@ -18,10 +18,14 @@ export const notificationSchema = z.object({
 
 export type NotificationPayload = z.infer<typeof notificationSchema>;
 
-const STATUS_TO_POSITION: Record<string, string> = {
-  'with_proofreader': 'Proofreader',
-  'with_lead_design': 'Lead Design',
-  'with_editor_in_chief': 'Editor-in-Chief',
+// Maps committee_status to the position that should be notified.
+// For 'coordinator_approved', the target depends on submission type:
+//   writing → Proofreader, visual → Lead Design
+// The submissionType field in the payload resolves this at runtime.
+const STATUS_TO_POSITION: Record<string, string | { writing: string; visual: string }> = {
+  'coordinator_approved': { writing: 'Proofreader', visual: 'Lead Design' },
+  'proofreader_committed': 'Lead Design',
+  'lead_design_committed': 'Editor-in-Chief',
 };
 
 export type NotificationResult = {
@@ -55,7 +59,13 @@ export async function sendSubmissionNotification(
   if (notificationType === 'new_submission') {
     targetPosition = 'Submissions Coordinator';
   } else if (committeeStatus && STATUS_TO_POSITION[committeeStatus]) {
-    targetPosition = STATUS_TO_POSITION[committeeStatus];
+    const mapping = STATUS_TO_POSITION[committeeStatus];
+    if (typeof mapping === 'string') {
+      targetPosition = mapping;
+    } else {
+      // Type-dependent routing (e.g. coordinator_approved → Proofreader or Lead Design)
+      targetPosition = submissionType === 'writing' ? mapping.writing : mapping.visual;
+    }
   } else {
     return { success: true, message: 'No notification required for this status' };
   }

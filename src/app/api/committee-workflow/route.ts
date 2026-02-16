@@ -13,7 +13,7 @@ import type { NewSubmission } from '@/types/database';
 
 const workflowActionSchema = z.object({
   submissionId: z.string().uuid(),
-  action: z.enum(['review', 'approve', 'decline', 'commit', 'assign']),
+  action: z.enum(['review', 'approve', 'decline', 'commit', 'assign', 'final_approve', 'final_decline']),
   comment: z.string().optional(),
   linkUrl: z.string().url().optional(),
   assigneeId: z.string().uuid().optional(),
@@ -152,27 +152,30 @@ export async function POST(request: NextRequest) {
 
       case 'proofreader':
         if (action === 'commit' && linkUrl) {
+          newStatus = 'proofreader_committed';
           updatePayload.google_docs_link = linkUrl;
-          updatePayload.committee_status = 'proofreader_committed';
+          updatePayload.committee_status = newStatus;
           updatePayload.proofreader_committed_at = new Date();
         }
         break;
 
       case 'lead_design':
         if (action === 'commit' && linkUrl) {
+          newStatus = 'lead_design_committed';
           updatePayload.lead_design_commit_link = linkUrl;
-          updatePayload.committee_status = 'lead_design_committed';
+          updatePayload.committee_status = newStatus;
           updatePayload.lead_design_committed_at = new Date();
         }
         break;
 
       case 'editor_in_chief':
-        if (action === 'approve') {
-          updatePayload.committee_status = 'editor_approved';
+        if (action === 'approve' || action === 'final_approve') {
+          newStatus = 'editor_approved';
+          updatePayload.committee_status = newStatus;
           updatePayload.editor_reviewed_at = new Date();
-        } else if (action === 'decline') {
-          // Special handling: EIC decline overrides all other statuses and moves directly to editor_declined
-          updatePayload.committee_status = 'editor_declined';
+        } else if (action === 'decline' || action === 'final_decline') {
+          newStatus = 'editor_declined';
+          updatePayload.committee_status = newStatus;
           updatePayload.decline_reason = comment;
           updatePayload.editor_reviewed_at = new Date();
         }
@@ -202,8 +205,8 @@ export async function POST(request: NextRequest) {
       .set(updatePayload)
       .where(eq(submissions.id, submissionId));
 
-    // Send notification if status changed to a committee member assignment
-    if (newStatus && ['with_proofreader', 'with_lead_design', 'with_editor_in_chief'].includes(newStatus)) {
+    // Send notification when a submission transitions to a new role's responsibility
+    if (newStatus && ['coordinator_approved', 'proofreader_committed', 'lead_design_committed'].includes(newStatus)) {
       try {
         const authorRows = await database
           .select({ full_name: profiles.full_name, email: profiles.email })

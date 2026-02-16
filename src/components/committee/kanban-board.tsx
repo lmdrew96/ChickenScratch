@@ -71,63 +71,25 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           id: 'new',
           title: 'New Submissions',
           submissions: submissions.filter(s => !s.committee_status || s.committee_status === 'pending_coordinator'),
-          canInteract: true
+          canInteract: false
         },
         {
           id: 'coordinator_reviewing',
           title: 'Coordinator Review',
           submissions: submissions.filter(s => s.committee_status === 'with_coordinator'),
-          canInteract: true
+          canInteract: false
         },
         {
           id: 'coordinator_approved',
           title: 'Coordinator Approved',
           submissions: submissions.filter(s => s.committee_status === 'coordinator_approved'),
-          canInteract: true
-        },
-        {
-          id: 'proofreader_assigned',
-          title: 'Proofreader Assigned',
-          submissions: submissions.filter(s =>
-            s.committee_status === 'coordinator_approved' && s.type === 'writing'
-          ),
-          canInteract: true
-        },
-        {
-          id: 'proofreader_in_progress',
-          title: 'Proofreading',
-          submissions: submissions.filter(s =>
-            s.google_docs_link && !s.proofreader_committed_at && s.type === 'writing'
-          ),
-          canInteract: true
+          canInteract: false
         },
         {
           id: 'proofreader_committed',
           title: 'Proofread Complete',
           submissions: submissions.filter(s => s.committee_status === 'proofreader_committed'),
-          canInteract: true
-        },
-        {
-          id: 'design_visual_assigned',
-          title: 'Design: Visual Art',
-          submissions: submissions.filter(s =>
-            s.committee_status === 'coordinator_approved' && s.type === 'visual'
-          ),
-          canInteract: true
-        },
-        {
-          id: 'design_from_proofread',
-          title: 'Design: From Proofread',
-          submissions: submissions.filter(s => s.committee_status === 'proofreader_committed'),
-          canInteract: true
-        },
-        {
-          id: 'design_in_canva',
-          title: 'In Canva',
-          submissions: submissions.filter(s =>
-            s.lead_design_commit_link && !s.lead_design_committed_at
-          ),
-          canInteract: true
+          canInteract: false
         },
         {
           id: 'design_committed',
@@ -136,26 +98,16 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
           canInteract: true
         },
         {
-          id: 'eic_ready_for_review',
-          title: 'EIC: Final Review',
-          submissions: submissions.filter(s =>
-            s.committee_status === 'with_editor_in_chief' ||
-            s.committee_status === 'lead_design_committed' ||
-            s.committee_status === 'proofreader_committed'
-          ),
-          canInteract: true
-        },
-        {
           id: 'eic_approved',
           title: 'EIC: Approved',
           submissions: submissions.filter(s => s.committee_status === 'editor_approved'),
-          canInteract: true
+          canInteract: false
         },
         {
           id: 'eic_declined',
-          title: 'EIC: Declined',
+          title: 'Declined',
           submissions: submissions.filter(s => s.committee_status === 'editor_declined' || s.committee_status === 'coordinator_declined'),
-          canInteract: true
+          canInteract: false
         }
       ];
     }
@@ -340,6 +292,8 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
 
     if (type === 'google_docs' || type === 'canva_link') {
       await submitAction(submission, 'commit', value.trim());
+    } else if (type === 'final_decline') {
+      await submitAction(submission, 'final_decline', undefined, value.trim());
     } else {
       await submitAction(submission, 'decline', undefined, value.trim());
     }
@@ -372,8 +326,11 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
     if (userRole === 'lead_design') {
       return [{ label: 'Add to Canva', action: 'canva_link', variant: 'primary' as const }];
     }
-    if (userRole === 'editor_in_chief') {
-      return [{ label: 'Final Review', action: 'approve', variant: 'primary' as const }];
+    if (userRole === 'editor_in_chief' && columnId === 'design_committed') {
+      return [
+        { label: 'Approve', action: 'final_approve', variant: 'success' as const },
+        { label: 'Decline', action: 'final_decline', variant: 'danger' as const }
+      ];
     }
 
     return [];
@@ -625,7 +582,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
               <div>
                 <dt className="text-sm font-medium text-white/80 mb-1">Workflow Status</dt>
                 <dd className="text-sm text-white/70">
-                  {selectedSubmission.committee_status?.replace('_', ' ') || 'Pending'}
+                  {selectedSubmission.committee_status?.replaceAll('_', ' ') || 'Pending'}
                 </dd>
               </div>
 

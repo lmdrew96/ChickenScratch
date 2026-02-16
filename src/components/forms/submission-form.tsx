@@ -60,7 +60,7 @@ type SubmissionFormProps = {
   redirectTo?: string;
 };
 
-export function SubmissionForm(_props: SubmissionFormProps = {}) {
+export function SubmissionForm({}: SubmissionFormProps = {}) {
   const router = useRouter();
   const [kind, setKind] = useState<SubmissionKind>('visual');
   const categoryOptions = kind === 'writing' ? WRITING_CATEGORIES : VISUAL_CATEGORIES;

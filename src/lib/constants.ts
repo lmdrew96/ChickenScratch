@@ -13,6 +13,18 @@ export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 
 export const EDITABLE_STATUSES: readonly string[] = ['submitted', 'needs_revision'];
 
+export const COMMITTEE_STATUSES = [
+  'pending_coordinator',
+  'with_coordinator',
+  'coordinator_approved',
+  'coordinator_declined',
+  'proofreader_committed',
+  'lead_design_committed',
+  'editor_approved',
+  'editor_declined',
+] as const;
+export type CommitteeStatus = (typeof COMMITTEE_STATUSES)[number];
+
 export function isSubmissionStatus(value: string | null | undefined): value is SubmissionStatus {
   return typeof value === 'string' && (SUBMISSION_STATUSES as readonly string[]).includes(value);
 }
