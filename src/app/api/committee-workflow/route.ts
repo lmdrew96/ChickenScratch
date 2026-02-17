@@ -9,6 +9,7 @@ import { submissions, userRoles, profiles, auditLog } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import { sendSubmissionNotification } from '@/lib/notifications';
+import { convertSubmissionToGDoc } from '@/lib/convert-to-gdoc';
 import type { NewSubmission } from '@/types/database';
 
 const workflowActionSchema = z.object({
@@ -104,38 +105,20 @@ export async function POST(request: NextRequest) {
             updatePayload.committee_status = newStatus;
           } else if (submission.committee_status === 'with_coordinator') {
             // Under Review → Trigger Make webhook for file conversion
-            try {
-              // Call the convert-to-gdoc endpoint
-              const convertResponse = await fetch(`${request.nextUrl.origin}/api/convert-to-gdoc`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ submission_id: submissionId }),
-              });
+            const convertResult = await convertSubmissionToGDoc(submissionId, profile.id);
 
-              if (!convertResponse.ok) {
-                const errorData = await convertResponse.json();
-                return NextResponse.json(
-                  { error: errorData.error || 'Failed to convert file to Google Doc' },
-                  { status: convertResponse.status }
-                );
-              }
-
-              const convertResult = await convertResponse.json();
-
-              // Return the Google Doc URL so frontend can open it
-              revalidatePath('/committee');
-              return NextResponse.json({
-                success: true,
-                google_doc_url: convertResult.google_doc_url
-              });
-            } catch {
+            if (!convertResult.success) {
               return NextResponse.json(
-                { error: 'Failed to convert file to Google Doc' },
-                { status: 500 }
+                { error: convertResult.error },
+                { status: convertResult.status }
               );
             }
+
+            revalidatePath('/committee');
+            return NextResponse.json({
+              success: true,
+              google_doc_url: convertResult.google_doc_url,
+            });
           }
         } else if (action === 'approve') {
           // Move to "Approved" column and route to next step
