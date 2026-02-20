@@ -1,4 +1,4 @@
-import { eq, gte, count, arrayContains, arrayOverlaps, inArray } from 'drizzle-orm';
+import { eq, gte, count, arrayContains, arrayOverlaps, inArray, or, isNull } from 'drizzle-orm';
 
 import PageHeader from '@/components/shell/page-header';
 import { requireOfficerRole } from '@/lib/auth/guards';
@@ -75,7 +75,19 @@ export default async function OfficersPage() {
     totalUsersResult,
   ] = await Promise.all([
     database.select({ count: count() }).from(submissions).where(gte(submissions.created_at, firstDayOfMonth)),
-    database.select({ count: count() }).from(submissions).where(eq(submissions.status, 'submitted')),
+    database.select({ count: count() }).from(submissions).where(
+      or(
+        isNull(submissions.committee_status),
+        inArray(submissions.committee_status, [
+          'pending_coordinator',
+          'with_coordinator',
+          'coordinator_approved',
+          'changes_requested',
+          'proofreader_committed',
+          'lead_design_committed',
+        ])
+      )
+    ),
     database.select({ count: count() }).from(submissions).where(eq(submissions.published, true)),
     database.select({ count: count() }).from(userRoles).where(arrayContains(userRoles.roles, ['committee'])),
     database.select({ count: count() }).from(profiles),
