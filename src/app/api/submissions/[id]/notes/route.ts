@@ -3,10 +3,10 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 
-import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import { submissions, auditLog } from '@/lib/db/schema';
-import { ensureProfile } from '@/lib/auth/clerk';
+import { requireProfile } from '@/lib/auth';
+import { getCurrentUserRole } from '@/lib/actions/roles';
 
 const notesSchema = z.object({
   editorNotes: z.string().max(4000).optional().nullable(),
@@ -24,12 +24,12 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid notes payload.' }, { status: 400 });
   }
 
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const profile = await ensureProfile(userId);
-  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { profile } = await requireProfile();
 
-  if (!profile.role || !['editor', 'admin'].includes(profile.role)) {
+  const userRole = await getCurrentUserRole();
+  const isEditorInChief = userRole?.positions?.includes('Editor-in-Chief');
+
+  if (!isEditorInChief) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
