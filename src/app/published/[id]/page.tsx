@@ -22,6 +22,10 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
     text_body: string | null;
     published_url: string | null;
     issue: string | null;
+    volume: number | null;
+    issue_number: number | null;
+    publish_date: Date | null;
+    published_html: string | null;
     updated_at: Date | null;
   } | null = null;
   let encounteredLoadIssue = false;
@@ -39,6 +43,10 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
         text_body: submissions.text_body,
         published_url: submissions.published_url,
         issue: submissions.issue,
+        volume: submissions.volume,
+        issue_number: submissions.issue_number,
+        publish_date: submissions.publish_date,
+        published_html: submissions.published_html,
         updated_at: submissions.updated_at,
       })
       .from(submissions)
@@ -89,7 +97,11 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
           <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/60">
             {submission.type === 'writing' ? 'Writing' : 'Visual art'}
           </span>
-          {submission.issue ? (
+          {(submission.volume && submission.issue_number) ? (
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/60">
+              Vol. {submission.volume}, No. {submission.issue_number}
+            </span>
+          ) : submission.issue ? (
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/60">{submission.issue}</span>
           ) : null}
         </div>
@@ -115,17 +127,26 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
       {submission.type === 'writing' ? (
         <article className="space-y-4 rounded-xl border border-white/10 bg-white/5 p-6 text-sm leading-relaxed text-white/80">
           <p className="text-xs uppercase tracking-wide text-white/50">
-            Published {submission.updated_at ? submission.updated_at.toLocaleDateString() : 'recently'}
+            Published{' '}
+            {submission.publish_date
+              ? submission.publish_date.toLocaleDateString()
+              : submission.updated_at
+                ? submission.updated_at.toLocaleDateString()
+                : 'recently'}
+            {submission.volume && submission.issue_number
+              ? ` \u2014 Vol. ${submission.volume}, No. ${submission.issue_number}`
+              : submission.issue
+                ? ` \u2014 ${submission.issue}`
+                : ''}
           </p>
-          <div className="whitespace-pre-wrap">{submission.text_body ?? 'No text available.'}</div>
-          {submission.published_url ? (
-            <p className="text-xs text-amber-200">
-              External link:{' '}
-              <a href={submission.published_url} target="_blank" rel="noopener noreferrer" className="underline">
-                {submission.published_url}
-              </a>
-            </p>
-          ) : null}
+          {submission.published_html ? (
+            <div
+              className="prose prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ __html: submission.published_html }}
+            />
+          ) : (
+            <div className="whitespace-pre-wrap">{submission.text_body ?? 'No text available.'}</div>
+          )}
         </article>
       ) : (
         <section className="space-y-4">

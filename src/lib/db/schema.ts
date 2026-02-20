@@ -39,6 +39,10 @@ export const submissions = pgTable('submissions', {
   published: boolean('published'),
   published_url: text('published_url'),
   issue: text('issue'),
+  volume: integer('volume'),
+  issue_number: integer('issue_number'),
+  publish_date: timestamp('publish_date', { withTimezone: true }),
+  published_html: text('published_html'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   // Committee workflow fields

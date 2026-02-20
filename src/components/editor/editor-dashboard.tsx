@@ -86,9 +86,13 @@ export function EditorDashboard({
 
   const [notesDraft, setNotesDraft] = useState(selectedSubmission?.editor_notes ?? '');
   const [assignedEditor, setAssignedEditor] = useState(selectedSubmission?.assigned_editor_profile?.id ?? '');
-  const [publishUrl, setPublishUrl] = useState(selectedSubmission?.published_url ?? '');
-  const [publishIssue, setPublishIssue] = useState(selectedSubmission?.issue ?? '');
-  const [published, setPublished] = useState(!!selectedSubmission?.published);
+  const [volume, setVolume] = useState<number | ''>(selectedSubmission?.volume ?? '');
+  const [issueNumber, setIssueNumber] = useState<number | ''>(selectedSubmission?.issue_number ?? '');
+  const [publishDate, setPublishDate] = useState(
+    selectedSubmission?.publish_date
+      ? new Date(selectedSubmission.publish_date).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0]
+  );
 
   const canStudentEdit = selectedSubmission?.status ? EDITABLE_STATUSES.includes(selectedSubmission.status) : false;
 
@@ -100,9 +104,13 @@ export function EditorDashboard({
     }
     setNotesDraft(selectedSubmission.editor_notes ?? '');
     setAssignedEditor(selectedSubmission.assigned_editor_profile?.id ?? '');
-    setPublishUrl(selectedSubmission.published_url ?? '');
-    setPublishIssue(selectedSubmission.issue ?? '');
-    setPublished(!!selectedSubmission.published);
+    setVolume(selectedSubmission.volume ?? '');
+    setIssueNumber(selectedSubmission.issue_number ?? '');
+    setPublishDate(
+      selectedSubmission.publish_date
+        ? new Date(selectedSubmission.publish_date).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0]
+    );
   }, [selectedSubmission]);
 
   if (!selectedSubmission) {
@@ -320,25 +328,16 @@ export function EditorDashboard({
     }
   }
 
-  async function handlePublishToggle() {
-    if (!selectedSubmission) return;
+  async function handlePublish() {
+    if (!selectedSubmission || !volume || !issueNumber || !publishDate) return;
 
     // Validation
-    if (published && publishUrl && !isValidUrl(publishUrl)) {
-      notify({
-        title: 'Invalid URL',
-        description: 'Please enter a valid URL for the published work.',
-        variant: 'error',
-      });
+    if (typeof volume !== 'number' || volume < 1) {
+      notify({ title: 'Invalid volume', description: 'Volume must be a positive number.', variant: 'error' });
       return;
     }
-
-    if (publishIssue && publishIssue.length > 120) {
-      notify({
-        title: 'Issue name too long',
-        description: 'Issue name must be 120 characters or less.',
-        variant: 'error',
-      });
+    if (typeof issueNumber !== 'number' || issueNumber < 1) {
+      notify({ title: 'Invalid issue', description: 'Issue must be a positive number.', variant: 'error' });
       return;
     }
 
@@ -348,10 +347,12 @@ export function EditorDashboard({
         sub.id === selectedSubmission.id
           ? {
               ...sub,
-              published,
-              published_url: publishUrl || null,
-              issue: publishIssue || null,
-              status: published ? 'published' : sub.status,
+              published: true,
+              volume,
+              issue_number: issueNumber,
+              publish_date: new Date(publishDate),
+              issue: `Vol. ${volume}, No. ${issueNumber}`,
+              status: 'published' as const,
             }
           : sub
       )
@@ -363,16 +364,15 @@ export function EditorDashboard({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          published,
-          publishedUrl: publishUrl || null,
-          issue: publishIssue || null,
+          volume,
+          issueNumber,
+          publishDate: new Date(publishDate).toISOString(),
         }),
       },
-      published ? 'Marked as published successfully.' : 'Publication status removed successfully.',
+      'Published successfully.',
       'publish'
     );
 
-    // Revert optimistic update on failure
     if (!success) {
       setOptimisticSubmissions(submissions);
     }
@@ -391,15 +391,6 @@ export function EditorDashboard({
         description: error instanceof Error ? error.message : 'Unable to download file.',
         variant: 'error',
       });
-    }
-  }
-
-  function isValidUrl(url: string): boolean {
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
     }
   }
 
@@ -604,45 +595,60 @@ export function EditorDashboard({
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Publish options</Label>
-              <div className="flex items-center gap-2 text-sm text-white/70">
-                <input
-                  id="published-toggle"
-                  type="checkbox"
-                  checked={published}
-                  onChange={(event) => setPublished(event.target.checked)}
+              <Label>Publish to issue</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs text-white/50">Volume</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="1"
+                    value={volume}
+                    onChange={(event) => setVolume(event.target.value ? parseInt(event.target.value, 10) : '')}
+                    disabled={isAnyLoading}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-white/50">Issue</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="1"
+                    value={issueNumber}
+                    onChange={(event) => setIssueNumber(event.target.value ? parseInt(event.target.value, 10) : '')}
+                    disabled={isAnyLoading}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-white/50">Publish date</Label>
+                <Input
+                  type="date"
+                  value={publishDate}
+                  onChange={(event) => setPublishDate(event.target.value)}
                   disabled={isAnyLoading}
                 />
-                <Label htmlFor="published-toggle" className="text-sm text-white/80">
-                  Published
-                </Label>
               </div>
-              <Input
-                placeholder="Published URL"
-                value={publishUrl}
-                onChange={(event) => setPublishUrl(event.target.value)}
-                disabled={isAnyLoading}
-              />
-              <Input 
-                placeholder="Issue (Spring 2025)" 
-                value={publishIssue} 
-                onChange={(event) => setPublishIssue(event.target.value)}
-                maxLength={120}
-                disabled={isAnyLoading}
-              />
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={handlePublishToggle} 
-                disabled={loadingState.publish || isAnyLoading}
+              {selectedSubmission.published && selectedSubmission.volume && selectedSubmission.issue_number ? (
+                <p className="text-xs text-emerald-300">
+                  Currently published as Vol. {selectedSubmission.volume}, No. {selectedSubmission.issue_number}
+                </p>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePublish}
+                disabled={loadingState.publish || isAnyLoading || !volume || !issueNumber || !publishDate}
               >
                 {loadingState.publish ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    <span className="ml-2">Saving...</span>
+                    <span className="ml-2">Publishing...</span>
                   </>
+                ) : selectedSubmission.published ? (
+                  'Update publish settings'
                 ) : (
-                  'Save publish settings'
+                  'Publish'
                 )}
               </Button>
             </div>

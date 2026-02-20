@@ -9,10 +9,49 @@ import { submissions, auditLog } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 
 const publishSchema = z.object({
-  published: z.boolean(),
-  publishedUrl: z.string().url().optional().nullable(),
-  issue: z.string().max(120).optional().nullable(),
+  volume: z.number().int().positive(),
+  issueNumber: z.number().int().positive(),
+  publishDate: z.string(),
 });
+
+/**
+ * Extract body content from a full Google Docs /pub HTML page.
+ * Strips <script> and <style> tags for safety.
+ */
+function extractGDocBody(html: string): string {
+  // Extract content between <body> and </body>
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  const body = bodyMatch?.[1] ?? html;
+
+  // Strip <script> and <style> tags
+  return body
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .trim();
+}
+
+/**
+ * Fetch HTML export for a Google Doc via the built-in export URL.
+ * No "Publish to the web" step required.
+ */
+async function fetchGDocHtml(googleDocsLink: string): Promise<string | null> {
+  // Extract doc ID from URL like https://docs.google.com/document/d/{id}/edit
+  const match = googleDocsLink.match(/\/document\/d\/([^/]+)/);
+  if (!match) return null;
+
+  const docId = match[1];
+  const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=html`;
+
+  try {
+    const response = await fetch(exportUrl, { next: { revalidate: 0 } });
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    return extractGDocBody(html);
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -37,15 +76,35 @@ export async function POST(
 
   const database = db();
 
-  const updates: Record<string, unknown> = {
-    published: parsed.data.published,
-    published_url: parsed.data.publishedUrl ?? null,
-    issue: parsed.data.issue ?? null,
-  };
+  // Fetch the submission's google_docs_link for HTML conversion
+  let publishedHtml: string | null = null;
 
-  if (parsed.data.published) {
-    updates.status = 'published';
+  try {
+    const [row] = await database
+      .select({ google_docs_link: submissions.google_docs_link })
+      .from(submissions)
+      .where(eq(submissions.id, id))
+      .limit(1);
+
+    if (row?.google_docs_link) {
+      publishedHtml = await fetchGDocHtml(row.google_docs_link);
+    }
+  } catch {
+    // Non-fatal — we'll publish without HTML
   }
+
+  const { volume, issueNumber, publishDate } = parsed.data;
+
+  const updates = {
+    published: true,
+    status: 'published',
+    volume,
+    issue_number: issueNumber,
+    publish_date: new Date(publishDate),
+    published_html: publishedHtml,
+    // Derive a human-readable issue string for backward compat
+    issue: `Vol. ${volume}, No. ${issueNumber}`,
+  };
 
   try {
     await database
@@ -60,9 +119,12 @@ export async function POST(
     submission_id: id,
     actor_id: profile.id,
     action: 'publish',
-    details: Object.fromEntries(
-      Object.entries(updates).filter(([, value]) => value !== undefined)
-    ),
+    details: {
+      volume,
+      issue_number: issueNumber,
+      publish_date: publishDate,
+      has_published_html: publishedHtml !== null,
+    },
   });
 
   revalidatePath('/editor');

@@ -17,6 +17,9 @@ export default async function PublishedPage() {
     cover_image: string | null;
     published_url: string | null;
     issue: string | null;
+    volume: number | null;
+    issue_number: number | null;
+    publish_date: Date | null;
     art_files: unknown;
     updated_at: Date | null;
     created_at: Date | null;
@@ -33,6 +36,9 @@ export default async function PublishedPage() {
         cover_image: submissions.cover_image,
         published_url: submissions.published_url,
         issue: submissions.issue,
+        volume: submissions.volume,
+        issue_number: submissions.issue_number,
+        publish_date: submissions.publish_date,
         art_files: submissions.art_files,
         updated_at: submissions.updated_at,
         created_at: submissions.created_at,

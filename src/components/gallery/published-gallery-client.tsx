@@ -31,12 +31,20 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
   
   const itemsPerPage = 12;
 
+  // Derive issue label from structured fields with fallback to free-text
+  function getIssueLabel(submission: PublishedSubmission): string | null {
+    if (submission.volume && submission.issue_number) {
+      return `Vol. ${submission.volume}, No. ${submission.issue_number}`;
+    }
+    return submission.issue ?? null;
+  }
+
   // Get unique issues for filter
   const issues = useMemo(() => {
     const uniqueIssues = new Set(
       submissions
-        .map(s => s.issue)
-        .filter((issue): issue is string => issue !== null && issue !== undefined)
+        .map(s => getIssueLabel(s))
+        .filter((label): label is string => label !== null)
     );
     return Array.from(uniqueIssues).sort();
   }, [submissions]);
@@ -50,7 +58,7 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
       
       const matchesType = typeFilter === 'all' || submission.type === typeFilter;
       
-      const matchesIssue = issueFilter === 'all' || submission.issue === issueFilter;
+      const matchesIssue = issueFilter === 'all' || getIssueLabel(submission) === issueFilter;
       
       return matchesSearch && matchesType && matchesIssue;
     });
@@ -230,8 +238,8 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
               <div className="flex flex-1 flex-col gap-3 p-5">
                 <div className="flex items-center gap-2 text-xs text-white/60">
                   <StatusBadge status="published" />
-                  {submission.issue && (
-                    <span className="rounded-full bg-white/10 px-2 py-1">{submission.issue}</span>
+                  {getIssueLabel(submission) && (
+                    <span className="rounded-full bg-white/10 px-2 py-1">{getIssueLabel(submission)}</span>
                   )}
                   <span>{submission.type === 'writing' ? 'Writing' : 'Visual art'}</span>
                 </div>
