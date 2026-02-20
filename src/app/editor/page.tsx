@@ -1,19 +1,16 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { desc, inArray } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 
 import PageHeader from '@/components/shell/page-header';
 import { requireUser } from '@/lib/auth/guards';
 import { getCurrentUserRole } from '@/lib/actions/roles';
 import { db } from '@/lib/db';
-import { submissions, profiles } from '@/lib/db/schema';
-import { SubmissionsListWithDelete } from '@/components/editor/submissions-list-with-delete';
+import { submissions, profiles, userRoles } from '@/lib/db/schema';
+import { EditorDashboard } from '@/components/editor/editor-dashboard';
+import type { EditorSubmission } from '@/components/editor/editor-dashboard';
 import { ExportReportButton } from '@/components/editor/export-report-button';
 import type { Submission } from '@/types/database';
-
-interface SubmissionWithAuthor extends Submission {
-  author_name?: string;
-}
 
 // Committee status type
 type CommitteeStatus = Submission['committee_status'];
@@ -56,7 +53,7 @@ function getDaysSince(date: Date | string | null): number {
 
 export default async function EditorInChiefDashboard() {
   // Require user to be logged in
-  await requireUser('/editor');
+  const { profile: viewerProfile } = await requireUser('/editor');
 
   // Get user role from user_roles table
   const userRole = await getCurrentUserRole();
@@ -73,9 +70,9 @@ export default async function EditorInChiefDashboard() {
     }
   }
 
-  // Fetch all submissions with author names
   const database = db();
-  let allSubmissions: SubmissionWithAuthor[] = [];
+  let allSubmissions: EditorSubmission[] = [];
+  let loadIssue = false;
 
   try {
     const data = await database
@@ -84,32 +81,69 @@ export default async function EditorInChiefDashboard() {
       .orderBy(desc(submissions.created_at));
 
     if (data) {
-      // Fetch author names for all submissions
-      const ownerIds = [...new Set(data.map((s) => s.owner_id))];
-      let profileMap = new Map<string, string | null>();
+      // Collect all profile IDs we need (owners + assigned editors)
+      const profileIds = new Set<string>();
+      data.forEach((s) => {
+        profileIds.add(s.owner_id);
+        if (s.assigned_editor) profileIds.add(s.assigned_editor);
+      });
 
-      if (ownerIds.length > 0) {
+      // Fetch all needed profiles in one query
+      const profileMap = new Map<string, { id: string; name: string | null; email: string | null; role: string | null }>();
+
+      if (profileIds.size > 0) {
         const profileRows = await database
-          .select({ id: profiles.id, name: profiles.name })
+          .select({ id: profiles.id, name: profiles.name, email: profiles.email, role: profiles.role })
           .from(profiles)
-          .where(inArray(profiles.id, ownerIds));
-        profileMap = new Map(profileRows.map((p) => [p.id, p.name]));
+          .where(inArray(profiles.id, [...profileIds]));
+        profileRows.forEach((p) => profileMap.set(p.id, p));
       }
 
-      allSubmissions = data.map((submission) => ({
-        ...submission,
-        author_name: profileMap.get(submission.owner_id) || undefined,
-      }));
+      allSubmissions = data.map((submission) => {
+        const ownerProfile = profileMap.get(submission.owner_id) ?? null;
+        const editorProfile = submission.assigned_editor
+          ? profileMap.get(submission.assigned_editor) ?? null
+          : null;
+
+        return {
+          ...submission,
+          art_files: Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [],
+          owner: ownerProfile,
+          assigned_editor_profile: editorProfile
+            ? { id: editorProfile.id, name: editorProfile.name, email: editorProfile.email }
+            : null,
+        };
+      });
     }
   } catch (error) {
     console.error('Failed to fetch submissions:', error);
+    loadIssue = true;
   }
 
-  // Check if user is admin (BBEG or Dictator-in-Chief)
-  const isAdmin = !!(
-    userRole?.positions?.includes('BBEG') ||
-    userRole?.positions?.includes('Dictator-in-Chief')
-  );
+  // Fetch editors for the assignment dropdown
+  let editors: { id: string; name: string | null; email: string | null; role: string | null }[] = [];
+  let rosterLoadIssue = false;
+
+  try {
+    const committeeMembers = await database
+      .select({ user_id: userRoles.user_id })
+      .from(userRoles)
+      .where(eq(userRoles.is_member, true));
+
+    const memberIds = committeeMembers.map((m) => m.user_id);
+
+    if (memberIds.length > 0) {
+      editors = await database
+        .select({ id: profiles.id, name: profiles.name, email: profiles.email, role: profiles.role })
+        .from(profiles)
+        .where(inArray(profiles.id, memberIds));
+    }
+  } catch (error) {
+    console.error('Failed to fetch editors:', error);
+    rosterLoadIssue = true;
+  }
+
+  const viewerName = viewerProfile.name || viewerProfile.email || 'Editor';
 
   // Calculate metrics
   const totalSubmissions = allSubmissions.length;
@@ -375,8 +409,14 @@ export default async function EditorInChiefDashboard() {
         </div>
       </section>
 
-      {/* All Submissions List with Delete Functionality */}
-      <SubmissionsListWithDelete submissions={allSubmissions} isAdmin={isAdmin} />
+      {/* Interactive Submissions Manager */}
+      <EditorDashboard
+        submissions={allSubmissions}
+        editors={editors}
+        viewerName={viewerName}
+        loadIssue={loadIssue}
+        rosterLoadIssue={rosterLoadIssue}
+      />
     </div>
   );
 }
