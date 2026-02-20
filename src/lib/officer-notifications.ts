@@ -95,7 +95,7 @@ export async function notifyOfficersOfAnnouncement(
 export async function notifyOfficersOfMeeting(
   title: string,
   description: string | null,
-  proposedDates: string[],
+  proposedDates: Array<{ date: string; time: string }>,
   authorName: string,
   excludeUserId?: string,
 ): Promise<OfficerEmailResult> {
@@ -208,7 +208,7 @@ function generateAnnouncementEmail(message: string, authorName: string): string 
 function generateMeetingEmail(
   title: string,
   description: string | null,
-  proposedDates: string[],
+  proposedDates: Array<{ date: string; time: string }>,
   authorName: string,
 ): string {
   const siteUrl = 'https://chickenscratch.me';
@@ -219,8 +219,8 @@ function generateMeetingEmail(
   const safeDescription = description ? escapeHtml(description) : null;
 
   const dateRows = proposedDates
-    .map((d) => {
-      const date = new Date(d);
+    .map((slot) => {
+      const date = new Date(`${slot.date}T${slot.time}`);
       const formatted = date.toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
