@@ -20,13 +20,13 @@ import type { Submission } from '@/types/database';
 
 export type EditorSubmission = Submission & {
   art_files: string[];
-  owner: { id: string; name: string | null; email: string | null; role: string | null } | null;
+  owner: { id: string; name: string | null; email: string | null } | null;
   assigned_editor_profile: { id: string | null; name: string | null; email: string | null } | null;
 };
 
 type EditorDashboardProps = {
   submissions: EditorSubmission[];
-  editors: { id: string; name: string | null; email: string | null; role: string | null }[];
+  editors: { id: string; name: string | null; email: string | null }[];
   viewerName: string;
   loadIssue?: boolean;
   rosterLoadIssue?: boolean;

@@ -9,7 +9,7 @@ import { getCurrentUserRole } from '@/lib/actions/roles';
 import type { Submission } from '@/types/database';
 
 export default async function CommitteePage() {
-  const { profile } = await requireCommitteeRole('/committee');
+  await requireCommitteeRole('/committee');
 
   // Fetch user's actual positions from user_roles table
   const userRole = await getCurrentUserRole();
@@ -27,7 +27,7 @@ export default async function CommitteePage() {
 
   // Determine display role and actual position for kanban board
   let displayRole = 'Committee Member';
-  let userPosition: string = profile.role ?? 'student'; // Fallback to legacy role
+  let userPosition = 'student';
 
   if (userRole && userRole.positions && userRole.positions.length > 0) {
     // Use the first committee position found
@@ -39,15 +39,6 @@ export default async function CommitteePage() {
       // Convert to lowercase snake_case for kanban board logic
       userPosition = position.toLowerCase().replace(/[- ]/g, '_');
     }
-  } else {
-    // Fallback to legacy role display
-    const roleDisplayNames = {
-      editor_in_chief: 'Editor-in-Chief',
-      submissions_coordinator: 'Submissions Coordinator',
-      proofreader: 'Proofreader',
-      lead_design: 'Lead Design'
-    };
-    displayRole = roleDisplayNames[profile.role as keyof typeof roleDisplayNames] || profile.role || 'Committee Member';
   }
 
   return (

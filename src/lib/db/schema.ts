@@ -8,7 +8,6 @@ export const profiles = pgTable('profiles', {
   full_name: text('full_name'),
   avatar_url: text('avatar_url'),
   pronouns: text('pronouns'),
-  role: text('role'),
   updated_at: timestamp('updated_at', { withTimezone: true }),
 }, (table) => [
   index('profiles_clerk_id_idx').on(table.clerk_id),

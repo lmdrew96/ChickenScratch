@@ -2,7 +2,7 @@ import { and, eq, lt, gt, isNull, isNotNull, ne, inArray, arrayContains, arrayOv
 
 import { db } from '@/lib/db';
 import { submissions, officerTasks, meetingProposals, officerAvailability, userRoles, profiles, reminderLog } from '@/lib/db/schema';
-import { OFFICER_POSITIONS, COMMITTEE_POSITIONS } from '@/lib/auth/guards';
+import { OFFICER_POSITIONS } from '@/lib/auth/guards';
 import { escapeHtml } from '@/lib/utils';
 
 const STALE_DAYS = 3;

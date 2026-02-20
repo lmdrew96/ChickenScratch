@@ -89,11 +89,11 @@ export default async function EditorInChiefDashboard() {
       });
 
       // Fetch all needed profiles in one query
-      const profileMap = new Map<string, { id: string; name: string | null; email: string | null; role: string | null }>();
+      const profileMap = new Map<string, { id: string; name: string | null; email: string | null }>();
 
       if (profileIds.size > 0) {
         const profileRows = await database
-          .select({ id: profiles.id, name: profiles.name, email: profiles.email, role: profiles.role })
+          .select({ id: profiles.id, name: profiles.name, email: profiles.email })
           .from(profiles)
           .where(inArray(profiles.id, [...profileIds]));
         profileRows.forEach((p) => profileMap.set(p.id, p));
@@ -121,7 +121,7 @@ export default async function EditorInChiefDashboard() {
   }
 
   // Fetch editors for the assignment dropdown
-  let editors: { id: string; name: string | null; email: string | null; role: string | null }[] = [];
+  let editors: { id: string; name: string | null; email: string | null }[] = [];
   let rosterLoadIssue = false;
 
   try {
@@ -134,7 +134,7 @@ export default async function EditorInChiefDashboard() {
 
     if (memberIds.length > 0) {
       editors = await database
-        .select({ id: profiles.id, name: profiles.name, email: profiles.email, role: profiles.role })
+        .select({ id: profiles.id, name: profiles.name, email: profiles.email })
         .from(profiles)
         .where(inArray(profiles.id, memberIds));
     }

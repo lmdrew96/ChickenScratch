@@ -43,16 +43,13 @@ export async function POST(
     .limit(1);
   const userRoleData = userRoleRows[0];
 
-  const hasNewRoleAccess = userRoleData?.is_member && (
+  const hasAccess = userRoleData?.is_member && (
     hasOfficerAccess(userRoleData.positions, userRoleData.roles) ||
     hasCommitteeAccess(userRoleData.positions, userRoleData.roles) ||
     hasEditorAccess(userRoleData.positions, userRoleData.roles)
   );
 
-  // Fall back to legacy profile.role
-  const hasLegacyAccess = profile.role === 'editor' || profile.role === 'admin';
-
-  if (!hasNewRoleAccess && !hasLegacyAccess) {
+  if (!hasAccess) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

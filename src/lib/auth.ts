@@ -44,18 +44,3 @@ export async function requireProfile() {
   }
   return { userId, profile };
 }
-
-export async function requireEditorProfile() {
-  const { userId, profile } = await requireProfile();
-  if (!profile || !profile.role || !['editor', 'admin'].includes(profile.role)) {
-    return null;
-  }
-  return { userId, profile };
-}
-
-export function roleLandingPath(role: Profile['role']) {
-  if (role === 'editor' || role === 'admin') {
-    return '/editor';
-  }
-  return '/mine';
-}
