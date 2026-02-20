@@ -121,3 +121,14 @@ export const officerAnnouncements = pgTable('officer_announcements', {
   created_by: uuid('created_by').notNull().references(() => profiles.id),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
+
+export const reminderLog = pgTable('reminder_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  entity_type: text('entity_type').notNull(),
+  entity_id: uuid('entity_id').notNull(),
+  reminder_type: text('reminder_type').notNull(),
+  sent_to: text('sent_to').notNull(),
+  sent_at: timestamp('sent_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('reminder_log_entity_idx').on(table.entity_type, table.entity_id),
+]);
