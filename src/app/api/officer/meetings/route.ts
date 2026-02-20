@@ -5,6 +5,7 @@ import { eq, desc, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { meetingProposals, officerAvailability, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
+import { notifyOfficersOfMeeting } from '@/lib/officer-notifications';
 
 export async function GET() {
   try {
@@ -150,6 +151,12 @@ export async function POST(request: NextRequest) {
       .returning();
 
     const proposal = result[0];
+
+    // Notify other officers (fire-and-forget)
+    const authorName = profile.name || profile.full_name || profile.email || 'An officer';
+    notifyOfficersOfMeeting(title, description || null, proposed_dates, authorName, profile.id).catch((err) =>
+      console.error('[officer-email] Failed to send meeting notification:', err)
+    );
 
     return NextResponse.json({ proposal }, { status: 201 });
   } catch (error) {
