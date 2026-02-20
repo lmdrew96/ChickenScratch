@@ -47,11 +47,11 @@ export async function GET() {
     const createdByIds = [...new Set(announcementRows.map((a) => a.created_by))];
     const profileRows = createdByIds.length > 0
       ? await database
-          .select({ id: profiles.id, name: profiles.name, email: profiles.email })
+          .select({ id: profiles.id, name: profiles.name, full_name: profiles.full_name, email: profiles.email })
           .from(profiles)
           .where(inArray(profiles.id, createdByIds))
       : [];
-    const profileMap = new Map(profileRows.map((p) => [p.id, { display_name: p.name, email: p.email }]));
+    const profileMap = new Map(profileRows.map((p) => [p.id, { display_name: p.name || p.full_name || p.email, email: p.email }]));
 
     // Assemble the response matching the old nested shape
     const announcements = announcementRows.map((announcement) => {

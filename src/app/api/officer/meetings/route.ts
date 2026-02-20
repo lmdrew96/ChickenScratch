@@ -49,11 +49,11 @@ export async function GET() {
     // Fetch profiles for proposal creators
     const creatorProfiles = createdByIds.length > 0
       ? await database
-          .select({ id: profiles.id, name: profiles.name, email: profiles.email })
+          .select({ id: profiles.id, name: profiles.name, full_name: profiles.full_name, email: profiles.email })
           .from(profiles)
           .where(inArray(profiles.id, createdByIds))
       : [];
-    const creatorMap = new Map(creatorProfiles.map((p) => [p.id, { display_name: p.name, email: p.email }]));
+    const creatorMap = new Map(creatorProfiles.map((p) => [p.id, { display_name: p.name || p.full_name || p.email, email: p.email }]));
 
     // Fetch all availability for these proposals
     const availabilityRows = await database
@@ -65,11 +65,11 @@ export async function GET() {
     const availUserIds = [...new Set(availabilityRows.map((a) => a.user_id))];
     const availProfiles = availUserIds.length > 0
       ? await database
-          .select({ id: profiles.id, name: profiles.name, email: profiles.email })
+          .select({ id: profiles.id, name: profiles.name, full_name: profiles.full_name, email: profiles.email })
           .from(profiles)
           .where(inArray(profiles.id, availUserIds))
       : [];
-    const availProfileMap = new Map(availProfiles.map((p) => [p.id, { display_name: p.name, email: p.email }]));
+    const availProfileMap = new Map(availProfiles.map((p) => [p.id, { display_name: p.name || p.full_name || p.email, email: p.email }]));
 
     // Group availability by proposal
     const availabilityByProposal = new Map<string, typeof availabilityRows>();

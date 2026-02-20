@@ -51,11 +51,11 @@ export async function GET() {
     // Fetch profiles for all referenced users
     const profileRows = userIds.length > 0
       ? await database
-          .select({ id: profiles.id, name: profiles.name, email: profiles.email })
+          .select({ id: profiles.id, name: profiles.name, full_name: profiles.full_name, email: profiles.email })
           .from(profiles)
           .where(inArray(profiles.id, userIds))
       : [];
-    const profileMap = new Map(profileRows.map((p) => [p.id, { display_name: p.name, email: p.email }]));
+    const profileMap = new Map(profileRows.map((p) => [p.id, { display_name: p.name || p.full_name || p.email, email: p.email }]));
 
     // Assemble the response matching the old nested shape
     const tasks = taskRows.map((task) => {
