@@ -76,7 +76,6 @@ export async function ensureProfile(clerkId: string): Promise<Profile | null> {
         email,
         clerk_id: clerkId,
         full_name: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
-        name: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
       })
       .returning();
 
