@@ -18,7 +18,7 @@ interface KanbanColumn {
 }
 
 type PromptState = {
-  type: 'google_docs' | 'canva_link' | 'decline' | 'final_decline';
+  type: 'google_docs' | 'canva_link' | 'decline' | 'final_decline' | 'request_changes';
   submission: Submission;
   value: string;
 };
@@ -36,7 +36,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
   // Focus the prompt input when it opens
   useEffect(() => {
     if (promptState) {
-      if (promptState.type === 'decline' || promptState.type === 'final_decline') {
+      if (promptState.type === 'decline' || promptState.type === 'final_decline' || promptState.type === 'request_changes') {
         promptTextareaRef.current?.focus();
       } else {
         promptInputRef.current?.focus();
@@ -279,6 +279,12 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
       return;
     }
 
+    if (action === 'request_changes') {
+      setIsProcessing(submission.id);
+      setPromptState({ type: 'request_changes', submission, value: '' });
+      return;
+    }
+
     await submitAction(submission, action);
   };
 
@@ -294,6 +300,8 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
       await submitAction(submission, 'commit', value.trim());
     } else if (type === 'final_decline') {
       await submitAction(submission, 'final_decline', undefined, value.trim());
+    } else if (type === 'request_changes') {
+      await submitAction(submission, 'request_changes', undefined, value.trim());
     } else {
       await submitAction(submission, 'decline', undefined, value.trim());
     }
@@ -315,6 +323,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
         return [
           { label: 'Review', action: 'review', variant: 'primary' as const },
           { label: 'Approve', action: 'approve', variant: 'success' as const },
+          { label: 'Request Changes', action: 'request_changes', variant: 'warning' as const },
           { label: 'Decline', action: 'decline', variant: 'danger' as const }
         ];
       }
@@ -329,6 +338,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
     if (userRole === 'editor_in_chief' && columnId === 'design_committed') {
       return [
         { label: 'Approve', action: 'final_approve', variant: 'success' as const },
+        { label: 'Request Changes', action: 'request_changes', variant: 'warning' as const },
         { label: 'Decline', action: 'final_decline', variant: 'danger' as const }
       ];
     }
@@ -402,6 +412,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                                 text-xs px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1
                                 ${button.variant === 'primary' ? 'text-[var(--accent)] hover:underline' : ''}
                                 ${button.variant === 'success' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}
+                                ${button.variant === 'warning' ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}
                                 ${button.variant === 'danger' ? 'bg-red-600 hover:bg-red-700 text-white' : ''}
                               `}
                               onClick={(e) => {
@@ -444,8 +455,9 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
               {promptState.type === 'google_docs' && 'Enter Google Docs Link'}
               {promptState.type === 'canva_link' && 'Enter Canva Share Link'}
               {(promptState.type === 'decline' || promptState.type === 'final_decline') && 'Enter Decline Reason'}
+              {promptState.type === 'request_changes' && 'Describe Changes Needed'}
             </h2>
-            {(promptState.type === 'decline' || promptState.type === 'final_decline') ? (
+            {(promptState.type === 'decline' || promptState.type === 'final_decline' || promptState.type === 'request_changes') ? (
               <textarea
                 ref={promptTextareaRef}
                 value={promptState.value}
@@ -453,7 +465,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                 onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) handlePromptSubmit(); }}
                 className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white placeholder-slate-400 focus:border-white/20 focus:outline-none"
                 rows={3}
-                placeholder="Reason for declining this submission..."
+                placeholder={promptState.type === 'request_changes' ? 'Describe what changes the author should make...' : 'Reason for declining this submission...'}
               />
             ) : (
               <input
@@ -611,6 +623,12 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                       Approve
                     </button>
                     <button
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg text-sm"
+                      onClick={() => handleAction(selectedSubmission, 'request_changes')}
+                    >
+                      Request Changes
+                    </button>
+                    <button
                       className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm"
                       onClick={() => handleAction(selectedSubmission, 'decline')}
                     >
@@ -641,6 +659,12 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                       onClick={() => handleAction(selectedSubmission, 'final_approve')}
                     >
                       Final Approve
+                    </button>
+                    <button
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg text-sm"
+                      onClick={() => handleAction(selectedSubmission, 'request_changes')}
+                    >
+                      Request Changes
                     </button>
                     <button
                       className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm"

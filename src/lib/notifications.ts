@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { inArray, arrayContains } from 'drizzle-orm';
+import { inArray, arrayContains, or } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { userRoles, profiles } from '@/lib/db/schema';
@@ -53,32 +53,34 @@ export async function sendSubmissionNotification(
     authorName,
   } = data;
 
-  // Determine which position should be notified
-  let targetPosition: string;
+  // Determine which position(s) should be notified
+  let targetPositions: string[];
 
   if (notificationType === 'new_submission') {
-    targetPosition = 'Submissions Coordinator';
+    targetPositions = ['Submissions Coordinator', 'Editor-in-Chief'];
   } else if (committeeStatus && STATUS_TO_POSITION[committeeStatus]) {
     const mapping = STATUS_TO_POSITION[committeeStatus];
     if (typeof mapping === 'string') {
-      targetPosition = mapping;
+      targetPositions = [mapping];
     } else {
       // Type-dependent routing (e.g. coordinator_approved → Proofreader or Lead Design)
-      targetPosition = submissionType === 'writing' ? mapping.writing : mapping.visual;
+      targetPositions = [submissionType === 'writing' ? mapping.writing : mapping.visual];
     }
   } else {
     return { success: true, message: 'No notification required for this status' };
   }
 
-  // Get users with the target position
+  // Get users with any of the target positions
   const database = db();
   const roleRows = await database
     .select({ user_id: userRoles.user_id, positions: userRoles.positions })
     .from(userRoles)
-    .where(arrayContains(userRoles.positions, [targetPosition]));
+    .where(
+      or(...targetPositions.map((pos) => arrayContains(userRoles.positions, [pos])))
+    );
 
   if (!roleRows || roleRows.length === 0) {
-    console.warn('[Notification] No users found with position:', targetPosition);
+    console.warn('[Notification] No users found with positions:', targetPositions.join(', '));
     return { success: true, message: 'No users found with required position' };
   }
 

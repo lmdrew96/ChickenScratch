@@ -13,6 +13,7 @@ import type { Submission, NewSubmission } from '@/types/database';
 
 const updateSchema = z.object({
   title: z.string().min(3).max(200).optional(),
+  preferredName: z.string().max(200).optional().nullable(),
   type: z.enum(SUBMISSION_TYPES).optional(),
   genre: z.string().max(120).optional().nullable(),
   summary: z.string().max(500).optional().nullable(),
@@ -65,6 +66,7 @@ export async function PATCH(
   const updates: Partial<NewSubmission> = {};
 
   if (parsed.data.title) updates.title = parsed.data.title;
+  if (parsed.data.preferredName !== undefined) updates.preferred_name = parsed.data.preferredName;
   if (parsed.data.type) updates.type = parsed.data.type;
   if (parsed.data.genre !== undefined) updates.genre = parsed.data.genre;
   if (parsed.data.summary !== undefined) updates.summary = parsed.data.summary;

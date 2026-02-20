@@ -11,13 +11,14 @@ export const SUBMISSION_STATUSES = [
 ] as const;
 export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 
-export const EDITABLE_STATUSES: readonly string[] = ['submitted', 'needs_revision'];
+export const EDITABLE_STATUSES: readonly string[] = ['needs_revision'];
 
 export const COMMITTEE_STATUSES = [
   'pending_coordinator',
   'with_coordinator',
   'coordinator_approved',
   'coordinator_declined',
+  'changes_requested',
   'proofreader_committed',
   'lead_design_committed',
   'editor_approved',

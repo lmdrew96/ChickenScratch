@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
     const type = formData.get('type')?.toString() ?? '';
     const genre = formData.get('genre')?.toString() || null;
     const summary = formData.get('summary')?.toString() || null;
+    const preferredName = formData.get('preferredName')?.toString() || null;
     const contentWarnings = formData.get('contentWarnings')?.toString() || null;
     const file = formData.get('file') as File | null;
 
@@ -86,6 +87,7 @@ export async function POST(request: NextRequest) {
       title,
       type,
       genre: genre || null,
+      preferred_name: preferredName,
       summary: summary || null,
       content_warnings: contentWarnings || null,
       file_url: uploadedPath,

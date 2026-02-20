@@ -22,6 +22,7 @@ export const submissions = pgTable('submissions', {
   type: text('type').notNull(),
   genre: text('genre'),
   summary: text('summary'),
+  preferred_name: text('preferred_name'),
   content_warnings: text('content_warnings'),
   word_count: integer('word_count'),
   text_body: text('text_body'),

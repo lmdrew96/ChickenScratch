@@ -1,15 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { SubmissionForm } from '@/components/forms/submission-form';
 import { StatusBadge } from '@/components/common/status-badge';
-import { Button } from '@/components/ui/button';
+import { ContentViewer } from '@/components/mine/content-viewer';
 import { EDITABLE_STATUSES, formatStatus } from '@/lib/constants';
+import { reviseSubmission } from '@/lib/actions/submissions';
 import type { Submission } from '@/types/database';
 import { useToast } from '@/components/ui/toast';
-import { getSignedDownloadUrl } from '@/lib/actions/storage';
 
 type MineSubmission = Submission & {
   art_files: string[];
@@ -47,15 +46,6 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
   }
 
   const canEdit = selectedSubmission.status ? EDITABLE_STATUSES.includes(selectedSubmission.status) : false;
-
-  async function downloadPath(path: string) {
-    const { signedUrl, error } = await getSignedDownloadUrl(path);
-    if (error || !signedUrl) {
-      notify({ title: 'Download failed', description: error ?? 'Unable to generate link.', variant: 'error' });
-      return;
-    }
-    window.open(signedUrl, '_blank');
-  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
@@ -121,42 +111,155 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
           </div>
         ) : null}
 
-        {selectedSubmission.type === 'writing' ? (
-          <article className="rounded-lg border border-white/10 bg-slate-900/40 p-4">
-            <p className="text-xs uppercase tracking-wide text-white/50">Text body</p>
-            <pre className="mt-2 whitespace-pre-wrap text-sm text-white/80">{selectedSubmission.text_body ?? ''}</pre>
-          </article>
+        {/* Content viewer */}
+        {selectedSubmission.type === 'writing' && selectedSubmission.file_url ? (
+          <ContentViewer
+            key={selectedSubmission.id}
+            filePath={selectedSubmission.file_url}
+            fileType={selectedSubmission.file_type}
+            fileName={selectedSubmission.file_name}
+            submissionType="writing"
+          />
+        ) : selectedSubmission.type === 'visual' && selectedSubmission.art_files.length > 0 ? (
+          <div className="space-y-4">
+            {selectedSubmission.art_files.map((path) => (
+              <ContentViewer
+                key={path}
+                filePath={path}
+                fileType={selectedSubmission.file_type}
+                fileName={path.split('/').pop() || null}
+                submissionType="visual"
+              />
+            ))}
+          </div>
         ) : (
-          <div className="space-y-3">
-            <p className="text-xs uppercase tracking-wide text-white/50">Attachments</p>
-            <ul className="space-y-2">
-              {selectedSubmission.art_files.map((path) => (
-                <li key={path} className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
-                  <span>{path.split('/').pop()}</span>
-                  <Button type="button" size="sm" variant="outline" onClick={() => downloadPath(path)}>
-                    Download
-                  </Button>
-                </li>
-              ))}
-              {selectedSubmission.art_files.length === 0 ? (
-                <li className="text-xs text-white/50">No attachments.</li>
-              ) : null}
-            </ul>
+          <div className="rounded-lg border border-white/10 bg-slate-900/40 p-4">
+            <p className="text-xs text-white/50">No content uploaded.</p>
           </div>
         )}
 
+        {/* Revision form — only when committee has requested changes */}
         {canEdit ? (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white">Update submission</h3>
-            <SubmissionForm mode="edit" submission={selectedSubmission} onSuccess={() => router.refresh()} />
-          </div>
-        ) : (
-          <p className="text-xs text-white/50">
-            Editing is disabled for this piece because it has moved past the revision stage. Reach out to the editors if you
-            need to make changes.
-          </p>
-        )}
+          <RevisionForm
+            submission={selectedSubmission}
+            onSuccess={() => {
+              notify({ title: 'Revision submitted', description: 'Your changes have been sent for re-review.', variant: 'success' });
+              router.refresh();
+            }}
+            onError={(msg) => {
+              notify({ title: 'Revision failed', description: msg, variant: 'error' });
+            }}
+          />
+        ) : null}
       </section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Inline revision form
+// ---------------------------------------------------------------------------
+
+function RevisionForm({
+  submission,
+  onSuccess,
+  onError,
+}: {
+  submission: { id: string; title: string; preferred_name: string | null; type: string; file_name: string | null };
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [title, setTitle] = useState(submission.title);
+  const [preferredName, setPreferredName] = useState(submission.preferred_name ?? '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const acceptedFormats = submission.type === 'writing'
+    ? '.doc,.docx,.pdf,.txt'
+    : '.jpg,.jpeg,.png,.gif,.webp,.pdf';
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const formData = new FormData();
+    formData.set('title', title.trim());
+    formData.set('preferredName', preferredName.trim());
+
+    const file = fileInputRef.current?.files?.[0];
+    if (file) {
+      formData.set('file', file);
+    }
+
+    const result = await reviseSubmission(submission.id, formData);
+
+    setIsSubmitting(false);
+
+    if (result.success) {
+      onSuccess();
+    } else {
+      onError(result.error || 'Something went wrong.');
+    }
+  }
+
+  return (
+    <div className="space-y-4 rounded-lg border border-amber-400/30 bg-amber-400/5 p-5">
+      <h3 className="text-lg font-semibold text-white">Revise your submission</h3>
+      <p className="text-sm text-white/60">
+        The committee has requested changes. Update the fields below and re-submit.
+      </p>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1">
+          <label htmlFor="rev-title" className="text-sm font-medium text-white/80">
+            Title
+          </label>
+          <input
+            id="rev-title"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={200}
+            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-[var(--accent)]"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label htmlFor="rev-name" className="text-sm font-medium text-white/80">
+            Preferred publishing name
+          </label>
+          <input
+            id="rev-name"
+            type="text"
+            value={preferredName}
+            onChange={(e) => setPreferredName(e.target.value)}
+            maxLength={200}
+            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-[var(--accent)]"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label htmlFor="rev-file" className="text-sm font-medium text-white/80">
+            Replace file {submission.file_name ? <span className="font-normal text-white/50">(current: {submission.file_name})</span> : null}
+          </label>
+          <input
+            id="rev-file"
+            ref={fileInputRef}
+            type="file"
+            accept={acceptedFormats}
+            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-1 file:text-sm file:font-medium file:text-white/80"
+          />
+          <p className="text-xs text-white/40">Leave empty to keep the current file.</p>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting || !title.trim()}
+          className="btn btn-accent disabled:opacity-50"
+        >
+          {isSubmitting ? 'Submitting...' : 'Submit revision'}
+        </button>
+      </form>
     </div>
   );
 }

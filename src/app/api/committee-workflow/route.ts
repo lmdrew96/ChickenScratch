@@ -9,12 +9,13 @@ import { submissions, userRoles, profiles, auditLog } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import { sendSubmissionNotification } from '@/lib/notifications';
+import { sendSubmissionEmail } from '@/lib/email';
 import { convertSubmissionToGDoc } from '@/lib/convert-to-gdoc';
 import type { NewSubmission } from '@/types/database';
 
 const workflowActionSchema = z.object({
   submissionId: z.string().uuid(),
-  action: z.enum(['review', 'approve', 'decline', 'commit', 'assign', 'final_approve', 'final_decline']),
+  action: z.enum(['review', 'approve', 'decline', 'commit', 'assign', 'final_approve', 'final_decline', 'request_changes']),
   comment: z.string().optional(),
   linkUrl: z.string().url().optional(),
   assigneeId: z.string().uuid().optional(),
@@ -130,6 +131,11 @@ export async function POST(request: NextRequest) {
           updatePayload.committee_status = newStatus;
           updatePayload.decline_reason = comment;
           updatePayload.coordinator_reviewed_at = new Date();
+        } else if (action === 'request_changes') {
+          newStatus = 'changes_requested';
+          updatePayload.committee_status = newStatus;
+          updatePayload.status = 'needs_revision';
+          updatePayload.editor_notes = comment || null;
         }
         break;
 
@@ -160,6 +166,12 @@ export async function POST(request: NextRequest) {
           newStatus = 'editor_declined';
           updatePayload.committee_status = newStatus;
           updatePayload.decline_reason = comment;
+          updatePayload.editor_reviewed_at = new Date();
+        } else if (action === 'request_changes') {
+          newStatus = 'changes_requested';
+          updatePayload.committee_status = newStatus;
+          updatePayload.status = 'needs_revision';
+          updatePayload.editor_notes = comment || null;
           updatePayload.editor_reviewed_at = new Date();
         }
         break;
@@ -208,6 +220,29 @@ export async function POST(request: NextRequest) {
         });
       } catch {
         // Notification failure should not block the workflow
+      }
+    }
+
+    // Send author email when changes are requested
+    if (newStatus === 'changes_requested') {
+      try {
+        const authorRows = await database
+          .select({ email: profiles.email })
+          .from(profiles)
+          .where(eq(profiles.id, submission.owner_id))
+          .limit(1);
+
+        const authorEmail = authorRows[0]?.email;
+        if (authorEmail) {
+          await sendSubmissionEmail({
+            template: 'needs_revision',
+            to: authorEmail,
+            submission: { id: submission.id, title: submission.title },
+            editorNotes: comment,
+          });
+        }
+      } catch {
+        // Email failure should not block the workflow
       }
     }
 
