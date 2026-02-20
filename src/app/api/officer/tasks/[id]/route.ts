@@ -13,7 +13,7 @@ const taskUpdateSchema = z.object({
   assigned_to: z.string().uuid().nullable().optional(),
   status: z.enum(['todo', 'in_progress', 'done']).optional(),
   priority: z.enum(['low', 'medium', 'high']).optional(),
-  due_date: z.string().datetime().nullable().optional(),
+  due_date: z.string().nullable().optional(),
 });
 
 async function checkOfficerAccess(profileId: string) {

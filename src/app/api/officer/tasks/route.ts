@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         description,
         assigned_to,
         priority: priority || 'medium',
-        due_date,
+        due_date: due_date ? new Date(due_date) : null,
         created_by: profile.id,
         status: 'todo',
       })
