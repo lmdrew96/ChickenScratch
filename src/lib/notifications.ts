@@ -158,7 +158,7 @@ function generateEmailHtml(
   submissionDate: string | undefined,
   isNewSubmission: boolean,
 ): string {
-  const committeeUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/committee`;
+  const committeeUrl = 'https://chickenscratch.me/committee';
   const headerText = isNewSubmission ? 'New Submission Received' : 'New Submission Assigned';
   const bodyText = isNewSubmission
     ? 'A new submission has been received and is ready for your review.'

@@ -78,7 +78,7 @@ function generateStatusEmailHtml(
   submission: Pick<Submission, 'id' | 'title'>,
   editorNotes?: string | null,
 ): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const siteUrl = 'https://chickenscratch.me';
   const logoUrl = `${siteUrl}/logo.png`;
   const mineUrl = `${siteUrl}/mine`;
   const { heading, body } = TEMPLATE_CONTENT[template];

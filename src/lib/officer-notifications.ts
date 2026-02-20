@@ -138,7 +138,7 @@ export async function notifyOfficersOfMeeting(
 // ---------------------------------------------------------------------------
 
 function generateAnnouncementEmail(message: string, authorName: string): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const siteUrl = 'https://chickenscratch.me';
   const logoUrl = `${siteUrl}/logo.png`;
   const officersUrl = `${siteUrl}/officers`;
   const safeMessage = escapeHtml(message);
@@ -211,7 +211,7 @@ function generateMeetingEmail(
   proposedDates: string[],
   authorName: string,
 ): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const siteUrl = 'https://chickenscratch.me';
   const logoUrl = `${siteUrl}/logo.png`;
   const officersUrl = `${siteUrl}/officers`;
   const safeTitle = escapeHtml(title);
