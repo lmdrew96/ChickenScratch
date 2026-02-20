@@ -35,27 +35,21 @@ export default async function OfficersPage() {
     ...officerPositionRows.map(r => r.user_id),
   ])];
 
-  let officerProfiles: { id: string; name: string | null; email: string | null }[] = [];
+  let officerProfiles: { id: string; name: string | null; full_name: string | null; email: string | null }[] = [];
   if (officerUserIds.length > 0) {
     officerProfiles = await database
-      .select({ id: profiles.id, name: profiles.name, email: profiles.email })
+      .select({ id: profiles.id, name: profiles.name, full_name: profiles.full_name, email: profiles.email })
       .from(profiles)
       .where(inArray(profiles.id, officerUserIds));
-  }
-
-  interface OfficerProfile {
-    id: string;
-    display_name: string;
-    email: string;
   }
 
   const officersList = officerProfiles
     .map((p) => ({
       id: p.id,
-      display_name: p.name || '',
+      display_name: p.name || p.full_name || p.email || '',
       email: p.email || '',
     }))
-    .filter((o): o is OfficerProfile => !!o.id && (!!o.display_name || !!o.email));
+    .filter((o) => !!o.id && !!o.display_name);
 
   // Check if user has admin access (BBEG or Dictator-in-Chief)
   const userRoleResult = await database

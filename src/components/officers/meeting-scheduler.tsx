@@ -121,6 +121,22 @@ export function MeetingScheduler({ userId }: { userId: string }) {
     }
   };
 
+  const handleWithdrawProposal = async (proposalId: string) => {
+    if (!confirm('Withdraw this meeting proposal? This cannot be undone.')) return;
+
+    try {
+      const response = await fetch(`/api/officer/meetings/${proposalId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchProposals();
+      }
+    } catch (error) {
+      console.error('Error withdrawing proposal:', error);
+    }
+  };
+
   if (loading) {
     return <div className="text-slate-300">Loading meetings...</div>;
   }
@@ -226,6 +242,7 @@ export function MeetingScheduler({ userId }: { userId: string }) {
               userId={userId}
               onMarkAvailability={handleMarkAvailability}
               onFinalize={handleFinalizeMeeting}
+              onWithdraw={handleWithdrawProposal}
             />
           ))
         )}
@@ -239,11 +256,13 @@ function MeetingProposalCard({
   userId,
   onMarkAvailability,
   onFinalize,
+  onWithdraw,
 }: {
   proposal: MeetingProposal;
   userId: string;
   onMarkAvailability: (proposalId: string, slots: number[]) => void;
   onFinalize: (proposalId: string, dateTime: string) => void;
+  onWithdraw: (proposalId: string) => void;
 }) {
   const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
   const userAvailability = proposal.officer_availability.find(a => a.user_id === userId);
@@ -283,10 +302,20 @@ function MeetingProposalCard({
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-6 space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold text-white">{proposal.title}</h3>
-        {proposal.description && (
-          <p className="text-sm text-slate-300 mt-1">{proposal.description}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white">{proposal.title}</h3>
+          {proposal.description && (
+            <p className="text-sm text-slate-300 mt-1">{proposal.description}</p>
+          )}
+        </div>
+        {proposal.created_by === userId && !proposal.finalized_date && (
+          <button
+            onClick={() => onWithdraw(proposal.id)}
+            className="shrink-0 rounded-lg border border-red-500/30 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            Withdraw
+          </button>
         )}
       </div>
 

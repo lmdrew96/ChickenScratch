@@ -6,6 +6,68 @@ import { db } from '@/lib/db';
 import { userRoles, meetingProposals, officerAvailability } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 
+export async function DELETE(
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await context.params;
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const profile = await ensureProfile(userId);
+    if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const database = db();
+
+    // Check if user has officer access
+    const userRoleResult = await database
+      .select({ roles: userRoles.roles, positions: userRoles.positions })
+      .from(userRoles)
+      .where(eq(userRoles.user_id, profile.id))
+      .limit(1);
+
+    const userRole = userRoleResult[0];
+    const hasOfficerAccess =
+      userRole?.roles?.includes('officer') ||
+      userRole?.positions?.some((p: string) =>
+        ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare'].includes(p)
+      );
+
+    if (!hasOfficerAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Verify the proposal exists and belongs to this user
+    const proposal = await database
+      .select({ id: meetingProposals.id, created_by: meetingProposals.created_by })
+      .from(meetingProposals)
+      .where(eq(meetingProposals.id, id))
+      .limit(1);
+
+    if (!proposal[0]) {
+      return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
+    }
+
+    if (proposal[0].created_by !== profile.id) {
+      return NextResponse.json({ error: 'Only the creator can withdraw a proposal' }, { status: 403 });
+    }
+
+    // Delete related availability rows first (FK constraint)
+    await database
+      .delete(officerAvailability)
+      .where(eq(officerAvailability.meeting_proposal_id, id));
+
+    // Delete the proposal
+    await database
+      .delete(meetingProposals)
+      .where(eq(meetingProposals.id, id));
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in DELETE /api/officer/meetings/[id]:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
