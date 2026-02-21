@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Resend } from 'resend';
 import { escapeHtml } from '@/lib/utils';
 import { env } from '@/lib/env';
+import { rateLimit, contactFormLimiter, getClientIp } from '@/lib/rate-limit';
 
 const CONTACT_RECIPIENTS = env.CONTACT_FORM_RECIPIENTS
   ? env.CONTACT_FORM_RECIPIENTS.split(',').map(e => e.trim()).filter(Boolean)
@@ -22,6 +23,15 @@ function getResend() {
 }
 
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request);
+  const limit = rateLimit(`contact:${ip}`, contactFormLimiter);
+  if (!limit.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(limit.retryAfterMs / 1000)) } },
+    );
+  }
+
   try {
     const body = await request.json();
     const parsed = contactFormSchema.safeParse(body);

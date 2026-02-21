@@ -11,6 +11,7 @@ import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import { sendSubmissionNotification } from '@/lib/notifications';
 import { sendSubmissionEmail } from '@/lib/email';
 import { convertSubmissionToGDoc } from '@/lib/convert-to-gdoc';
+import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 import type { NewSubmission } from '@/types/database';
 
 const workflowActionSchema = z.object({
@@ -33,6 +34,12 @@ export async function POST(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const limit = rateLimit(`workflow:${profile.id}`, apiMutationLimiter);
+  if (!limit.success) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
+  }
+
   const database = db();
 
   // Get user's roles from user_roles table

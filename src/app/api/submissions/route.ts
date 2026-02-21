@@ -9,6 +9,7 @@ import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess, hasEditorAccess } from '@/lib/auth/guards';
 import { uploadFile, getSubmissionsBucketName, getBucketName } from '@/lib/storage';
 import { sendSubmissionNotification } from '@/lib/notifications';
+import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 import type { NewSubmission } from '@/types/database';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -18,6 +19,11 @@ export async function POST(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const limit = rateLimit(`submit:${profile.id}`, apiMutationLimiter);
+  if (!limit.success) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
+  }
 
   try {
     const formData = await request.formData();

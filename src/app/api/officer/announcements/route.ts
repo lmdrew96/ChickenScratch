@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { officerAnnouncements, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { notifyOfficersOfAnnouncement } from '@/lib/officer-notifications';
+import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 
 export async function GET() {
   try {
@@ -78,6 +79,12 @@ export async function POST(request: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const profile = await ensureProfile(userId);
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const rl = rateLimit(`announcements:${profile.id}`, apiMutationLimiter);
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
+    }
+
     const database = db();
 
     // Check if user has officer access
