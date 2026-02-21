@@ -1,9 +1,9 @@
 import { headers } from 'next/headers';
 import { Webhook } from 'svix';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, lt } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
-import { profiles } from '@/lib/db/schema';
+import { profiles, webhookEvents } from '@/lib/db/schema';
 
 type ClerkWebhookEvent = {
   type: string;
@@ -47,6 +47,22 @@ export async function POST(req: Request) {
   }
 
   const database = db();
+
+  // Idempotency: skip if this event was already processed
+  const existing = await database
+    .select({ svix_id: webhookEvents.svix_id })
+    .from(webhookEvents)
+    .where(eq(webhookEvents.svix_id, svixId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    console.info('[webhook] Skipping duplicate event:', svixId);
+    return new Response('OK', { status: 200 });
+  }
+
+  // Record event as processed
+  await database.insert(webhookEvents).values({ svix_id: svixId });
+
   const { type, data } = evt;
   const clerkId = data.id;
   const email = data.email_addresses?.[0]?.email_address ?? null;
@@ -54,13 +70,13 @@ export async function POST(req: Request) {
 
   if (type === 'user.created' || type === 'user.updated') {
     // Try to find existing profile by clerk_id
-    const existing = await database
+    const existingProfile = await database
       .select({ id: profiles.id })
       .from(profiles)
       .where(eq(profiles.clerk_id, clerkId))
       .limit(1);
 
-    if (existing[0]) {
+    if (existingProfile[0]) {
       // Update existing profile
       await database
         .update(profiles)
@@ -94,6 +110,8 @@ export async function POST(req: Request) {
         });
       }
     }
+
+    console.info('[webhook] Processed', type, { clerkId, email });
   }
 
   if (type === 'user.deleted') {
@@ -102,7 +120,16 @@ export async function POST(req: Request) {
       .update(profiles)
       .set({ clerk_id: null })
       .where(eq(profiles.clerk_id, clerkId));
+
+    console.info('[webhook] Processed user.deleted', { clerkId });
   }
+
+  // Opportunistic cleanup: remove webhook events older than 7 days
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  await database
+    .delete(webhookEvents)
+    .where(lt(webhookEvents.processed_at, cutoff))
+    .catch(() => {}); // Best-effort, don't fail the request
 
   return new Response('OK', { status: 200 });
 }

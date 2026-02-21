@@ -132,6 +132,11 @@ export const reminderLog = pgTable('reminder_log', {
   index('reminder_log_entity_idx').on(table.entity_type, table.entity_id),
 ]);
 
+export const webhookEvents = pgTable('webhook_events', {
+  svix_id: text('svix_id').primaryKey(),
+  processed_at: timestamp('processed_at', { withTimezone: true }).defaultNow(),
+});
+
 export const notificationFailures = pgTable('notification_failures', {
   id: uuid('id').primaryKey().defaultRandom(),
   type: text('type').notNull(), // 'committee' | 'author_status' | 'officer' | 'reminder' | 'contact'
