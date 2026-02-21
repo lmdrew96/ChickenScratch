@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { submissions, officerTasks, meetingProposals, officerAvailability, userRoles, profiles, reminderLog } from '@/lib/db/schema';
 import { OFFICER_POSITIONS } from '@/lib/auth/guards';
 import { escapeHtml } from '@/lib/utils';
+import { logNotificationFailure } from '@/lib/email';
 
 const STALE_DAYS = 3;
 const BRAND_BLUE = '#00539f';
@@ -87,8 +88,14 @@ async function sendReminderEmail(to: string[], subject: string, html: string): P
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = await response.json().catch(() => ({}));
     console.error('[reminder] Resend API error:', errorData);
+    await logNotificationFailure({
+      type: 'reminder',
+      recipient: to.join(', '),
+      subject,
+      errorMessage: JSON.stringify(errorData),
+    });
     return false;
   }
 

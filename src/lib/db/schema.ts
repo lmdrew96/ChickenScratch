@@ -131,3 +131,13 @@ export const reminderLog = pgTable('reminder_log', {
 }, (table) => [
   index('reminder_log_entity_idx').on(table.entity_type, table.entity_id),
 ]);
+
+export const notificationFailures = pgTable('notification_failures', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  type: text('type').notNull(), // 'committee' | 'author_status' | 'officer' | 'reminder' | 'contact'
+  recipient: text('recipient').notNull(),
+  subject: text('subject').notNull(),
+  error_message: text('error_message').notNull(),
+  context: jsonb('context'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});

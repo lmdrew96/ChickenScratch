@@ -8,6 +8,7 @@ import {
   officerAvailability,
   officerTasks,
   officerAnnouncements,
+  notificationFailures,
 } from '@/lib/db/schema';
 
 // Generic JSON type (matches jsonb columns)
@@ -50,6 +51,10 @@ export type NewOfficerTask = InferInsertModel<typeof officerTasks>;
 // --- Officer Announcements ---
 export type OfficerAnnouncement = InferSelectModel<typeof officerAnnouncements>;
 export type NewOfficerAnnouncement = InferInsertModel<typeof officerAnnouncements>;
+
+// --- Notification Failures ---
+export type NotificationFailure = InferSelectModel<typeof notificationFailures>;
+export type NewNotificationFailure = InferInsertModel<typeof notificationFailures>;
 
 // Published submission types for the public gallery
 export type PublishedSubmissionRow = Pick<

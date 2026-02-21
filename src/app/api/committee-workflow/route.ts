@@ -9,7 +9,7 @@ import { submissions, userRoles, profiles, auditLog } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import { sendSubmissionNotification } from '@/lib/notifications';
-import { sendSubmissionEmail } from '@/lib/email';
+import { sendSubmissionEmail, logNotificationFailure } from '@/lib/email';
 import { convertSubmissionToGDoc } from '@/lib/convert-to-gdoc';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 import type { NewSubmission } from '@/types/database';
@@ -225,8 +225,14 @@ export async function POST(request: NextRequest) {
           submissionType: submission.type,
           authorName: authorProfile?.full_name || authorProfile?.email || 'Unknown',
         });
-      } catch {
-        // Notification failure should not block the workflow
+      } catch (err) {
+        await logNotificationFailure({
+          type: 'committee',
+          recipient: 'committee-workflow',
+          subject: `Committee notification for: ${submission.title}`,
+          errorMessage: err instanceof Error ? err.message : String(err),
+          context: { submissionId, newStatus, submissionTitle: submission.title },
+        }).catch(() => {});
       }
     }
 
@@ -248,8 +254,14 @@ export async function POST(request: NextRequest) {
             editorNotes: comment,
           });
         }
-      } catch {
-        // Email failure should not block the workflow
+      } catch (err) {
+        await logNotificationFailure({
+          type: 'author_status',
+          recipient: 'submission-author',
+          subject: `Changes requested: ${submission.title}`,
+          errorMessage: err instanceof Error ? err.message : String(err),
+          context: { submissionId, submissionTitle: submission.title, action: 'request_changes' },
+        }).catch(() => {});
       }
     }
 

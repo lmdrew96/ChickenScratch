@@ -1,5 +1,27 @@
 import { escapeHtml } from '@/lib/utils';
+import { db } from '@/lib/db';
+import { notificationFailures } from '@/lib/db/schema';
 import type { Submission } from '@/types/database';
+
+export async function logNotificationFailure(params: {
+  type: string;
+  recipient: string;
+  subject: string;
+  errorMessage: string;
+  context?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    await db().insert(notificationFailures).values({
+      type: params.type,
+      recipient: params.recipient,
+      subject: params.subject,
+      error_message: params.errorMessage,
+      context: params.context ?? null,
+    });
+  } catch {
+    console.error('[notification-failure-log] Failed to log notification failure:', params.subject);
+  }
+}
 
 type Template = 'needs_revision' | 'accepted' | 'declined';
 
@@ -42,8 +64,15 @@ export async function sendSubmissionEmail({ template, to, submission, editorNote
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = await response.json().catch(() => ({}));
     console.error('[email] Resend API error:', errorData);
+    await logNotificationFailure({
+      type: 'author_status',
+      recipient: to,
+      subject,
+      errorMessage: JSON.stringify(errorData),
+      context: { template, submissionId: submission.id, submissionTitle: submission.title },
+    });
     return { success: false } as const;
   }
 

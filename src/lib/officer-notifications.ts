@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { userRoles, profiles } from '@/lib/db/schema';
 import { OFFICER_POSITIONS } from '@/lib/auth/guards';
 import { escapeHtml } from '@/lib/utils';
+import { logNotificationFailure } from '@/lib/email';
 
 const BRAND_BLUE = '#00539f';
 const ACCENT_GOLD = '#ffd200';
@@ -81,8 +82,15 @@ export async function notifyOfficersOfAnnouncement(
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = await response.json().catch(() => ({}));
     console.error('[officer-email] Resend API error:', errorData);
+    await logNotificationFailure({
+      type: 'officer',
+      recipient: recipients.join(', '),
+      subject: 'New Officer Announcement — Chicken Scratch',
+      errorMessage: JSON.stringify(errorData),
+      context: { authorName },
+    });
     return { success: false };
   }
 
@@ -125,8 +133,15 @@ export async function notifyOfficersOfMeeting(
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = await response.json().catch(() => ({}));
     console.error('[officer-email] Resend API error:', errorData);
+    await logNotificationFailure({
+      type: 'officer',
+      recipient: recipients.join(', '),
+      subject: `New Meeting Proposal: ${title} — Chicken Scratch`,
+      errorMessage: JSON.stringify(errorData),
+      context: { title, authorName },
+    });
     return { success: false };
   }
 

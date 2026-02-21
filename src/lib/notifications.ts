@@ -4,6 +4,7 @@ import { inArray, arrayContains, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { userRoles, profiles } from '@/lib/db/schema';
 import { escapeHtml } from '@/lib/utils';
+import { logNotificationFailure } from '@/lib/email';
 
 export const notificationSchema = z.object({
   submissionId: z.string().uuid(),
@@ -140,8 +141,15 @@ export async function sendSubmissionNotification(
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = await response.json().catch(() => ({}));
     console.error('[Notification] Resend API error:', errorData);
+    await logNotificationFailure({
+      type: 'committee',
+      recipient: recipients.join(', '),
+      subject: emailSubject,
+      errorMessage: JSON.stringify(errorData),
+      context: { submissionId, submissionTitle, committeeStatus, notificationType },
+    });
     return { success: false, message: 'Failed to send email' };
   }
 
