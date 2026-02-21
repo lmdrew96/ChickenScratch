@@ -7,6 +7,7 @@ import Sidebar from '@/components/shell/sidebar'
 import { ErrorBoundary } from '@/components/shared/error-boundary'
 import { SkipLinks } from '@/components/accessibility';
 import { ToastProvider } from '@/components/ui/toast'
+import { SiteFooter } from '@/components/layout/site-footer'
 import { ensureProfile } from '@/lib/auth/clerk'
 import { db } from '@/lib/db'
 import { userRoles } from '@/lib/db/schema'
@@ -78,6 +79,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Sidebar signedIn={signedIn} userProfile={userProfile} navAccess={navAccess} />
                 <main id="main-content" className="main" role="main" aria-label="Main content">
                   <div className="container">{children}</div>
+                  <SiteFooter />
                 </main>
               </div>
             </ErrorBoundary>
