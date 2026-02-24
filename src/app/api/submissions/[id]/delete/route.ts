@@ -21,7 +21,7 @@ export async function DELETE(
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const database = db();
 
-  // Check if user has admin permissions (BBEG or Dictator-in-Chief)
+  // Check if user has admin permissions (Dictator-in-Chief or Scroll Gremlin)
   const userRoleResult = await database
     .select({ positions: userRoles.positions })
     .from(userRoles)
@@ -31,12 +31,12 @@ export async function DELETE(
   const userRole = userRoleResult[0];
 
   const isAdmin =
-    userRole?.positions?.includes('BBEG') ||
-    userRole?.positions?.includes('Dictator-in-Chief');
+    userRole?.positions?.includes('Dictator-in-Chief') ||
+    userRole?.positions?.includes('Scroll Gremlin');
 
   if (!isAdmin) {
     return NextResponse.json(
-      { error: 'Forbidden: Only BBEG or Dictator-in-Chief can delete submissions' },
+      { error: 'Forbidden: Only Dictator-in-Chief or Scroll Gremlin can delete submissions' },
       { status: 403 }
     );
   }

@@ -27,7 +27,7 @@ export default async function OfficersPage() {
     .select({ user_id: userRoles.user_id })
     .from(userRoles)
     .where(
-      arrayOverlaps(userRoles.positions, ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare'])
+      arrayOverlaps(userRoles.positions, ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'PR Nightmare'])
     );
 
   const officerUserIds = [...new Set([
@@ -60,7 +60,7 @@ export default async function OfficersPage() {
 
   const userRole = userRoleResult[0];
   const hasAdminAccess = userRole?.positions?.some((p: string) =>
-    ['BBEG', 'Dictator-in-Chief'].includes(p)
+    ['Dictator-in-Chief', 'Scroll Gremlin'].includes(p)
   );
 
   // Fetch stats

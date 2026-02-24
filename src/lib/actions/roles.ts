@@ -8,7 +8,7 @@ import { profiles, userRoles } from '@/lib/db/schema'
 import { ensureProfile } from '@/lib/auth/clerk'
 import type { UserRole } from '@/types/database'
 
-type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief'
+type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief'
 
 export async function getUserRole(userId: string): Promise<UserRole | { is_member: false; roles: ('officer' | 'committee')[]; positions: Position[] }> {
   const result = await db()
@@ -37,7 +37,7 @@ export async function getCurrentUserRole(): Promise<UserRole | { is_member: fals
 export async function isAdmin(): Promise<boolean> {
   const role = await getCurrentUserRole()
   if (!role) return false
-  return role.positions?.includes('BBEG') === true || role.positions?.includes('Dictator-in-Chief') === true
+  return role.positions?.includes('Dictator-in-Chief') === true || role.positions?.includes('Scroll Gremlin') === true
 }
 
 export async function updateUserRole(

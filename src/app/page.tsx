@@ -19,7 +19,7 @@ export default async function HomePage() {
   const isOfficer =
     userRole?.roles?.includes('officer') ||
     userRole?.positions?.some((p) =>
-      ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare'].includes(p)
+      ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'PR Nightmare'].includes(p)
     );
 
   return (

@@ -28,7 +28,7 @@ async function checkOfficerAccess(profileId: string) {
   return (
     userRole?.roles?.includes('officer') ||
     userRole?.positions?.some((p: string) =>
-      ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare'].includes(p)
+      ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'PR Nightmare'].includes(p)
     )
   );
 }

@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { updateUserRole } from '@/lib/actions/roles'
 import { Trash2, Search, Filter } from 'lucide-react'
 
-type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'Chief Hoarder' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief'
+type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief'
 
 type UserWithRole = {
   id: string
@@ -20,7 +20,6 @@ const OFFICER_POSITIONS: Position[] = [
   'BBEG',
   'Dictator-in-Chief',
   'Scroll Gremlin',
-  'Chief Hoarder',
   'PR Nightmare'
 ]
 
@@ -76,7 +75,7 @@ export default function AdminPanel({ initialUsers }: { initialUsers: UserWithRol
           case 'editor':
             return userPositions.includes('Editor-in-Chief')
           case 'admin':
-            return userPositions.includes('BBEG') || userPositions.includes('Dictator-in-Chief')
+            return userPositions.includes('Dictator-in-Chief') || userPositions.includes('Scroll Gremlin')
           default:
             return true
         }
@@ -221,7 +220,7 @@ export default function AdminPanel({ initialUsers }: { initialUsers: UserWithRol
               <option value="officer">Officer</option>
               <option value="committee">Committee</option>
               <option value="editor">Editor-in-Chief</option>
-              <option value="admin">Admin (BBEG/Dictator)</option>
+              <option value="admin">Admin (Dictator/Scroll Gremlin)</option>
             </select>
           </div>
 

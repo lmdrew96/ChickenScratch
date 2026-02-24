@@ -6,7 +6,7 @@ import { getCurrentUserRole } from '@/lib/actions/roles';
 type RoleRequirement = string | string[];
 
 // Officer positions (from user_roles table)
-export const OFFICER_POSITIONS = ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'Chief Hoarder', 'PR Nightmare'] as const;
+export const OFFICER_POSITIONS = ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'PR Nightmare'] as const;
 
 // Committee positions (from user_roles table)
 export const COMMITTEE_POSITIONS = ['Editor-in-Chief', 'Submissions Coordinator', 'Proofreader', 'Lead Design'] as const;
