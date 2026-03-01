@@ -11,7 +11,7 @@ const taskUpdateSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   description: z.string().max(2000).nullable().optional(),
   assigned_to: z.string().uuid().nullable().optional(),
-  status: z.enum(['todo', 'in_progress', 'done']).optional(),
+  status: z.enum(['todo', 'in_progress', 'completed']).optional(),
   priority: z.enum(['low', 'medium', 'high']).optional(),
   due_date: z.string().nullable().optional(),
 });
