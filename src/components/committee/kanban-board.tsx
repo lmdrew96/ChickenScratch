@@ -247,6 +247,13 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
         return;
       }
 
+      if (result.file_url) {
+        window.open(result.file_url, '_blank');
+        setIsProcessing(null);
+        router.refresh();
+        return;
+      }
+
       router.refresh();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Unknown error');
@@ -321,7 +328,7 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
       }
       if (columnId === 'reviewing') {
         return [
-          { label: 'Review', action: 'review', variant: 'primary' as const },
+          { label: submission.type === 'visual' ? 'View File' : 'Review', action: 'review', variant: 'primary' as const },
           { label: 'Approve', action: 'approve', variant: 'success' as const },
           { label: 'Request Changes', action: 'request_changes', variant: 'warning' as const },
           { label: 'Decline', action: 'decline', variant: 'danger' as const }

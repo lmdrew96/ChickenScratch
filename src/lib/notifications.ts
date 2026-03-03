@@ -1,8 +1,9 @@
 import { z } from 'zod';
-import { inArray, arrayContains, or } from 'drizzle-orm';
+import { inArray, arrayContains, arrayOverlaps } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { userRoles, profiles } from '@/lib/db/schema';
+import { OFFICER_POSITIONS, COMMITTEE_POSITIONS } from '@/lib/auth/guards';
 import { escapeHtml } from '@/lib/utils';
 import { logNotificationFailure } from '@/lib/email';
 
@@ -15,19 +16,21 @@ export const notificationSchema = z.object({
   submissionGenre: z.string().optional(),
   submissionDate: z.string().optional(),
   authorName: z.string().optional(),
+  actorUserId: z.string().uuid().optional(),
 });
 
 export type NotificationPayload = z.infer<typeof notificationSchema>;
 
-// Maps committee_status to the position that should be notified.
-// For 'coordinator_approved', the target depends on submission type:
-//   writing → Proofreader, visual → Lead Design
-// The submissionType field in the payload resolves this at runtime.
-const STATUS_TO_POSITION: Record<string, string | { writing: string; visual: string }> = {
-  'coordinator_approved': { writing: 'Proofreader', visual: 'Lead Design' },
-  'proofreader_committed': 'Lead Design',
-  'lead_design_committed': 'Editor-in-Chief',
-};
+// Statuses that should trigger a notification to all committee members & officers.
+const NOTIFIABLE_STATUSES = new Set([
+  'with_coordinator',
+  'coordinator_approved',
+  'coordinator_declined',
+  'proofreader_committed',
+  'lead_design_committed',
+  'editor_approved',
+  'editor_declined',
+]);
 
 export type NotificationResult = {
   success: boolean;
@@ -37,7 +40,58 @@ export type NotificationResult = {
 };
 
 /**
- * Sends a submission notification email to the appropriate committee members.
+ * Get email addresses for all committee members and officers, optionally
+ * excluding the user who triggered the action.
+ */
+async function getAllCommitteeAndOfficerEmails(excludeUserId?: string): Promise<string[]> {
+  const database = db();
+
+  // Get users with any committee position
+  const committeeRows = await database
+    .select({ user_id: userRoles.user_id })
+    .from(userRoles)
+    .where(arrayOverlaps(userRoles.positions, [...COMMITTEE_POSITIONS]));
+
+  // Get users with any officer position
+  const officerPositionRows = await database
+    .select({ user_id: userRoles.user_id })
+    .from(userRoles)
+    .where(arrayOverlaps(userRoles.positions, [...OFFICER_POSITIONS]));
+
+  // Get users with the 'officer' role
+  const officerRoleRows = await database
+    .select({ user_id: userRoles.user_id })
+    .from(userRoles)
+    .where(arrayContains(userRoles.roles, ['officer']));
+
+  // Get users with the 'committee' role
+  const committeeRoleRows = await database
+    .select({ user_id: userRoles.user_id })
+    .from(userRoles)
+    .where(arrayContains(userRoles.roles, ['committee']));
+
+  // Deduplicate user IDs and exclude the actor
+  const allUserIds = [...new Set([
+    ...committeeRows.map((r) => r.user_id),
+    ...officerPositionRows.map((r) => r.user_id),
+    ...officerRoleRows.map((r) => r.user_id),
+    ...committeeRoleRows.map((r) => r.user_id),
+  ])].filter((id) => id !== excludeUserId);
+
+  if (allUserIds.length === 0) return [];
+
+  const profileRows = await database
+    .select({ id: profiles.id, email: profiles.email })
+    .from(profiles)
+    .where(inArray(profiles.id, allUserIds));
+
+  return profileRows
+    .map((p) => p.email)
+    .filter((email): email is string => !!email);
+}
+
+/**
+ * Sends a submission notification email to all committee members and officers.
  * Can be called directly from server-side code — no HTTP request needed.
  */
 export async function sendSubmissionNotification(
@@ -52,55 +106,16 @@ export async function sendSubmissionNotification(
     submissionGenre,
     submissionDate,
     authorName,
+    actorUserId,
   } = data;
 
-  // Determine which position(s) should be notified
-  let targetPositions: string[];
-
-  if (notificationType === 'new_submission') {
-    targetPositions = ['Submissions Coordinator', 'Editor-in-Chief'];
-  } else if (committeeStatus && STATUS_TO_POSITION[committeeStatus]) {
-    const mapping = STATUS_TO_POSITION[committeeStatus];
-    if (typeof mapping === 'string') {
-      targetPositions = [mapping];
-    } else {
-      // Type-dependent routing (e.g. coordinator_approved → Proofreader or Lead Design)
-      targetPositions = [submissionType === 'writing' ? mapping.writing : mapping.visual];
-    }
-  } else {
+  // Validate that a notification is warranted
+  if (notificationType !== 'new_submission' && !(committeeStatus && NOTIFIABLE_STATUSES.has(committeeStatus))) {
     return { success: true, message: 'No notification required for this status' };
   }
 
-  // Get users with any of the target positions
-  const database = db();
-  const roleRows = await database
-    .select({ user_id: userRoles.user_id, positions: userRoles.positions })
-    .from(userRoles)
-    .where(
-      or(...targetPositions.map((pos) => arrayContains(userRoles.positions, [pos])))
-    );
-
-  if (!roleRows || roleRows.length === 0) {
-    console.warn('[Notification] No users found with positions:', targetPositions.join(', '));
-    return { success: true, message: 'No users found with required position' };
-  }
-
-  // Fetch profiles for these users
-  const roleUserIds = roleRows.map((r) => r.user_id);
-  const profileRows = await database
-    .select({ id: profiles.id, email: profiles.email, full_name: profiles.full_name })
-    .from(profiles)
-    .where(inArray(profiles.id, roleUserIds));
-
-  const profileMap = new Map(profileRows.map((p) => [p.id, p]));
-
-  // Extract emails
-  const recipients = roleRows
-    .map((role) => {
-      const prof = profileMap.get(role.user_id);
-      return prof?.email;
-    })
-    .filter((email): email is string => !!email);
+  // Get ALL committee members and officers, excluding the person who took the action
+  const recipients = await getAllCommitteeAndOfficerEmails(actorUserId);
 
   if (recipients.length === 0) {
     return { success: true, message: 'No valid email addresses found' };
@@ -109,9 +124,18 @@ export async function sendSubmissionNotification(
   const resendApiKey = process.env.RESEND_API_KEY;
 
   const isNewSubmission = notificationType === 'new_submission';
+  const STATUS_SUBJECTS: Record<string, string> = {
+    'with_coordinator': 'Under Review',
+    'coordinator_approved': 'Approved by Coordinator',
+    'coordinator_declined': 'Declined by Coordinator',
+    'proofreader_committed': 'Proofreader Committed',
+    'lead_design_committed': 'Design Committed',
+    'editor_approved': 'Approved by Editor-in-Chief',
+    'editor_declined': 'Declined by Editor-in-Chief',
+  };
   const emailSubject = isNewSubmission
     ? `New Submission Received: ${submissionTitle}`
-    : `New Submission Assigned: ${submissionTitle}`;
+    : `Submission ${STATUS_SUBJECTS[committeeStatus!] || 'Updated'}: ${submissionTitle}`;
 
   if (!resendApiKey) {
     return { success: true, message: 'Email logged (Resend not configured)', recipients };
@@ -136,6 +160,7 @@ export async function sendSubmissionNotification(
         submissionGenre,
         submissionDate,
         isNewSubmission,
+        committeeStatus,
       ),
     }),
   });
@@ -157,6 +182,37 @@ export async function sendSubmissionNotification(
   return { success: true, message: 'Notification sent', recipients, emailId: result.id };
 }
 
+const STATUS_LABELS: Record<string, { header: string; body: string }> = {
+  'with_coordinator': {
+    header: 'Submission Under Review',
+    body: 'A submission is now being reviewed by the Submissions Coordinator.',
+  },
+  'coordinator_approved': {
+    header: 'Submission Approved by Coordinator',
+    body: 'A submission has been approved by the Submissions Coordinator and is ready for the next step.',
+  },
+  'coordinator_declined': {
+    header: 'Submission Declined by Coordinator',
+    body: 'A submission has been declined by the Submissions Coordinator.',
+  },
+  'proofreader_committed': {
+    header: 'Proofreader Has Committed',
+    body: 'The proofreader has committed their work on a submission.',
+  },
+  'lead_design_committed': {
+    header: 'Design Has Been Committed',
+    body: 'The lead designer has committed their work on a submission.',
+  },
+  'editor_approved': {
+    header: 'Submission Approved by Editor-in-Chief',
+    body: 'A submission has received final approval from the Editor-in-Chief.',
+  },
+  'editor_declined': {
+    header: 'Submission Declined by Editor-in-Chief',
+    body: 'A submission has been declined by the Editor-in-Chief.',
+  },
+};
+
 function generateEmailHtml(
   title: string,
   type: string,
@@ -165,12 +221,23 @@ function generateEmailHtml(
   genre: string | undefined,
   submissionDate: string | undefined,
   isNewSubmission: boolean,
+  committeeStatus?: string,
 ): string {
   const committeeUrl = 'https://chickenscratch.me/committee';
-  const headerText = isNewSubmission ? 'New Submission Received' : 'New Submission Assigned';
-  const bodyText = isNewSubmission
-    ? 'A new submission has been received and is ready for your review.'
-    : 'A new submission has been assigned to you for review.';
+
+  let headerText: string;
+  let bodyText: string;
+
+  if (isNewSubmission) {
+    headerText = 'New Submission Received';
+    bodyText = 'A new submission has been received and is ready for review.';
+  } else if (committeeStatus && STATUS_LABELS[committeeStatus]) {
+    headerText = STATUS_LABELS[committeeStatus].header;
+    bodyText = STATUS_LABELS[committeeStatus].body;
+  } else {
+    headerText = 'Submission Updated';
+    bodyText = 'A submission has been updated.';
+  }
 
   const safeTitle = escapeHtml(title);
   const safeType = escapeHtml(type);

@@ -11,6 +11,7 @@ import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import { sendSubmissionNotification } from '@/lib/notifications';
 import { sendSubmissionEmail, logNotificationFailure } from '@/lib/email';
 import { convertSubmissionToGDoc } from '@/lib/convert-to-gdoc';
+import { createSignedUrl, getSubmissionsBucketName } from '@/lib/storage';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 import type { NewSubmission } from '@/types/database';
 
@@ -112,21 +113,38 @@ export async function POST(request: NextRequest) {
             newStatus = 'with_coordinator';
             updatePayload.committee_status = newStatus;
           } else if (submission.committee_status === 'with_coordinator') {
-            // Under Review → Trigger Make webhook for file conversion
-            const convertResult = await convertSubmissionToGDoc(submissionId, profile.id);
-
-            if (!convertResult.success) {
-              return NextResponse.json(
-                { error: convertResult.error },
-                { status: convertResult.status }
+            if (submission.type === 'visual') {
+              // Visual art: generate a signed URL so coordinator can view the file
+              if (!submission.file_url) {
+                return NextResponse.json({ error: 'No file attached to submission' }, { status: 400 });
+              }
+              const signedUrl = await createSignedUrl(
+                submission.file_url,
+                60 * 60,
+                getSubmissionsBucketName()
               );
-            }
+              if (!signedUrl) {
+                return NextResponse.json({ error: 'Failed to generate file URL' }, { status: 500 });
+              }
+              revalidatePath('/committee');
+              return NextResponse.json({ success: true, file_url: signedUrl });
+            } else {
+              // Writing: trigger Make webhook for Google Doc conversion
+              const convertResult = await convertSubmissionToGDoc(submissionId, profile.id);
 
-            revalidatePath('/committee');
-            return NextResponse.json({
-              success: true,
-              google_doc_url: convertResult.google_doc_url,
-            });
+              if (!convertResult.success) {
+                return NextResponse.json(
+                  { error: convertResult.error },
+                  { status: convertResult.status }
+                );
+              }
+
+              revalidatePath('/committee');
+              return NextResponse.json({
+                success: true,
+                google_doc_url: convertResult.google_doc_url,
+              });
+            }
           }
         } else if (action === 'approve') {
           // Move to "Approved" column and route to next step
@@ -207,8 +225,8 @@ export async function POST(request: NextRequest) {
       .set(updatePayload)
       .where(eq(submissions.id, submissionId));
 
-    // Send notification when a submission transitions to a new role's responsibility
-    if (newStatus && ['coordinator_approved', 'proofreader_committed', 'lead_design_committed'].includes(newStatus)) {
+    // Send notification when a submission transitions to a new status
+    if (newStatus && ['coordinator_approved', 'proofreader_committed', 'lead_design_committed', 'editor_approved', 'editor_declined', 'coordinator_declined', 'with_coordinator'].includes(newStatus)) {
       try {
         const authorRows = await database
           .select({ full_name: profiles.full_name, email: profiles.email })
@@ -224,6 +242,7 @@ export async function POST(request: NextRequest) {
           submissionTitle: submission.title,
           submissionType: submission.type,
           authorName: authorProfile?.full_name || authorProfile?.email || 'Unknown',
+          actorUserId: profile.id,
         });
       } catch (err) {
         await logNotificationFailure({
