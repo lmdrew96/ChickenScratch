@@ -170,6 +170,11 @@ export async function POST(request: NextRequest) {
           updatePayload.google_docs_link = linkUrl;
           updatePayload.committee_status = newStatus;
           updatePayload.proofreader_committed_at = new Date();
+        } else if (action === 'request_changes') {
+          newStatus = 'changes_requested';
+          updatePayload.committee_status = newStatus;
+          updatePayload.status = 'needs_revision';
+          updatePayload.editor_notes = comment || null;
         }
         break;
 

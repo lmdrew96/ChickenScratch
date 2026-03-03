@@ -337,7 +337,10 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
     }
 
     if (userRole === 'proofreader') {
-      return [{ label: 'Edit Docs', action: 'open_docs', variant: 'primary' as const }];
+      return [
+        { label: 'Edit Docs', action: 'open_docs', variant: 'primary' as const },
+        { label: 'Request Changes', action: 'request_changes', variant: 'warning' as const },
+      ];
     }
     if (userRole === 'lead_design') {
       return [{ label: 'Add to Canva', action: 'canva_link', variant: 'primary' as const }];
@@ -644,12 +647,20 @@ export default function KanbanBoard({ userRole, submissions }: KanbanBoardProps)
                   </>
                 )}
                 {userRole === 'proofreader' && (
-                  <button
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm"
-                    onClick={() => handleAction(selectedSubmission, 'open_docs')}
-                  >
-                    {selectedSubmission.google_docs_link ? 'Edit Docs' : 'Add Google Docs Link'}
-                  </button>
+                  <>
+                    <button
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm"
+                      onClick={() => handleAction(selectedSubmission, 'open_docs')}
+                    >
+                      {selectedSubmission.google_docs_link ? 'Edit Docs' : 'Add Google Docs Link'}
+                    </button>
+                    <button
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg text-sm"
+                      onClick={() => handleAction(selectedSubmission, 'request_changes')}
+                    >
+                      Request Changes
+                    </button>
+                  </>
                 )}
                 {userRole === 'lead_design' && (
                   <button
