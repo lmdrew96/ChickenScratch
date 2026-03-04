@@ -11,7 +11,7 @@ import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import { sendSubmissionNotification } from '@/lib/notifications';
 import { sendSubmissionEmail, logNotificationFailure } from '@/lib/email';
 import { convertSubmissionToGDoc } from '@/lib/convert-to-gdoc';
-import { createSignedUrl, getSubmissionsBucketName } from '@/lib/storage';
+import { createSignedUrl, getBucketName, getSubmissionsBucketName } from '@/lib/storage';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 import type { NewSubmission } from '@/types/database';
 
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
               const signedUrl = await createSignedUrl(
                 submission.file_url,
                 60 * 60,
-                getSubmissionsBucketName()
+                getBucketName()
               );
               if (!signedUrl) {
                 return NextResponse.json({ error: 'Failed to generate file URL' }, { status: 500 });
