@@ -87,22 +87,8 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
     document.body.style.overflow = 'unset';
   };
 
-  const handleDownload = async (url: string, filename: string) => {
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error('Download failed:', error);
-      alert('Failed to download file. Please try again.');
-    }
+  const handleDownload = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -216,7 +202,7 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDownload(submission.coverSignedUrl!, `${submission.title}.jpg`)}
+                          onClick={() => handleDownload(submission.coverSignedUrl!)}
                           className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-600"
                           title="Download image"
                         >
@@ -377,7 +363,7 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleDownload(lightbox.downloadUrl!, `${lightbox.title}.jpg`);
+                handleDownload(lightbox.downloadUrl!);
               }}
               className="absolute right-4 top-16 rounded-full bg-amber-500 p-2 text-white transition hover:bg-amber-600"
               aria-label="Download image"
