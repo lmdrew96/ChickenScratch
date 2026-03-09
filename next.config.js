@@ -10,9 +10,16 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   images: {
-    remotePatterns: process.env.R2_PUBLIC_HOSTNAME
-      ? [{ protocol: 'https', hostname: process.env.R2_PUBLIC_HOSTNAME }]
-      : [],
+    remotePatterns: [
+      // R2 signed URLs use the S3-compatible API endpoint
+      ...(process.env.R2_ACCOUNT_ID
+        ? [{ protocol: 'https', hostname: `*.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` }]
+        : []),
+      // R2 public/custom domain (if configured)
+      ...(process.env.R2_PUBLIC_HOSTNAME
+        ? [{ protocol: 'https', hostname: process.env.R2_PUBLIC_HOSTNAME }]
+        : []),
+    ],
   },
   experimental: {
     serverActions: {
