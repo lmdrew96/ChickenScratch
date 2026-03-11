@@ -24,6 +24,7 @@ type MineClientProps = {
 export function MineClient({ submissions, viewerName, loadIssue = false }: MineClientProps) {
   const { notify } = useToast();
   const [selectedId, setSelectedId] = useState(submissions[0]?.id ?? null);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
   const router = useRouter();
 
   const selectedSubmission = useMemo(
@@ -47,7 +48,6 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
 
   const canEdit = selectedSubmission.status ? EDITABLE_STATUSES.includes(selectedSubmission.status) : false;
   const canWithdraw = selectedSubmission.status ? WITHDRAWABLE_STATUSES.includes(selectedSubmission.status) : false;
-  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   async function handleWithdraw() {
     if (!confirm('Are you sure you want to withdraw this submission? This cannot be undone.')) return;
