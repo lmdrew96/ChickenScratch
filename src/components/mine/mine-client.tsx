@@ -50,6 +50,7 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
   const canWithdraw = selectedSubmission.status ? WITHDRAWABLE_STATUSES.includes(selectedSubmission.status) : false;
 
   async function handleWithdraw() {
+    if (!selectedSubmission) return;
     if (!confirm('Are you sure you want to withdraw this submission? This cannot be undone.')) return;
     setIsWithdrawing(true);
     try {
