@@ -8,6 +8,7 @@ const statusStyles: Record<SubmissionStatus, string> = {
   accepted: 'bg-emerald-900/60 text-emerald-100 border-emerald-500/70',
   declined: 'bg-rose-900/60 text-rose-100 border-rose-500/70',
   published: 'bg-purple-900/60 text-purple-100 border-purple-500/70',
+  withdrawn: 'bg-zinc-800/70 text-zinc-300 border-zinc-500/50',
 };
 
 const fallbackStyle = 'bg-slate-800/70 text-slate-200 border-slate-500/50';

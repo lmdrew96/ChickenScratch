@@ -8,10 +8,17 @@ export const SUBMISSION_STATUSES = [
   'accepted',
   'declined',
   'published',
+  'withdrawn',
 ] as const;
 export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 
 export const EDITABLE_STATUSES: readonly string[] = ['needs_revision'];
+
+export const WITHDRAWABLE_STATUSES: readonly string[] = [
+  'submitted',
+  'in_review',
+  'needs_revision',
+];
 
 export const COMMITTEE_STATUSES = [
   'pending_coordinator',

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { StatusBadge } from '@/components/common/status-badge';
 import { ContentViewer } from '@/components/mine/content-viewer';
-import { EDITABLE_STATUSES, formatStatus } from '@/lib/constants';
+import { EDITABLE_STATUSES, WITHDRAWABLE_STATUSES, formatStatus } from '@/lib/constants';
 import { reviseSubmission } from '@/lib/actions/submissions';
 import type { Submission } from '@/types/database';
 import { useToast } from '@/components/ui/toast';
@@ -46,6 +46,27 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
   }
 
   const canEdit = selectedSubmission.status ? EDITABLE_STATUSES.includes(selectedSubmission.status) : false;
+  const canWithdraw = selectedSubmission.status ? WITHDRAWABLE_STATUSES.includes(selectedSubmission.status) : false;
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  async function handleWithdraw() {
+    if (!confirm('Are you sure you want to withdraw this submission? This cannot be undone.')) return;
+    setIsWithdrawing(true);
+    try {
+      const res = await fetch(`/api/submissions/${selectedSubmission.id}/withdraw`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        notify({ title: 'Withdrawal failed', description: data.error || 'Something went wrong.', variant: 'error' });
+      } else {
+        notify({ title: 'Submission withdrawn', description: 'Your submission has been withdrawn.', variant: 'success' });
+        router.refresh();
+      }
+    } catch {
+      notify({ title: 'Withdrawal failed', description: 'Something went wrong.', variant: 'error' });
+    } finally {
+      setIsWithdrawing(false);
+    }
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
@@ -150,6 +171,23 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
               notify({ title: 'Revision failed', description: msg, variant: 'error' });
             }}
           />
+        ) : null}
+
+        {canWithdraw ? (
+          <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-5 py-4">
+            <div>
+              <p className="text-sm font-medium text-white/80">Withdraw submission</p>
+              <p className="text-xs text-white/50">Remove this submission from review. This cannot be undone.</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleWithdraw}
+              disabled={isWithdrawing}
+              className="rounded-lg border border-rose-500/50 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-500/20 disabled:opacity-50"
+            >
+              {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+            </button>
+          </div>
         ) : null}
       </section>
     </div>
