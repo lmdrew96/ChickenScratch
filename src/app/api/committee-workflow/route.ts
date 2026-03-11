@@ -11,7 +11,7 @@ import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import { sendSubmissionNotification } from '@/lib/notifications';
 import { sendSubmissionEmail, logNotificationFailure } from '@/lib/email';
 import { convertSubmissionToGDoc } from '@/lib/convert-to-gdoc';
-import { createSignedUrl, getBucketName, getSubmissionsBucketName } from '@/lib/storage';
+import { createSignedUrl, getBucketName } from '@/lib/storage';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 import type { NewSubmission } from '@/types/database';
 
