@@ -1,9 +1,8 @@
 import { z } from 'zod';
-import { inArray, arrayContains, arrayOverlaps } from 'drizzle-orm';
+import { inArray, arrayOverlaps } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { userRoles, profiles } from '@/lib/db/schema';
-import { OFFICER_POSITIONS, COMMITTEE_POSITIONS } from '@/lib/auth/guards';
 import { escapeHtml } from '@/lib/utils';
 import { logNotificationFailure } from '@/lib/email';
 
@@ -40,50 +39,58 @@ export type NotificationResult = {
 };
 
 /**
- * Get email addresses for all committee members and officers, optionally
- * excluding the user who triggered the action.
+ * Map a notification event to the specific positions that should be notified.
+ *
+ * - New submission → Submissions Coordinators + Editor-in-Chief
+ * - Coordinator approves → Proofreaders + Editor-in-Chief
+ * - Proofreader commits → Lead Design + Editor-in-Chief
+ * - All other statuses (declines, editor actions, etc.) → Editor-in-Chief only
  */
-async function getAllCommitteeAndOfficerEmails(excludeUserId?: string): Promise<string[]> {
+function getTargetPositions(
+  notificationType?: string,
+  committeeStatus?: string,
+): string[] {
+  if (notificationType === 'new_submission') {
+    return ['Submissions Coordinator', 'Editor-in-Chief'];
+  }
+
+  switch (committeeStatus) {
+    case 'coordinator_approved':
+      return ['Proofreader', 'Editor-in-Chief'];
+    case 'proofreader_committed':
+      return ['Lead Design', 'Editor-in-Chief'];
+    default:
+      // Editor-in-Chief should always be in the loop for other transitions
+      return ['Editor-in-Chief'];
+  }
+}
+
+/**
+ * Get email addresses for the committee members relevant to a specific
+ * notification event, excluding the user who triggered the action.
+ */
+async function getTargetedRecipientEmails(
+  notificationType?: string,
+  committeeStatus?: string,
+  excludeUserId?: string,
+): Promise<string[]> {
   const database = db();
+  const positions = getTargetPositions(notificationType, committeeStatus);
 
-  // Get users with any committee position
-  const committeeRows = await database
+  const rows = await database
     .select({ user_id: userRoles.user_id })
     .from(userRoles)
-    .where(arrayOverlaps(userRoles.positions, [...COMMITTEE_POSITIONS]));
+    .where(arrayOverlaps(userRoles.positions, positions));
 
-  // Get users with any officer position
-  const officerPositionRows = await database
-    .select({ user_id: userRoles.user_id })
-    .from(userRoles)
-    .where(arrayOverlaps(userRoles.positions, [...OFFICER_POSITIONS]));
+  const userIds = [...new Set(rows.map((r) => r.user_id))]
+    .filter((id) => id !== excludeUserId);
 
-  // Get users with the 'officer' role
-  const officerRoleRows = await database
-    .select({ user_id: userRoles.user_id })
-    .from(userRoles)
-    .where(arrayContains(userRoles.roles, ['officer']));
-
-  // Get users with the 'committee' role
-  const committeeRoleRows = await database
-    .select({ user_id: userRoles.user_id })
-    .from(userRoles)
-    .where(arrayContains(userRoles.roles, ['committee']));
-
-  // Deduplicate user IDs and exclude the actor
-  const allUserIds = [...new Set([
-    ...committeeRows.map((r) => r.user_id),
-    ...officerPositionRows.map((r) => r.user_id),
-    ...officerRoleRows.map((r) => r.user_id),
-    ...committeeRoleRows.map((r) => r.user_id),
-  ])].filter((id) => id !== excludeUserId);
-
-  if (allUserIds.length === 0) return [];
+  if (userIds.length === 0) return [];
 
   const profileRows = await database
     .select({ id: profiles.id, email: profiles.email })
     .from(profiles)
-    .where(inArray(profiles.id, allUserIds));
+    .where(inArray(profiles.id, userIds));
 
   return profileRows
     .map((p) => p.email)
@@ -114,8 +121,8 @@ export async function sendSubmissionNotification(
     return { success: true, message: 'No notification required for this status' };
   }
 
-  // Get ALL committee members and officers, excluding the person who took the action
-  const recipients = await getAllCommitteeAndOfficerEmails(actorUserId);
+  // Get only the committee members relevant to this event
+  const recipients = await getTargetedRecipientEmails(notificationType, committeeStatus, actorUserId);
 
   if (recipients.length === 0) {
     return { success: true, message: 'No valid email addresses found' };
