@@ -118,11 +118,18 @@ export default function ExhibitionSubmissionForm() {
       const { uploadUrl, filePath } = await urlRes.json() as { uploadUrl: string; filePath: string };
 
       setUploadProgress('Uploading file…');
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': submissionFile.type || 'application/octet-stream' },
-        body: submissionFile,
-      });
+      let uploadRes: Response;
+      try {
+        uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': submissionFile.type || 'application/octet-stream' },
+          body: submissionFile,
+        });
+      } catch {
+        throw new Error(
+          'Upload was blocked before reaching storage. This is usually a storage CORS configuration issue. Please try again, and contact support if it keeps happening.'
+        );
+      }
       if (!uploadRes.ok) throw new Error('File upload failed. Please try again.');
       setUploadProgress(null);
 

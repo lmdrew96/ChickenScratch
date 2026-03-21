@@ -185,6 +185,29 @@ Failed email deliveries are logged to the `notification_failures` table and surf
 - **Writing files** are stored in the `submissions` R2 bucket under `{userId}/{timestamp}-{filename}`.
 - **Visual art** is stored in the `art` R2 bucket with the same path structure.
 - Signed URLs (default 30-minute expiry for downloads, 7-day for public gallery) are generated server-side.
+- Browser uploads use presigned `PUT` URLs to `*.r2.cloudflarestorage.com`, so the R2 bucket needs CORS rules for your app origins.
+
+### R2 CORS setup (required for uploads)
+
+Configure CORS on the bucket used by `R2_BUCKET_NAME` with rules equivalent to:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "https://chickenscratch.me",
+      "https://www.chickenscratch.me",
+      "http://localhost:3000"
+    ],
+    "AllowedMethods": ["PUT", "GET", "HEAD", "OPTIONS"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+If uploads still fail with a preflight/CORS error, verify the request origin exactly matches one of `AllowedOrigins` (including `www` vs non-`www`).
 
 ## Deployment
 
