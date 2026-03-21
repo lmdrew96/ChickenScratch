@@ -134,6 +134,14 @@ export default function Sidebar({ signedIn = false, userProfile, navAccess }: Si
           Published
         </Link>
         <Link 
+          href="/exhibition" 
+          className={is('/exhibition') ? 'active' : ''} 
+          onClick={closeMobileMenu}
+          aria-current={is('/exhibition') ? 'page' : undefined}
+        >
+          Exhibition
+        </Link>
+        <Link 
           href="/about" 
           className={is('/about') ? 'active' : ''} 
           onClick={closeMobileMenu}

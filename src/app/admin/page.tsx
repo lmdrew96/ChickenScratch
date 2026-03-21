@@ -4,6 +4,7 @@ import { desc } from 'drizzle-orm'
 import { isAdmin, getAllUsersWithRoles } from '@/lib/actions/roles'
 import { db } from '@/lib/db'
 import { notificationFailures } from '@/lib/db/schema'
+import Link from 'next/link'
 import AdminPanel from './admin-panel'
 import CreateTestUser from './create-test-user'
 import NotificationFailures from './notification-failures'
@@ -82,6 +83,14 @@ export default async function AdminPage() {
   return (
     <div className="container mx-auto p-8">
       <h1 className="text-3xl font-bold mb-6">Admin Panel</h1>
+      <div className="mb-6 flex flex-wrap gap-4">
+        <Link
+          href="/admin/exhibition"
+          className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors"
+        >
+          🎉 Flock Party Submissions →
+        </Link>
+      </div>
       <CreateTestUser />
       {failures.length > 0 && (
         <div className="mt-8">
