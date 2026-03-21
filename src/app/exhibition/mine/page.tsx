@@ -23,7 +23,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function SubmissionCard({ s }: { s: ExhibitionSubmission }) {
   const submittedDate = s.created_at
-    ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' })
     : null;
 
   return (

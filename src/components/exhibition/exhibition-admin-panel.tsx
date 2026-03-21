@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ExhibitionSubmission } from '@/types/database';
+import { parseConfigDate } from '@/lib/utils';
 
 interface OwnerMap {
   [id: string]: { name: string | null; full_name: string | null; email: string | null };
@@ -132,8 +133,8 @@ function ReviewModal({ submission: s, ownerMap, onClose, onDecision }: ReviewMod
 
           {/* Timeline */}
           <div className="space-y-1 text-xs text-slate-500">
-            {s.created_at && <p>Submitted: {new Date(s.created_at).toLocaleString()}</p>}
-            {s.reviewed_at && <p>Reviewed: {new Date(s.reviewed_at).toLocaleString()}</p>}
+            {s.created_at && <p>Submitted: {new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>}
+            {s.reviewed_at && <p>Reviewed: {new Date(s.reviewed_at).toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>}
           </div>
 
           {/* Reviewer notes */}
@@ -333,9 +334,8 @@ export default function ExhibitionAdminPanel({ initialSubmissions, ownerMap, con
             <div className="space-y-1">
               <label className="text-xs text-slate-400">Exhibition date</label>
               <input
-                type="text"
+                type="date"
                 className="form-input w-full text-sm"
-                placeholder="e.g. 2026-05-01"
                 value={configForm.exhibition_date}
                 onChange={(e) => setConfigForm((prev) => ({ ...prev, exhibition_date: e.target.value }))}
               />
@@ -362,7 +362,7 @@ export default function ExhibitionAdminPanel({ initialSubmissions, ownerMap, con
               <span>
                 Deadline:{' '}
                 <strong className="text-white">
-                  {new Date(config.submission_deadline).toLocaleDateString('en-US', {
+                  {parseConfigDate(config.submission_deadline).toLocaleDateString('en-US', {
                     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York',
                   })}
                 </strong>
@@ -372,8 +372,8 @@ export default function ExhibitionAdminPanel({ initialSubmissions, ownerMap, con
               <span>
                 Exhibition date:{' '}
                 <strong className="text-white">
-                  {new Date(config.exhibition_date).toLocaleDateString('en-US', {
-                    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+                  {parseConfigDate(config.exhibition_date).toLocaleDateString('en-US', {
+                    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York',
                   })}
                 </strong>
               </span>
@@ -414,7 +414,7 @@ export default function ExhibitionAdminPanel({ initialSubmissions, ownerMap, con
             const owner = ownerMap[s.owner_id];
             const ownerName = owner?.full_name || owner?.name || owner?.email || 'Unknown';
             const date = s.created_at
-              ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })
               : '';
             return (
               <button

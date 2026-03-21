@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { exhibitionConfig } from '@/lib/db/schema';
+import { parseConfigDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ export default async function ExhibitionPage() {
   let isPastDeadline = false;
   let formattedDeadline = '';
   if (deadlineStr) {
-    const deadlineDate = new Date(deadlineStr);
+    const deadlineDate = parseConfigDate(deadlineStr);
     isPastDeadline = !isNaN(deadlineDate.getTime()) && new Date() > deadlineDate;
     if (!isNaN(deadlineDate.getTime())) {
       formattedDeadline = deadlineDate.toLocaleDateString('en-US', {
@@ -40,7 +41,7 @@ export default async function ExhibitionPage() {
     }
   }
 
-  const exhibitionDateFormatted = new Date(exhibitionDate).toLocaleDateString('en-US', {
+  const exhibitionDateFormatted = parseConfigDate(exhibitionDate).toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
