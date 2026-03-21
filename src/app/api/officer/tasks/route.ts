@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     const task = result[0];
 
     // Fire-and-forget Discord notification
-    (async () => {
+    if (task) (async () => {
       let assigneeName: string | undefined;
       if (task.assigned_to) {
         const assigneeRow = await database
