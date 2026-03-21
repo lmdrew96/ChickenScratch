@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { officerTasks, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
+import { notifyDiscordTaskCreated } from '@/lib/discord';
 
 export async function GET() {
   try {
@@ -130,6 +131,25 @@ export async function POST(request: NextRequest) {
       .returning();
 
     const task = result[0];
+
+    // Fire-and-forget Discord notification
+    (async () => {
+      let assigneeName: string | undefined;
+      if (task.assigned_to) {
+        const assigneeRow = await database
+          .select({ name: profiles.name, full_name: profiles.full_name, email: profiles.email })
+          .from(profiles)
+          .where(eq(profiles.id, task.assigned_to))
+          .limit(1);
+        const a = assigneeRow[0];
+        if (a) assigneeName = a.name || a.full_name || a.email || undefined;
+      }
+      await notifyDiscordTaskCreated(
+        task,
+        assigneeName,
+        profile.name || profile.full_name || profile.email || undefined,
+      );
+    })().catch(() => {});
 
     return NextResponse.json({ task }, { status: 201 });
   } catch (error) {

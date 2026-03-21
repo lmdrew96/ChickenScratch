@@ -5,6 +5,7 @@ import { userRoles, profiles } from '@/lib/db/schema';
 import { OFFICER_POSITIONS } from '@/lib/auth/guards';
 import { escapeHtml } from '@/lib/utils';
 import { logNotificationFailure } from '@/lib/email';
+import { notifyDiscordAnnouncement, notifyDiscordMeeting } from '@/lib/discord';
 
 const BRAND_BLUE = '#00539f';
 const ACCENT_GOLD = '#ffd200';
@@ -94,6 +95,8 @@ export async function notifyOfficersOfAnnouncement(
     return { success: false };
   }
 
+  notifyDiscordAnnouncement(message, authorName).catch(() => {});
+
   return { success: true, recipients };
 }
 
@@ -144,6 +147,8 @@ export async function notifyOfficersOfMeeting(
     });
     return { success: false };
   }
+
+  notifyDiscordMeeting(title, description, proposedDates, authorName).catch(() => {});
 
   return { success: true, recipients };
 }

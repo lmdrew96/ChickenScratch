@@ -19,6 +19,7 @@ const envSchema = z.object({
   CONTACT_FORM_RECIPIENTS: z.string().optional(),
   ALLOWED_DOMAINS: z.string().optional(),
   CRON_SECRET: z.string().min(1).optional(),
+  DISCORD_WEBHOOK_URL: z.string().url().optional(),
 });
 
 const parsed = envSchema.safeParse({
@@ -38,6 +39,7 @@ const parsed = envSchema.safeParse({
   CONTACT_FORM_RECIPIENTS: process.env.CONTACT_FORM_RECIPIENTS,
   ALLOWED_DOMAINS: process.env.ALLOWED_DOMAINS,
   CRON_SECRET: process.env.CRON_SECRET,
+  DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL,
 });
 
 if (!parsed.success) {
