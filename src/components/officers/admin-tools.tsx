@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Settings, BarChart3, Shield } from 'lucide-react';
+import { Settings, BarChart3, Shield, PartyPopper } from 'lucide-react';
 
 interface AdminToolsProps {
   hasAdminAccess: boolean;
@@ -36,6 +36,21 @@ export function AdminTools({ hasAdminAccess, stats }: AdminToolsProps) {
         </div>
         <p className="text-sm text-slate-300">
           Access full admin panel for system configuration and user management
+        </p>
+      </Link>
+
+      <Link
+        href="/admin/exhibition"
+        className="block rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-colors group"
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div className="rounded-lg bg-white/10 p-2 group-hover:bg-white/20 transition-colors">
+            <PartyPopper className="h-5 w-5 text-white" />
+          </div>
+          <h3 className="font-semibold text-white">Flock Party Submissions</h3>
+        </div>
+        <p className="text-sm text-slate-300">
+          Review and manage End-of-Year Flock Party exhibition submissions
         </p>
       </Link>
 
