@@ -9,6 +9,8 @@ import {
   officerTasks,
   officerAnnouncements,
   notificationFailures,
+  exhibitionSubmissions,
+  exhibitionConfig,
 } from '@/lib/db/schema';
 
 // Generic JSON type (matches jsonb columns)
@@ -55,6 +57,14 @@ export type NewOfficerAnnouncement = InferInsertModel<typeof officerAnnouncement
 // --- Notification Failures ---
 export type NotificationFailure = InferSelectModel<typeof notificationFailures>;
 export type NewNotificationFailure = InferInsertModel<typeof notificationFailures>;
+
+// --- Exhibition Submissions ---
+export type ExhibitionSubmission = InferSelectModel<typeof exhibitionSubmissions>;
+export type NewExhibitionSubmission = InferInsertModel<typeof exhibitionSubmissions>;
+
+// --- Exhibition Config ---
+export type ExhibitionConfig = InferSelectModel<typeof exhibitionConfig>;
+export type NewExhibitionConfig = InferInsertModel<typeof exhibitionConfig>;
 
 // Published submission types for the public gallery
 export type PublishedSubmissionRow = Pick<
