@@ -61,15 +61,16 @@ export default async function ExhibitionPage() {
           {accepting ? 'Now Accepting Submissions' : 'Submissions Closed'}
         </div>
         <h1 className="text-4xl font-bold leading-tight text-white">
-          Hen &amp; Ink End&#8209;of&#8209;Year Exhibition
+          Hen &amp; Ink Society&rsquo;s End&#8209;of&#8209;Year Flock Party
         </h1>
         <p className="text-lg text-slate-300">
           <strong style={{ color: 'var(--accent)' }}>{exhibitionDateFormatted}</strong>
+          <span className="ml-2 text-slate-400">5–8pm</span>
         </p>
         <p className="text-base leading-relaxed text-slate-400">
-          Join us for the Hen &amp; Ink Society&rsquo;s annual end&#8209;of&#8209;year showcase —
-          a celebration of student creativity across writing and visual art. Selected work will be
-          displayed at the exhibition for the entire AAP community to enjoy.
+          Join us for Hen &amp; Ink Society&rsquo;s first&#8209;ever end&#8209;of&#8209;year
+          celebration of student creativity across writing and visual art. Selected work will be
+          displayed at the party for the entire UD community to enjoy.
         </p>
       </div>
 
@@ -138,13 +139,13 @@ export default async function ExhibitionPage() {
       <section className="space-y-3 text-sm text-slate-400">
         <h2 className="text-base font-semibold text-white">Who can submit?</h2>
         <p>
-          The exhibition is open to all AAP students. You&rsquo;ll need a Chicken Scratch account
+          The Flock Party is open to all UD students. You&rsquo;ll need a Chicken Scratch account
           to submit — it only takes a moment to sign up.
         </p>
         <h2 className="mt-4 text-base font-semibold text-white">What happens next?</h2>
         <p>
           After submitting, our officers will review your work and reach out by email with their
-          decision. Accepted pieces will be displayed at the exhibition on{' '}
+          decision. Accepted pieces will be displayed at the Flock Party on{' '}
           {exhibitionDateFormatted}.
         </p>
       </section>

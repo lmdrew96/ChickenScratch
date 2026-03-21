@@ -156,7 +156,7 @@ export async function sendExhibitionConfirmation(params: {
   const body = `
     <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#555;">
       Thank you for submitting your work to the
-      <strong>Hen &amp; Ink End-of-Year Exhibition</strong>! We&rsquo;ve received your piece and will
+      <strong>Hen &amp; Ink Society&rsquo;s End-of-Year Flock Party</strong>! We&rsquo;ve received your piece and will
       review it soon.
     </p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
@@ -270,7 +270,7 @@ export async function sendExhibitionDecisionEmail(params: {
     : 'Exhibition Submission Update';
 
   const introText = isApproved
-    ? 'Congratulations! Your submission has been selected for the <strong>Hen &amp; Ink End-of-Year Exhibition</strong> on May 1, 2026. We can\'t wait to showcase your work!'
+    ? 'Congratulations! Your submission has been selected for the <strong>Hen &amp; Ink Society&rsquo;s End-of-Year Flock Party</strong> on May 1, 2026 (5–8pm). We can\'t wait to showcase your work!'
     : 'Thank you for sharing your work with us. After careful consideration, we\'re unable to include this piece in the exhibition. We encourage you to keep creating!';
 
   let notesBlock = '';

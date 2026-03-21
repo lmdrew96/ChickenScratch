@@ -41,7 +41,7 @@ export default async function ExhibitionSubmitPage() {
     <div className="space-y-8">
       <PageHeader
         title="Submit to the Exhibition"
-        description="Share your work for the Hen & Ink End-of-Year Exhibition (May 1, 2026)"
+        description="Share your work for the Hen & Ink Society's End-of-Year Flock Party (May 1, 2026 · 5–8pm)"
       />
       <div className="mx-auto max-w-2xl">
         <ExhibitionSubmissionForm />
