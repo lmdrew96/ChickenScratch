@@ -7,12 +7,10 @@ import { db } from '@/lib/db';
 import { submissions, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess, hasEditorAccess } from '@/lib/auth/guards';
-import { uploadFile, getSubmissionsBucketName, getBucketName } from '@/lib/storage';
 import { sendSubmissionNotification } from '@/lib/notifications';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 import type { NewSubmission } from '@/types/database';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
@@ -34,7 +32,10 @@ export async function POST(request: NextRequest) {
     const summary = formData.get('summary')?.toString() || null;
     const preferredName = formData.get('preferredName')?.toString() || null;
     const contentWarnings = formData.get('contentWarnings')?.toString() || null;
-    const file = formData.get('file') as File | null;
+    const filePath = formData.get('filePath')?.toString() ?? '';
+    const fileName = formData.get('fileName')?.toString() ?? '';
+    const fileType = formData.get('fileType')?.toString() ?? '';
+    const fileSize = parseInt(formData.get('fileSize')?.toString() ?? '0', 10);
 
     if (!title || title.length < 3 || title.length > 200) {
       return NextResponse.json({ error: 'Title must be between 3 and 200 characters.' }, { status: 400 });
@@ -44,48 +45,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid submission type.' }, { status: 400 });
     }
 
-    if (!file) {
+    if (!filePath) {
       return NextResponse.json({ error: 'File is required.' }, { status: 400 });
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: 'File size must be less than 10MB.' }, { status: 400 });
-    }
-
-    if (type === 'writing') {
-      const allowedTypes = [
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/pdf',
-        'text/plain',
-      ];
-      const allowedExtensions = ['.doc', '.docx', '.pdf', '.txt'];
-      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-
-      if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
-        return NextResponse.json({
-          error: 'Writing submissions must be .doc, .docx, .pdf, or .txt files.'
-        }, { status: 400 });
-      }
-    }
-
-    const timestamp = Date.now();
-    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const filePath = `${profile.id}/${timestamp}-${sanitizedFileName}`;
-
-    const bucket = type === 'writing' ? getSubmissionsBucketName() : getBucketName();
-
-    const { path: uploadedPath, error: uploadError } = await uploadFile(
-      bucket,
-      filePath,
-      file
-    );
-
-    if (uploadError || !uploadedPath) {
-      console.error('File upload error:', uploadError);
-      return NextResponse.json({
-        error: 'Failed to upload file. Please try again.'
-      }, { status: 500 });
+    // Guard: filePath must belong to this user (set by upload-url route)
+    if (!filePath.startsWith(`${profile.id}/`)) {
+      return NextResponse.json({ error: 'Invalid file path.' }, { status: 400 });
     }
 
     const insertPayload: NewSubmission = {
@@ -96,16 +62,16 @@ export async function POST(request: NextRequest) {
       preferred_name: preferredName,
       summary: summary || null,
       content_warnings: contentWarnings || null,
-      file_url: uploadedPath,
-      file_name: file.name,
-      file_type: file.type,
-      file_size: file.size,
+      file_url: filePath,
+      file_name: fileName,
+      file_type: fileType,
+      file_size: fileSize,
       status: 'submitted',
     };
 
     if (type === 'visual') {
-      insertPayload.cover_image = uploadedPath;
-      insertPayload.art_files = [uploadedPath];
+      insertPayload.cover_image = filePath;
+      insertPayload.art_files = [filePath];
     }
 
     const database = db();

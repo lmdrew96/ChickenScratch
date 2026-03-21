@@ -206,6 +206,13 @@ export function SubmissionForm({}: SubmissionFormProps = {}) {
       return;
     }
 
+    if (nextFile.size > 10 * 1024 * 1024) {
+      setErrors((prev) => ({ ...prev, file: 'File must be smaller than 10 MB.' }));
+      setWritingFile(null);
+      event.target.value = '';
+      return;
+    }
+
     setWritingFile(nextFile);
     setErrors((prev) => ({ ...prev, file: undefined }));
   }
@@ -229,6 +236,14 @@ export function SubmissionForm({}: SubmissionFormProps = {}) {
 
     const nextFile = files[0];
     if (!nextFile) return;
+
+    if (nextFile.size > 10 * 1024 * 1024) {
+      setErrors((prev) => ({ ...prev, file: 'File must be smaller than 10 MB.' }));
+      setVisualFile(null);
+      event.target.value = '';
+      return;
+    }
+
     setVisualFile(nextFile);
     setErrors((prev) => ({ ...prev, file: undefined }));
   }
@@ -280,25 +295,54 @@ export function SubmissionForm({}: SubmissionFormProps = {}) {
     setIsSubmitting(true);
 
     try {
-      // Create FormData for file upload
+      const activeFile = kind === 'writing' ? writingFile : visualFile;
+      if (!activeFile) {
+        showError('Please attach a file before submitting.', 'Submission Failed');
+        return;
+      }
+
+      // Step 1: Get a presigned upload URL
+      const uploadUrlParams = new URLSearchParams({
+        type: kind,
+        filename: activeFile.name,
+        contentType: activeFile.type || 'application/octet-stream',
+        fileSize: String(activeFile.size),
+      });
+      const uploadUrlRes = await fetch(`/api/submissions/upload-url?${uploadUrlParams}`);
+      if (!uploadUrlRes.ok) {
+        let message = 'Could not prepare upload. Please try again.';
+        try {
+          const data = await uploadUrlRes.json();
+          if (data?.error) message = data.error;
+        } catch { /* ignore */ }
+        showError(message, 'Submission Failed');
+        return;
+      }
+      const { uploadUrl, filePath } = await uploadUrlRes.json();
+
+      // Step 2: Upload file directly to R2 (bypasses Vercel payload limit)
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: activeFile,
+        headers: { 'Content-Type': activeFile.type || 'application/octet-stream' },
+      });
+      if (!uploadRes.ok) {
+        showError('File upload failed. Please try again.', 'Submission Failed');
+        return;
+      }
+
+      // Step 3: POST metadata (no file binary) to create the submission record
       const formData = new FormData();
-      
       formData.append('title', title.trim() || `${category} by ${preferredName.trim()}`);
       formData.append('type', kind);
       formData.append('preferredName', preferredName.trim());
-      
+      formData.append('filePath', filePath);
+      formData.append('fileName', activeFile.name);
+      formData.append('fileType', activeFile.type || 'application/octet-stream');
+      formData.append('fileSize', String(activeFile.size));
       if (category) formData.append('genre', category);
       if (summary.trim()) formData.append('summary', summary.trim());
       if (contentWarnings.trim()) formData.append('contentWarnings', contentWarnings.trim());
-
-      // Handle file uploads
-      if (kind === 'writing' && writingFile) {
-        formData.append('file', writingFile);
-      }
-
-      if (kind === 'visual' && visualFile) {
-        formData.append('file', visualFile);
-      }
 
       const response = await fetch('/api/submissions', {
         method: 'POST',
