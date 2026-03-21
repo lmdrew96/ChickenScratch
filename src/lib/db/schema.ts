@@ -137,6 +137,56 @@ export const webhookEvents = pgTable('webhook_events', {
   processed_at: timestamp('processed_at', { withTimezone: true }).defaultNow(),
 });
 
+export const exhibitionSubmissions = pgTable('exhibition_submissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  owner_id: uuid('owner_id').notNull().references(() => profiles.id),
+
+  // Submitter info
+  preferred_name: text('preferred_name'),
+
+  // Piece info
+  title: text('title').notNull(),
+  type: text('type').notNull(), // 'writing' or 'visual'
+  medium: text('medium').notNull(),
+  description: text('description'),
+  artist_statement: text('artist_statement'),
+  content_warnings: text('content_warnings'),
+
+  // Writing-specific
+  text_body: text('text_body'),
+  word_count: integer('word_count'),
+
+  // Visual art-specific
+  file_url: text('file_url'),
+  file_name: text('file_name'),
+  file_type: text('file_type'),
+  file_size: integer('file_size'),
+
+  // Physical display needs
+  display_format: text('display_format'),
+  display_notes: text('display_notes'),
+
+  // Review
+  status: text('status').default('submitted'), // submitted, approved, declined
+  reviewer_id: uuid('reviewer_id').references(() => profiles.id),
+  reviewer_notes: text('reviewer_notes'),
+  reviewed_at: timestamp('reviewed_at', { withTimezone: true }),
+
+  // Metadata
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('exhibition_submissions_owner_id_idx').on(table.owner_id),
+  index('exhibition_submissions_status_idx').on(table.status),
+]);
+
+export const exhibitionConfig = pgTable('exhibition_config', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: text('key').notNull().unique(),
+  value: text('value').notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 export const notificationFailures = pgTable('notification_failures', {
   id: uuid('id').primaryKey().defaultRandom(),
   type: text('type').notNull(), // 'committee' | 'author_status' | 'officer' | 'reminder' | 'contact'
