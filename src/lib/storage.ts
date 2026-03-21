@@ -81,6 +81,26 @@ export function getPublicUrl(bucket: string, path: string): string {
   return `${env.R2_PUBLIC_URL}/${objectKey(bucket, path)}`;
 }
 
+export async function createPresignedUploadUrl(
+  bucket: string,
+  path: string,
+  contentType: string,
+  expiresInSeconds = 300
+): Promise<string | null> {
+  try {
+    const client = getS3Client();
+    const command = new PutObjectCommand({
+      Bucket: env.R2_BUCKET_NAME,
+      Key: objectKey(bucket, path),
+      ContentType: contentType,
+    });
+    return await getSignedUrl(client, command, { expiresIn: expiresInSeconds });
+  } catch (error) {
+    console.warn('Failed to create presigned upload URL', error);
+    return null;
+  }
+}
+
 export async function uploadFile(
   bucket: string,
   path: string,
