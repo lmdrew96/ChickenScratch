@@ -41,13 +41,20 @@ export function assertUserOwnsPath(userId: string, path: string) {
 export async function createSignedUrl(
   path: string,
   expiresInSeconds = 60 * 60 * 24 * 7,
-  bucket: string = ART_BUCKET
+  bucket: string = ART_BUCKET,
+  options?: { inline?: boolean; downloadFileName?: string }
 ): Promise<string | null> {
   try {
     const client = getS3Client();
+    const fileName = options?.downloadFileName?.replace(/[^a-zA-Z0-9._ -]/g, '_') ?? undefined;
+    const dispositionType = options?.inline === false ? 'attachment' : 'inline';
+    const responseDisposition = fileName
+      ? `${dispositionType}; filename="${fileName}"`
+      : dispositionType;
     const command = new GetObjectCommand({
       Bucket: env.R2_BUCKET_NAME,
       Key: objectKey(bucket, path),
+      ResponseContentDisposition: responseDisposition,
     });
     return await getSignedUrl(client, command, { expiresIn: expiresInSeconds });
   } catch (error) {

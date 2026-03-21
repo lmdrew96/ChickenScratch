@@ -37,6 +37,11 @@ function ReviewModal({ submission: s, ownerMap, onClose, onDecision }: ReviewMod
 
   const owner = ownerMap[s.owner_id];
   const ownerName = owner?.full_name || owner?.name || owner?.email || 'Unknown';
+  const fileType = s.type === 'writing' ? 'writing' : 'visual';
+  const fileName = s.file_name ?? `${s.title}.pdf`;
+  const fileUrl = s.file_url
+    ? `/api/exhibition/admin/file?path=${encodeURIComponent(s.file_url)}&type=${fileType}&filename=${encodeURIComponent(fileName)}`
+    : null;
 
   const decide = async (status: 'approved' | 'declined') => {
     setSaving(true);
@@ -70,13 +75,45 @@ function ReviewModal({ submission: s, ownerMap, onClose, onDecision }: ReviewMod
           </div>
 
           {/* Writing */}
-          {s.type === 'writing' && s.text_body && (
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Writing</p>
-              <div className="max-h-72 overflow-y-auto rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-300 whitespace-pre-wrap">
-                {s.text_body}
-              </div>
-              {s.word_count && <p className="text-xs text-slate-500">{s.word_count} words</p>}
+          {s.type === 'writing' && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Writing file</p>
+              {s.file_url ? (
+                <>
+                  <p className="text-sm text-slate-300">
+                    File: {s.file_name ?? s.file_url}
+                    {s.file_size && ` (${(s.file_size / 1024 / 1024).toFixed(2)} MB)`}
+                  </p>
+                  {fileUrl && (
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        href={`${fileUrl}&action=preview`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-md border border-white/20 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/10"
+                      >
+                        Preview file
+                      </a>
+                      <a
+                        href={`${fileUrl}&action=download`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-md border border-white/20 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/10"
+                      >
+                        Download file
+                      </a>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-slate-400">No file attached.</p>
+              )}
+              {s.text_body && (
+                <details className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-slate-300">
+                  <summary className="cursor-pointer text-xs text-slate-400">Legacy pasted text</summary>
+                  <div className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap">{s.text_body}</div>
+                </details>
+              )}
             </div>
           )}
 
@@ -87,7 +124,7 @@ function ReviewModal({ submission: s, ownerMap, onClose, onDecision }: ReviewMod
               {s.file_type?.startsWith('image/') ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={`/api/exhibition/admin/preview?path=${encodeURIComponent(s.file_url)}`}
+                  src={`/api/exhibition/admin/file?path=${encodeURIComponent(s.file_url)}&type=visual&action=preview`}
                   alt={s.title}
                   className="max-h-72 rounded-lg object-contain"
                 />
@@ -96,6 +133,26 @@ function ReviewModal({ submission: s, ownerMap, onClose, onDecision }: ReviewMod
                   File: {s.file_name ?? s.file_url}
                   {s.file_size && ` (${(s.file_size / 1024 / 1024).toFixed(2)} MB)`}
                 </p>
+              )}
+              {fileUrl && (
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href={`${fileUrl}&action=preview`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-white/20 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/10"
+                  >
+                    Preview file
+                  </a>
+                  <a
+                    href={`${fileUrl}&action=download`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-white/20 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/10"
+                  >
+                    Download file
+                  </a>
+                </div>
               )}
               {s.display_format && (
                 <p className="text-xs text-slate-400 capitalize">

@@ -26,7 +26,14 @@ const DISPLAY_FORMATS = [
   { value: 'physical_original', label: "I'll bring the physical original" },
 ];
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; const ALLOWED_ART_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+const ALLOWED_WRITING_TYPES = [
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/pdf',
+  'text/plain',
+];
+const ALLOWED_WRITING_EXTENSIONS = ['.doc', '.docx', '.pdf', '.txt'];
 
 export default function ExhibitionSubmissionForm() {
   const router = useRouter();
@@ -43,41 +50,50 @@ export default function ExhibitionSubmissionForm() {
     description: '',
     artist_statement: '',
     content_warnings: '',
-    text_body: '',
     display_format: '',
     display_notes: '',
   });
 
-  const [artFile, setArtFile] = useState<File | null>(null);
-  const [artFileError, setArtFileError] = useState<string | null>(null);
+  const [submissionFile, setSubmissionFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const set = (key: string, value: string) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
       // Reset medium when type changes
-      if (key === 'type') next.medium = '';
+      if (key === 'type') {
+        next.medium = '';
+        next.display_format = '';
+      }
       return next;
     });
   };
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
-    setArtFileError(null);
+    setFileError(null);
     if (file) {
       if (file.size > MAX_FILE_SIZE) {
-        setArtFileError('File must be smaller than 10 MB.');
+        setFileError('File must be smaller than 10 MB.');
         e.target.value = '';
         return;
       }
-      const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
-      if (!allowed.includes(file.type)) {
-        setArtFileError('Only JPG, PNG, WebP, GIF, and PDF files are allowed.');
+      if (form.type === 'writing') {
+        const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+        if (!ALLOWED_WRITING_TYPES.includes(file.type) && !ALLOWED_WRITING_EXTENSIONS.includes(ext)) {
+          setFileError('Only DOC, DOCX, PDF, and TXT files are allowed for writing.');
+          e.target.value = '';
+          return;
+        }
+      }
+      if (form.type === 'visual' && !ALLOWED_ART_TYPES.includes(file.type)) {
+        setFileError('Only JPG, PNG, WebP, GIF, and PDF files are allowed.');
         e.target.value = '';
         return;
       }
     }
-    setArtFile(file);
-  }, []);
+    setSubmissionFile(file);
+  }, [form.type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,41 +101,30 @@ export default function ExhibitionSubmissionForm() {
     setSubmitting(true);
 
     try {
-      let filePath: string | null = null;
-      let fileSize: number | null = null;
-
-      if (form.type === 'visual') {
-        if (!artFile) {
-          setError('Please select a file to upload.');
-          setSubmitting(false);
-          return;
-        }
-        setUploadProgress('Getting upload URL…');
-        const urlRes = await fetch(
-          `/api/exhibition/submit?filename=${encodeURIComponent(artFile.name)}&contentType=${encodeURIComponent(artFile.type)}&fileSize=${artFile.size}`,
-        );
-        if (!urlRes.ok) {
-          const data = await urlRes.json().catch(() => ({})) as { error?: string };
-          throw new Error(data.error ?? 'Failed to get upload URL.');
-        }
-        const { uploadUrl, filePath: fp } = await urlRes.json() as { uploadUrl: string; filePath: string };
-
-        setUploadProgress('Uploading file…');
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': artFile.type },
-          body: artFile,
-        });
-        if (!uploadRes.ok) throw new Error('File upload failed. Please try again.');
-
-        filePath = fp;
-        fileSize = artFile.size;
-        setUploadProgress(null);
+      if (!submissionFile) {
+        setError('Please select a file to upload.');
+        setSubmitting(false);
+        return;
       }
 
-      const wordCount = form.type === 'writing' && form.text_body
-        ? form.text_body.trim().split(/\s+/).filter(Boolean).length
-        : null;
+      setUploadProgress('Getting upload URL…');
+      const urlRes = await fetch(
+        `/api/exhibition/submit?type=${encodeURIComponent(form.type)}&filename=${encodeURIComponent(submissionFile.name)}&contentType=${encodeURIComponent(submissionFile.type || 'application/octet-stream')}&fileSize=${submissionFile.size}`,
+      );
+      if (!urlRes.ok) {
+        const data = await urlRes.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? 'Failed to get upload URL.');
+      }
+      const { uploadUrl, filePath } = await urlRes.json() as { uploadUrl: string; filePath: string };
+
+      setUploadProgress('Uploading file…');
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': submissionFile.type || 'application/octet-stream' },
+        body: submissionFile,
+      });
+      if (!uploadRes.ok) throw new Error('File upload failed. Please try again.');
+      setUploadProgress(null);
 
       const payload: Record<string, unknown> = {
         preferred_name: form.preferred_name || null,
@@ -129,16 +134,13 @@ export default function ExhibitionSubmissionForm() {
         description: form.description || null,
         artist_statement: form.artist_statement || null,
         content_warnings: form.content_warnings || null,
+        file_url: filePath,
+        file_name: submissionFile.name,
+        file_type: submissionFile.type || 'application/octet-stream',
+        file_size: submissionFile.size,
       };
 
-      if (form.type === 'writing') {
-        payload.text_body = form.text_body;
-        payload.word_count = wordCount;
-      } else {
-        payload.file_url = filePath;
-        payload.file_name = artFile?.name ?? null;
-        payload.file_type = artFile?.type ?? null;
-        payload.file_size = fileSize;
+      if (form.type === 'visual') {
         payload.display_format = form.display_format;
         payload.display_notes = form.display_notes || null;
       }
@@ -184,11 +186,11 @@ export default function ExhibitionSubmissionForm() {
                 description: '',
                 artist_statement: '',
                 content_warnings: '',
-                text_body: '',
                 display_format: '',
                 display_notes: '',
               });
-              setArtFile(null);
+              setSubmissionFile(null);
+              setFileError(null);
             }}
             className="btn"
           >
@@ -253,7 +255,11 @@ export default function ExhibitionSubmissionForm() {
           required
           className="form-input w-full"
           value={form.type}
-          onChange={(e) => set('type', e.target.value)}
+          onChange={(e) => {
+            set('type', e.target.value);
+            setSubmissionFile(null);
+            setFileError(null);
+          }}
         >
           <option value="">Select type…</option>
           <option value="writing">Writing</option>
@@ -282,24 +288,24 @@ export default function ExhibitionSubmissionForm() {
         </div>
       )}
 
-      {/* Writing: text body */}
+      {/* Writing: file upload */}
       {form.type === 'writing' && (
         <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-300" htmlFor="text_body">
-            Your writing <span className="text-red-400">*</span>
+          <label className="text-sm font-medium text-slate-300" htmlFor="writing_file">
+            Upload your writing <span className="text-red-400">*</span>
           </label>
-          <textarea
-            id="text_body"
-            required
-            rows={14}
-            className="form-input w-full resize-y"
-            placeholder="Paste or type your piece here…"
-            value={form.text_body}
-            onChange={(e) => set('text_body', e.target.value)}
+          <p className="text-xs text-slate-500">DOC, DOCX, PDF, or TXT — max 10 MB</p>
+          <input
+            id="writing_file"
+            type="file"
+            accept=".doc,.docx,.pdf,.txt"
+            className="form-input w-full"
+            onChange={handleFileChange}
           />
-          {form.text_body && (
-            <p className="text-xs text-slate-500">
-              {form.text_body.trim().split(/\s+/).filter(Boolean).length} words
+          {fileError && <p className="text-xs text-red-400">{fileError}</p>}
+          {submissionFile && !fileError && (
+            <p className="text-xs text-slate-400">
+              {submissionFile.name} ({(submissionFile.size / 1024 / 1024).toFixed(2)} MB)
             </p>
           )}
         </div>
@@ -320,10 +326,10 @@ export default function ExhibitionSubmissionForm() {
               className="form-input w-full"
               onChange={handleFileChange}
             />
-            {artFileError && <p className="text-xs text-red-400">{artFileError}</p>}
-            {artFile && !artFileError && (
+            {fileError && <p className="text-xs text-red-400">{fileError}</p>}
+            {submissionFile && !fileError && (
               <p className="text-xs text-slate-400">
-                {artFile.name} ({(artFile.size / 1024 / 1024).toFixed(2)} MB)
+                {submissionFile.name} ({(submissionFile.size / 1024 / 1024).toFixed(2)} MB)
               </p>
             )}
           </div>

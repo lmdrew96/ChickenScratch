@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { exhibitionSubmissions, exhibitionConfig } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
-import { createPresignedUploadUrl, getBucketName } from '@/lib/storage';
+import { createPresignedUploadUrl, getBucketName, getSubmissionsBucketName } from '@/lib/storage';
 import {
   sendExhibitionConfirmation,
   notifyOfficersOfExhibitionSubmission,
@@ -13,6 +13,13 @@ import {
 import type { NewExhibitionSubmission } from '@/types/database';
 
 const ALLOWED_ART_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'image/gif'];
+const ALLOWED_WRITING_TYPES = [
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/pdf',
+  'text/plain',
+];
+const ALLOWED_WRITING_EXTENSIONS = ['.doc', '.docx', '.pdf', '.txt'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export async function POST(request: NextRequest) {
@@ -58,15 +65,13 @@ export async function POST(request: NextRequest) {
     const artistStatement = typeof body.artist_statement === 'string' ? body.artist_statement.trim() || null : null;
     const contentWarnings = typeof body.content_warnings === 'string' ? body.content_warnings.trim() || null : null;
 
-    // Writing-specific
-    const textBody = typeof body.text_body === 'string' ? body.text_body.trim() || null : null;
-    const wordCount = typeof body.word_count === 'number' ? body.word_count : null;
-
-    // Visual-specific
+    // File metadata
     const fileUrl = typeof body.file_url === 'string' ? body.file_url.trim() || null : null;
     const fileName = typeof body.file_name === 'string' ? body.file_name.trim() || null : null;
     const fileType = typeof body.file_type === 'string' ? body.file_type.trim() || null : null;
     const fileSize = typeof body.file_size === 'number' ? body.file_size : null;
+
+    // Visual-specific
     const displayFormat = typeof body.display_format === 'string' ? body.display_format : null;
     const displayNotes = typeof body.display_notes === 'string' ? body.display_notes.trim() || null : null;
 
@@ -79,13 +84,26 @@ export async function POST(request: NextRequest) {
     if (!medium) {
       return NextResponse.json({ error: 'Medium is required.' }, { status: 400 });
     }
-    if (type === 'writing' && !textBody) {
-      return NextResponse.json({ error: 'Text body is required for writing submissions.' }, { status: 400 });
+    if (!fileUrl || !fileName || !fileType || !fileSize) {
+      return NextResponse.json({ error: 'File upload metadata is required.' }, { status: 400 });
     }
+    if (!fileUrl.startsWith(`${profile.id}/`)) {
+      return NextResponse.json({ error: 'Invalid file path.' }, { status: 400 });
+    }
+    if (fileSize > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: 'File must be smaller than 10 MB.' }, { status: 400 });
+    }
+
+    if (type === 'writing') {
+      const ext = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+      if (!ALLOWED_WRITING_TYPES.includes(fileType) && !ALLOWED_WRITING_EXTENSIONS.includes(ext)) {
+        return NextResponse.json({ error: 'Writing files must be DOC, DOCX, PDF, or TXT.' }, { status: 400 });
+      }
+    }
+
     if (type === 'visual') {
-      if (!fileUrl) return NextResponse.json({ error: 'File is required for visual art submissions.' }, { status: 400 });
-      if (!fileUrl.startsWith(`${profile.id}/`)) {
-        return NextResponse.json({ error: 'Invalid file path.' }, { status: 400 });
+      if (!ALLOWED_ART_TYPES.includes(fileType)) {
+        return NextResponse.json({ error: 'Visual art files must be JPG, PNG, WebP, GIF, or PDF.' }, { status: 400 });
       }
       if (!displayFormat) return NextResponse.json({ error: 'Display format is required for visual art.' }, { status: 400 });
     }
@@ -99,8 +117,8 @@ export async function POST(request: NextRequest) {
       description,
       artist_statement: artistStatement,
       content_warnings: contentWarnings,
-      text_body: textBody,
-      word_count: wordCount,
+      text_body: null,
+      word_count: null,
       file_url: fileUrl,
       file_name: fileName,
       file_type: fileType,
@@ -144,7 +162,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/exhibition/submit — presigned upload URL for visual art
+// GET /api/exhibition/submit — presigned upload URL for exhibition files
 export async function GET(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -157,23 +175,35 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
+  const type = searchParams.get('type');
   const filename = searchParams.get('filename');
   const contentType = searchParams.get('contentType');
   const fileSize = parseInt(searchParams.get('fileSize') ?? '0', 10);
 
+  if (type !== 'writing' && type !== 'visual') {
+    return NextResponse.json({ error: 'Invalid submission type.' }, { status: 400 });
+  }
   if (!filename || !contentType) {
     return NextResponse.json({ error: 'filename and contentType are required.' }, { status: 400 });
-  }
-  if (!ALLOWED_ART_TYPES.includes(contentType)) {
-    return NextResponse.json({ error: 'Only JPG, PNG, WebP, GIF, and PDF files are allowed.' }, { status: 400 });
   }
   if (fileSize > MAX_FILE_SIZE) {
     return NextResponse.json({ error: 'File must be smaller than 10 MB.' }, { status: 400 });
   }
 
+  if (type === 'writing') {
+    const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+    if (!ALLOWED_WRITING_TYPES.includes(contentType) && !ALLOWED_WRITING_EXTENSIONS.includes(ext)) {
+      return NextResponse.json({ error: 'Writing files must be DOC, DOCX, PDF, or TXT.' }, { status: 400 });
+    }
+  }
+
+  if (type === 'visual' && !ALLOWED_ART_TYPES.includes(contentType)) {
+    return NextResponse.json({ error: 'Only JPG, PNG, WebP, GIF, and PDF files are allowed.' }, { status: 400 });
+  }
+
   const sanitizedFileName = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
   const filePath = `${profile.id}/${Date.now()}-${sanitizedFileName}`;
-  const bucket = getBucketName();
+  const bucket = type === 'writing' ? getSubmissionsBucketName() : getBucketName();
 
   const uploadUrl = await createPresignedUploadUrl(bucket, filePath, contentType);
   if (!uploadUrl) {

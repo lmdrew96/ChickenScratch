@@ -48,6 +48,13 @@ function SubmissionCard({ s }: { s: ExhibitionSubmission }) {
         <p className="text-sm text-slate-400 line-clamp-2">{s.description}</p>
       )}
 
+      {s.file_url && (
+        <p className="text-xs text-slate-400">
+          File: {s.file_name ?? s.file_url}
+          {s.file_size ? ` (${(s.file_size / 1024 / 1024).toFixed(2)} MB)` : ''}
+        </p>
+      )}
+
       {(s.status === 'approved' || s.status === 'declined') && s.reviewer_notes && (
         <div className="rounded-lg border border-white/10 bg-white/5 p-3">
           <p className="text-xs font-medium text-slate-400 mb-1">Reviewer notes</p>
