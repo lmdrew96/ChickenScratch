@@ -92,12 +92,19 @@ export async function POST(
 
   try {
     const [row] = await database
-      .select({ google_docs_link: submissions.google_docs_link })
+      .select({
+        google_docs_link: submissions.google_docs_link,
+        proofread_html: submissions.proofread_html,
+      })
       .from(submissions)
       .where(eq(submissions.id, id))
       .limit(1);
 
-    if (row?.google_docs_link) {
+    if (row?.proofread_html) {
+      // In-app proofread version takes priority — already sanitized HTML
+      publishedHtml = row.proofread_html;
+    } else if (row?.google_docs_link) {
+      // Backward compat: export from Google Docs for older submissions
       publishedHtml = await fetchGDocHtml(row.google_docs_link);
     }
   } catch {

@@ -10,7 +10,7 @@ import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import { sendSubmissionNotification } from '@/lib/notifications';
 import { sendSubmissionEmail, logNotificationFailure } from '@/lib/email';
-import { convertSubmissionToGDoc } from '@/lib/convert-to-gdoc';
+import { importTextForProofread } from '@/lib/import-text-for-proofread';
 import { createSignedUrl, getBucketName } from '@/lib/storage';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 import type { NewSubmission } from '@/types/database';
@@ -129,20 +129,12 @@ export async function POST(request: NextRequest) {
               revalidatePath('/committee');
               return NextResponse.json({ success: true, file_url: signedUrl });
             } else {
-              // Writing: trigger Make webhook for Google Doc conversion
-              const convertResult = await convertSubmissionToGDoc(submissionId, profile.id);
-
-              if (!convertResult.success) {
-                return NextResponse.json(
-                  { error: convertResult.error },
-                  { status: convertResult.status }
-                );
-              }
-
+              // Writing: import file content into proofread_html, return in-app editor URL
+              await importTextForProofread(submissionId, profile.id);
               revalidatePath('/committee');
               return NextResponse.json({
                 success: true,
-                google_doc_url: convertResult.google_doc_url,
+                proofread_editor_url: `/committee/proofread/${submissionId}`,
               });
             }
           }
@@ -165,9 +157,9 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'proofreader':
-        if (action === 'commit' && linkUrl) {
+        if (action === 'commit') {
           newStatus = 'proofreader_committed';
-          updatePayload.google_docs_link = linkUrl;
+          // google_docs_link intentionally not updated — field retained for backward compat
           updatePayload.committee_status = newStatus;
           updatePayload.proofreader_committed_at = new Date();
         } else if (action === 'request_changes') {

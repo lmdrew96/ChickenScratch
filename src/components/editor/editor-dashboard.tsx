@@ -501,22 +501,31 @@ export function EditorDashboard({
             </div>
 
             {selectedSubmission.type === 'writing' && (
-              <div className="space-y-1">
-                <Label className="text-xs text-white/40">
-                  Final proofread text
-                  {!selectedSubmission.google_docs_link && (
-                    <span className="ml-2 text-amber-400/70">
-                      No Google Doc linked — paste here to show edited version
+              <div className="space-y-2">
+                {selectedSubmission.proofread_html ? (
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-emerald-500/40 bg-emerald-900/20 px-2.5 py-0.5 text-xs text-emerald-300">
+                      Proofread content ready
                     </span>
-                  )}
-                </Label>
-                <Textarea
-                  value={publishedText}
-                  onChange={(e) => setPublishedText(e.target.value)}
-                  rows={6}
-                  placeholder="Paste the final edited text here. Leave blank to use the original submission."
-                  disabled={isAnyLoading}
-                />
+                    <span className="text-xs text-white/30">will be used automatically</span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-400/70">No proofread version yet — paste override below if needed</p>
+                )}
+                <details className="group">
+                  <summary className="cursor-pointer text-xs text-white/30 hover:text-white/60">
+                    Override published text
+                  </summary>
+                  <div className="mt-2 space-y-1">
+                    <Textarea
+                      value={publishedText}
+                      onChange={(e) => setPublishedText(e.target.value)}
+                      rows={6}
+                      placeholder="Paste text here to override the proofread version."
+                      disabled={isAnyLoading}
+                    />
+                  </div>
+                </details>
               </div>
             )}
 

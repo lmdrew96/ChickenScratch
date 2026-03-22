@@ -63,7 +63,7 @@ function getActionsForRole(role: CommitteeRole, s: Submission): {
     }
 
     if (cs === 'with_coordinator') {
-      const review: InboxAction = { id: 'review', label: s.type === 'visual' ? 'View file' : 'Review', variant: 'primary', workflowAction: 'review' };
+      const review: InboxAction = { id: 'review', label: s.type === 'visual' ? 'View file' : 'Read submission', variant: 'primary', workflowAction: 'review' };
       const approve: InboxAction = { id: 'approve', label: 'Approve', variant: 'success', workflowAction: 'approve' };
       const requestChanges: InboxAction = { id: 'request_changes', label: 'Request changes', variant: 'warning', workflowAction: 'request_changes', requiresComment: true };
       const decline: InboxAction = { id: 'decline', label: 'Decline', variant: 'danger', workflowAction: 'decline', requiresComment: true };
@@ -81,29 +81,32 @@ function getActionsForRole(role: CommitteeRole, s: Submission): {
   }
 
   if (role === 'proofreader') {
-    // Assigned writing that needs a docs link
-    if (cs === 'coordinator_approved' && s.type === 'writing') {
-      const add: InboxAction = { id: 'add_google_doc', label: 'Add Google Doc', variant: 'primary', workflowAction: 'commit', requiresLinkUrl: 'google_docs' };
-      return {
-        section: 'action_required',
-        nextActionLabel: 'Add Google Doc',
-        priority: 100,
-        actions: [add],
-        primaryAction: add,
+    if (s.type === 'writing' && !s.proofreader_committed_at &&
+        (cs === 'coordinator_approved' || cs === 'with_coordinator')) {
+      const edit: InboxAction = {
+        id: 'open_proofread_editor',
+        label: s.proofread_html ? 'Resume editing' : 'Edit in app',
+        variant: 'primary',
       };
-    }
-
-    // In progress: has link but not committed
-    if (s.google_docs_link && !s.proofreader_committed_at) {
-      const open: InboxAction = { id: 'open_google_doc', label: 'Open Google Doc', variant: 'neutral' };
-      const commit: InboxAction = { id: 'commit_google_doc', label: 'Mark committed', variant: 'success', workflowAction: 'commit', requiresLinkUrl: 'google_docs' };
-      const requestChanges: InboxAction = { id: 'request_changes', label: 'Request changes', variant: 'warning', workflowAction: 'request_changes', requiresComment: true };
+      const commit: InboxAction = {
+        id: 'commit_proofread',
+        label: 'Mark committed',
+        variant: 'success',
+        workflowAction: 'commit',
+      };
+      const requestChanges: InboxAction = {
+        id: 'request_changes',
+        label: 'Request changes',
+        variant: 'warning',
+        workflowAction: 'request_changes',
+        requiresComment: true,
+      };
       return {
         section: 'action_required',
-        nextActionLabel: 'Finish proofreading',
-        priority: 80,
-        actions: [open, commit, requestChanges],
-        primaryAction: open,
+        nextActionLabel: s.proofread_html ? 'Resume editing' : 'Edit in app',
+        priority: cs === 'coordinator_approved' ? 100 : 80,
+        actions: [edit, commit, requestChanges],
+        primaryAction: edit,
       };
     }
 

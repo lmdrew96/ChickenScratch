@@ -7,7 +7,7 @@ import { db } from '@/lib/db';
 import { userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess } from '@/lib/auth/guards';
-import { convertSubmissionToGDoc } from '@/lib/convert-to-gdoc';
+import { importTextForProofread } from '@/lib/import-text-for-proofread';
 
 const convertRequestSchema = z.object({
   submission_id: z.string().uuid(),
@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
   const parsed = convertRequestSchema.safeParse(body);
 
   if (!parsed.success) {
-    console.error('[Convert to GDoc] Invalid request body:', parsed.error);
     return NextResponse.json({ error: 'Invalid request data.' }, { status: 400 });
   }
 
@@ -28,7 +27,6 @@ export async function POST(request: NextRequest) {
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const database = db();
 
-  // Check if user has committee access
   const userRoleResult = await database
     .select()
     .from(userRoles)
@@ -37,12 +35,12 @@ export async function POST(request: NextRequest) {
 
   const userRoleData = userRoleResult[0];
 
-  if (!userRoleData || !userRoleData.is_member) {
+  if (!userRoleData?.is_member) {
     return NextResponse.json({ error: 'Forbidden - Committee access required' }, { status: 403 });
   }
 
-  const positions = (userRoleData.positions as string[]) || [];
-  const roles = (userRoleData.roles as string[]) || [];
+  const positions = (userRoleData.positions as string[]) ?? [];
+  const roles = (userRoleData.roles as string[]) ?? [];
 
   if (!hasCommitteeAccess(positions, roles)) {
     return NextResponse.json({ error: 'Forbidden - Committee access required' }, { status: 403 });
@@ -51,18 +49,13 @@ export async function POST(request: NextRequest) {
   const { submission_id } = parsed.data;
 
   try {
-    const result = await convertSubmissionToGDoc(submission_id, profile.id);
-
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
-    }
-
+    await importTextForProofread(submission_id, profile.id);
     return NextResponse.json({
       success: true,
-      google_doc_url: result.google_doc_url,
+      proofread_editor_url: `/committee/proofread/${submission_id}`,
     });
   } catch (error) {
-    console.error('[Convert to GDoc] Error:', error);
+    console.error('[import-text-for-proofread] Error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }

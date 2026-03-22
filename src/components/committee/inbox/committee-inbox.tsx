@@ -15,7 +15,7 @@ type CommitteeInboxProps = {
 
 type PromptState =
   | {
-      type: 'google_docs' | 'canva_link' | 'request_changes' | 'decline' | 'final_decline';
+      type: 'canva_link' | 'request_changes' | 'decline' | 'final_decline';
       submission: Submission;
       action: NonNullable<InboxAction['workflowAction']>;
       value: string;
@@ -94,7 +94,7 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
 
   useEffect(() => {
     if (!promptState) return;
-    if (promptState.type === 'google_docs' || promptState.type === 'canva_link') {
+    if (promptState.type === 'canva_link') {
       promptInputRef.current?.focus();
     } else {
       promptTextareaRef.current?.focus();
@@ -139,6 +139,25 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
         return;
       }
 
+      const data = (await response.json().catch(() => null)) as {
+        proofread_editor_url?: string;
+        file_url?: string;
+        google_doc_url?: string;
+      } | null;
+
+      // Open in-app proofread editor (coordinator read-only view)
+      if (data?.proofread_editor_url) {
+        window.open(data.proofread_editor_url, '_blank');
+      }
+      // Signed file URL for visual art review (existing behaviour)
+      if (data?.file_url) {
+        window.open(data.file_url, '_blank');
+      }
+      // Legacy Google Doc URL (backward compat)
+      if (data?.google_doc_url) {
+        window.open(data.google_doc_url, '_blank');
+      }
+
       setSelected(null);
       setPromptState(null);
       router.refresh();
@@ -153,9 +172,10 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
     const submission = item.submission;
 
     if (!action.workflowAction) {
-      // open links only
-      if (action.id === 'open_google_doc' && submission.google_docs_link) {
-        window.open(submission.google_docs_link, '_blank');
+      // Navigate to in-app proofread editor
+      if (action.id === 'open_proofread_editor') {
+        router.push(`/committee/proofread/${submission.id}`);
+        return;
       }
       if (action.id === 'open_canva_link' && submission.lead_design_commit_link) {
         window.open(submission.lead_design_commit_link, '_blank');
@@ -164,18 +184,6 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
     }
 
     // prompts
-    if (action.requiresLinkUrl === 'google_docs') {
-      setPromptState({
-        type: 'google_docs',
-        submission,
-        action: action.workflowAction,
-        value: submission.google_docs_link ?? '',
-        title: 'Paste Google Doc link',
-        placeholder: 'https://docs.google.com/...',
-      });
-      return;
-    }
-
     if (action.requiresLinkUrl === 'canva_link') {
       setPromptState({
         type: 'canva_link',
@@ -374,7 +382,7 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
                   <div className="mt-2 space-y-2 text-sm">
                     {selected.submission.google_docs_link && (
                       <a className="block text-blue-300 hover:text-blue-200" href={selected.submission.google_docs_link} target="_blank" rel="noreferrer">
-                        Google Doc
+                        Google Doc (legacy)
                       </a>
                     )}
                     {selected.submission.lead_design_commit_link && (
@@ -405,7 +413,7 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
               </button>
             </div>
 
-            {promptState.type === 'google_docs' || promptState.type === 'canva_link' ? (
+            {promptState.type === 'canva_link' ? (
               <input
                 ref={promptInputRef}
                 value={promptState.value}
@@ -441,7 +449,7 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
                   const value = promptState.value.trim();
                   if (!value) return;
 
-                  if (promptState.type === 'google_docs' || promptState.type === 'canva_link') {
+                  if (promptState.type === 'canva_link') {
                     void submitWorkflowAction(promptState.submission, promptState.action, value);
                   } else {
                     void submitWorkflowAction(promptState.submission, promptState.action, undefined, value);

@@ -15,9 +15,8 @@ export type InboxNextActionId =
   | 'approve'
   | 'request_changes'
   | 'decline'
-  | 'add_google_doc'
-  | 'open_google_doc'
-  | 'commit_google_doc'
+  | 'open_proofread_editor'
+  | 'commit_proofread'
   | 'add_canva_link'
   | 'open_canva_link'
   | 'commit_canva_link'
@@ -42,7 +41,7 @@ export type InboxAction = {
     | 'final_decline'
     | 'request_changes';
   /** Whether we must prompt for a URL to complete this action */
-  requiresLinkUrl?: 'google_docs' | 'canva_link';
+  requiresLinkUrl?: 'canva_link';
   /** Whether we must prompt for a comment */
   requiresComment?: boolean;
 };
