@@ -12,7 +12,18 @@ const publishSchema = z.object({
   volume: z.number().int().positive(),
   issueNumber: z.number().int().positive(),
   publishDate: z.string(),
+  publishedText: z.string().optional(),
 });
+
+/**
+ * Convert plain text to simple HTML paragraphs.
+ */
+function plainTextToHtml(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .map((para) => `<p>${para.replace(/\n/g, '<br />')}</p>`)
+    .join('\n');
+}
 
 /**
  * Extract body content from a full Google Docs /pub HTML page.
@@ -91,6 +102,11 @@ export async function POST(
     }
   } catch {
     // Non-fatal — we'll publish without HTML
+  }
+
+  // Fall back to manually pasted text if Google Docs fetch didn't produce HTML
+  if (!publishedHtml && parsed.data.publishedText?.trim()) {
+    publishedHtml = plainTextToHtml(parsed.data.publishedText.trim());
   }
 
   const { volume, issueNumber, publishDate } = parsed.data;

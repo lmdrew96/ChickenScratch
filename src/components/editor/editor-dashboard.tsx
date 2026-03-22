@@ -93,6 +93,7 @@ export function EditorDashboard({
       ? new Date(selectedSubmission.publish_date).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0]
   );
+  const [publishedText, setPublishedText] = useState('');
 
   const canStudentEdit = selectedSubmission?.status ? EDITABLE_STATUSES.includes(selectedSubmission.status) : false;
 
@@ -367,6 +368,7 @@ export function EditorDashboard({
           volume,
           issueNumber,
           publishDate: new Date(publishDate).toISOString(),
+          publishedText: publishedText.trim() || undefined,
         }),
       },
       'Published successfully.',
@@ -629,6 +631,21 @@ export function EditorDashboard({
                   disabled={isAnyLoading}
                 />
               </div>
+              {selectedSubmission.type === 'writing' ? (
+                <div className="grid gap-1">
+                  <Label className="text-xs text-white/50">Final proofread text (paste from Google Doc)</Label>
+                  <Textarea
+                    value={publishedText}
+                    onChange={(event) => setPublishedText(event.target.value)}
+                    rows={8}
+                    placeholder="Paste the final edited text here. Leave blank to use the original submission text."
+                    disabled={isAnyLoading}
+                  />
+                  <p className="text-xs text-white/40">
+                    If the Google Doc is not publicly shared, paste the proofread text here so it appears correctly on the published page.
+                  </p>
+                </div>
+              ) : null}
               {selectedSubmission.published && selectedSubmission.volume && selectedSubmission.issue_number ? (
                 <p className="text-xs text-emerald-300">
                   Currently published as Vol. {selectedSubmission.volume}, No. {selectedSubmission.issue_number}
