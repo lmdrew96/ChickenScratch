@@ -43,7 +43,20 @@ export async function POST(
 
   await database
     .update(submissions)
-    .set({ status: 'withdrawn', updated_at: new Date() })
+    .set({
+      status: 'withdrawn',
+      updated_at: new Date(),
+      // Remove from committee workflow
+      committee_status: null,
+      google_docs_link: null,
+      lead_design_commit_link: null,
+      committee_comments: [],
+      decline_reason: null,
+      coordinator_reviewed_at: null,
+      proofreader_committed_at: null,
+      lead_design_committed_at: null,
+      editor_reviewed_at: null,
+    })
     .where(eq(submissions.id, id));
 
   await database.insert(auditLog).values({

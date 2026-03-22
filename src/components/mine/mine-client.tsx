@@ -25,6 +25,7 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
   const { notify } = useToast();
   const [selectedId, setSelectedId] = useState(submissions[0]?.id ?? null);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
 
   const selectedSubmission = useMemo(
@@ -48,6 +49,7 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
 
   const canEdit = selectedSubmission.status ? EDITABLE_STATUSES.includes(selectedSubmission.status) : false;
   const canWithdraw = selectedSubmission.status ? WITHDRAWABLE_STATUSES.includes(selectedSubmission.status) : false;
+  const canDeleteWithdrawn = selectedSubmission.status === 'withdrawn';
 
   async function handleWithdraw() {
     if (!selectedSubmission) return;
@@ -66,6 +68,38 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
       notify({ title: 'Withdrawal failed', description: 'Something went wrong.', variant: 'error' });
     } finally {
       setIsWithdrawing(false);
+    }
+  }
+
+  async function handleDeleteWithdrawn() {
+    if (!selectedSubmission) return;
+    if (!canDeleteWithdrawn) return;
+    if (!confirm('Permanently delete this withdrawn submission? This cannot be undone.')) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/submissions/${selectedSubmission.id}/delete-withdrawn`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        notify({
+          title: 'Delete failed',
+          description: data.error || 'Something went wrong.',
+          variant: 'error',
+        });
+      } else {
+        notify({
+          title: 'Submission deleted',
+          description: 'Your withdrawn submission has been deleted.',
+          variant: 'success',
+        });
+        router.refresh();
+      }
+    } catch {
+      notify({ title: 'Delete failed', description: 'Something went wrong.', variant: 'error' });
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -187,6 +221,23 @@ export function MineClient({ submissions, viewerName, loadIssue = false }: MineC
               className="rounded-lg border border-rose-500/50 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-500/20 disabled:opacity-50"
             >
               {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+            </button>
+          </div>
+        ) : null}
+
+        {canDeleteWithdrawn ? (
+          <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-5 py-4">
+            <div>
+              <p className="text-sm font-medium text-white/80">Delete withdrawn submission</p>
+              <p className="text-xs text-white/50">Permanently remove this submission and its uploaded files.</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleDeleteWithdrawn}
+              disabled={isDeleting}
+              className="rounded-lg border border-rose-600/50 bg-rose-600/10 px-4 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-600/20 disabled:opacity-50"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         ) : null}

@@ -1,4 +1,4 @@
-import { desc } from 'drizzle-orm';
+import { desc, ne } from 'drizzle-orm';
 
 import PageHeader from '@/components/shell/page-header';
 import KanbanBoard from '@/components/committee/kanban-board';
@@ -20,6 +20,7 @@ export default async function CommitteePage() {
     submissionsData = await db()
       .select()
       .from(submissions)
+      .where(ne(submissions.status, 'withdrawn'))
       .orderBy(desc(submissions.created_at));
   } catch (error) {
     console.error('Failed to fetch submissions:', error);

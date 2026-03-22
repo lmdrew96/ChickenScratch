@@ -100,6 +100,10 @@ export async function createPresignedUploadUrl(
       Bucket: env.R2_BUCKET_NAME,
       Key: objectKey(bucket, path),
       ContentType: contentType,
+      // Avoid SDK-added checksum query params/headers that can make browser CORS setups
+      // harder to configure (and aren't required for our use case).
+      ChecksumAlgorithm: undefined,
+      CacheControl: 'max-age=3600',
     });
     return await getSignedUrl(client, command, { expiresIn: expiresInSeconds });
   } catch (error) {
