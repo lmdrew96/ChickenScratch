@@ -78,7 +78,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <div className="app-shell">
                 <Sidebar signedIn={signedIn} userProfile={userProfile} navAccess={navAccess} />
                 <main id="main-content" className="main" role="main" aria-label="Main content">
-                  <div className="container">{children}</div>
+                  <div className="container main-content">{children}</div>
                   <SiteFooter />
                 </main>
               </div>

@@ -43,8 +43,9 @@ a:hover{text-decoration:underline}
 .nav a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .nav a.active{background:var(--accent);color:#003b72;font-weight:700}
 .nav a.active::before{content:'';position:absolute;left:-12px;top:50%;transform:translateY(-50%);width:4px;height:20px;background:var(--accent);border-radius:2px}
-.main{padding:24px;width:100%;min-width:0}
+.main{padding:24px;width:100%;min-width:0;display:flex;flex-direction:column;min-height:100%}
 .container{max-width:1100px;margin:0 auto;width:100%}
+.main-content{flex:1 0 auto}
 
 /* Sidebar auth section */
 .sidebar-auth {
@@ -62,7 +63,7 @@ a:hover{text-decoration:underline}
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
   }
-  
+
   /* Hamburger Menu Sidebar */
   .sidebar {
     position: static;
@@ -74,12 +75,12 @@ a:hover{text-decoration:underline}
     flex-wrap: nowrap;
     gap: 12px;
   }
-  
+
   .brand {
     margin-bottom: 0;
     flex-shrink: 0;
   }
-  
+
   /* Hide navigation by default on mobile, show via toggle */
   .nav {
     position: fixed;
@@ -96,11 +97,11 @@ a:hover{text-decoration:underline}
     max-height: calc(100vh - 56px);
     overflow-y: auto;
   }
-  
+
   .nav.mobile-open {
     display: flex;
   }
-  
+
   .nav a {
     white-space: nowrap;
     font-size: 14px;
@@ -110,16 +111,16 @@ a:hover{text-decoration:underline}
     align-items: center;
     border-radius: 8px;
   }
-  
+
   .sidebar-auth {
     margin-top: 0;
     flex-shrink: 0;
   }
-  
+
   .auth-form {
     margin-top: 0;
   }
-  
+
   /* Hamburger button */
   .mobile-menu-toggle {
     display: flex;
@@ -135,17 +136,17 @@ a:hover{text-decoration:underline}
     transition: background 0.2s ease;
     flex-shrink: 0;
   }
-  
+
   .mobile-menu-toggle:hover {
     background: rgba(255, 255, 255, 0.2);
   }
-  
+
   .mobile-menu-toggle svg {
     width: 24px;
     height: 24px;
     color: white;
   }
-  
+
   /* Touch target sizes */
   .btn {
     font-size: 14px;
@@ -156,46 +157,46 @@ a:hover{text-decoration:underline}
     align-items: center;
     justify-content: center;
   }
-  
+
   .main {
     padding: 16px;
   }
-  
+
   .container {
     padding: 0 8px;
   }
-  
+
   /* Table horizontal scrolling */
   .overflow-hidden {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  
+
   table {
     min-width: 800px;
   }
-  
+
   /* Form adjustments for mobile */
   .form-card {
     padding: 20px !important;
   }
-  
+
   .space-y-6 > * + * {
     margin-top: 20px;
   }
-  
+
   .space-y-4 > * + * {
     margin-top: 16px;
   }
-  
+
   .space-y-3 > * + * {
     margin-top: 12px;
   }
-  
+
   .space-y-2 > * + * {
     margin-top: 8px;
   }
-  
+
   /* Form inputs touch targets */
   input[type="text"],
   input[type="email"],
@@ -207,19 +208,19 @@ a:hover{text-decoration:underline}
     font-size: 16px; /* Prevents zoom on iOS */
     padding: 12px;
   }
-  
+
   /* File input button */
   input[type="file"]::file-selector-button {
     min-height: 44px;
     padding: 10px 16px;
   }
-  
+
   /* Select dropdowns */
   select {
     padding: 12px;
     background-position: right 12px center;
   }
-  
+
   /* Checkbox and radio touch targets */
   input[type="checkbox"],
   input[type="radio"] {
@@ -227,28 +228,28 @@ a:hover{text-decoration:underline}
     min-height: 24px;
     cursor: pointer;
   }
-  
+
   /* Button groups */
   .flex.flex-wrap.gap-3 button,
   .flex.flex-wrap.gap-2 button {
     min-height: 44px;
     padding: 10px 16px;
   }
-  
+
   /* Modal adjustments */
   .modal-overlay {
     padding: 12px;
   }
-  
+
   .modal-content {
     max-height: 95vh;
   }
-  
-  /* Editor dashboard specific */
-  .grid.gap-6.lg\\:grid-cols-2 {
+
+  /* Editor dashboard specific (escape ':' in class selector) */
+  .grid.gap-6.lg\:grid-cols-2 {
     grid-template-columns: 1fr;
   }
-  
+
   /* Submission grid */
   .submission-grid {
     grid-template-columns: 1fr;
@@ -261,34 +262,34 @@ a:hover{text-decoration:underline}
     padding: 8px;
     gap: 8px;
   }
-  
+
   .brand-badge {
     width: 28px;
     height: 28px;
   }
-  
+
   .mobile-menu-toggle {
     width: 40px;
     height: 40px;
   }
-  
+
   .btn {
     font-size: 13px;
     padding: 10px 14px;
   }
-  
+
   .main {
     padding: 12px;
   }
-  
+
   .form-card {
     padding: 16px !important;
   }
-  
+
   h1, .page-title {
     font-size: 1.5rem;
   }
-  
+
   h2 {
     font-size: 1.25rem;
   }
@@ -353,12 +354,12 @@ p{margin:0 0 12px}
     width:38px;
     height:38px;
   }
-  
+
   .account-badge img {
     width: 30px;
     height: 30px;
   }
-  
+
   .account-badge span {
     font-size: 13px;
   }
@@ -374,7 +375,7 @@ p{margin:0 0 12px}
   .account-badge {
     display: none; /* Hide fixed badge on mobile */
   }
-  
+
   .account-badge-inline {
     display: inline-flex;
     align-items: center;
@@ -388,12 +389,12 @@ p{margin:0 0 12px}
     text-decoration: none;
     flex-shrink: 0;
   }
-  
+
   .account-badge-inline:hover {
     filter: brightness(0.97);
     text-decoration: none;
   }
-  
+
   .account-badge-inline img {
     width: 28px;
     height: 28px;
@@ -401,13 +402,13 @@ p{margin:0 0 12px}
     object-fit: cover;
     border: 2px solid var(--accent);
   }
-  
+
   .account-badge-inline span {
     font-size: 12px;
     font-weight: 600;
     line-height: 1;
   }
-  
+
   .sidebar-auth {
     display: flex;
     align-items: center;
@@ -421,12 +422,12 @@ p{margin:0 0 12px}
     width: 34px;
     height: 34px;
   }
-  
+
   .account-badge-inline img {
     width: 26px;
     height: 26px;
   }
-  
+
   .account-badge-inline span {
     font-size: 11px;
   }
@@ -1054,15 +1055,15 @@ textarea:disabled {
 }
 
 /* High contrast mode support */
-@media (prefers-contrast: high) {
+@media (prefers-contrast: more) {
   * {
     border-color: currentColor !important;
   }
-  
+
   .btn {
     border-width: 2px;
   }
-  
+
   a {
     text-decoration: underline;
   }
@@ -1085,36 +1086,36 @@ textarea:disabled {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .page-title {
     font-size: 1.5rem;
   }
-  
+
   .breadcrumb-list {
     flex-wrap: wrap;
   }
-  
+
   .auth-form-card {
     padding: 1.5rem;
   }
-  
+
   .submission-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
-  
+
   .modal-overlay {
     padding: 0.5rem;
   }
-  
+
   .modal-header {
     padding: 1rem;
   }
-  
+
   .modal-body {
     padding: 1rem;
   }
-  
+
   .error-boundary-actions {
     flex-direction: column;
   }
