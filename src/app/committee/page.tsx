@@ -2,6 +2,7 @@ import { desc, ne } from 'drizzle-orm';
 
 import PageHeader from '@/components/shell/page-header';
 import CommitteeInbox from '@/components/committee/inbox/committee-inbox';
+import type { CommitteeRole } from '@/components/committee/inbox/types';
 import { requireCommitteeRole } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { submissions } from '@/lib/db/schema';
@@ -28,7 +29,7 @@ export default async function CommitteePage() {
 
   // Determine display role and actual position for kanban board
   let displayRole = 'Committee Member';
-  let userPosition = 'student';
+  let userPosition: CommitteeRole = 'student';
 
   if (userRole && userRole.positions && userRole.positions.length > 0) {
     // Use the first committee position found
@@ -38,7 +39,7 @@ export default async function CommitteePage() {
     if (position) {
       displayRole = position;
       // Convert to lowercase snake_case for kanban board logic
-      userPosition = position.toLowerCase().replace(/[- ]/g, '_');
+      userPosition = position.toLowerCase().replace(/[- ]/g, '_') as CommitteeRole;
     }
   }
 
@@ -55,7 +56,7 @@ export default async function CommitteePage() {
         </div>
       </div>
 
-      <CommitteeInbox userRole={userPosition as any} submissions={submissionsData} />
+      <CommitteeInbox userRole={userPosition} submissions={submissionsData} />
     </div>
   );
 }
