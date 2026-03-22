@@ -1,7 +1,7 @@
 import { desc, ne } from 'drizzle-orm';
 
 import PageHeader from '@/components/shell/page-header';
-import KanbanBoard from '@/components/committee/kanban-board';
+import CommitteeInbox from '@/components/committee/inbox/committee-inbox';
 import { requireCommitteeRole } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { submissions } from '@/lib/db/schema';
@@ -55,7 +55,7 @@ export default async function CommitteePage() {
         </div>
       </div>
 
-      <KanbanBoard userRole={userPosition} submissions={submissionsData} />
+      <CommitteeInbox userRole={userPosition as any} submissions={submissionsData} />
     </div>
   );
 }
