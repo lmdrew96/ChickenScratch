@@ -10,64 +10,20 @@ import { submissions, profiles, userRoles } from '@/lib/db/schema';
 import { EditorDashboard } from '@/components/editor/editor-dashboard';
 import type { EditorSubmission } from '@/components/editor/editor-dashboard';
 import { ExportReportButton } from '@/components/editor/export-report-button';
-import type { Submission } from '@/types/database';
 
-// Committee status type
-type CommitteeStatus = Submission['committee_status'];
-
-// Helper function to format committee status
-function formatCommitteeStatus(status: CommitteeStatus): string {
-  if (!status) return 'New';
-  return status
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-// Helper function to get status color
-function getStatusColor(status: CommitteeStatus): string {
-  const colors: Record<string, string> = {
-    pending_coordinator: 'bg-yellow-900/60 text-yellow-100 border-yellow-500/70',
-    with_coordinator: 'bg-blue-900/60 text-blue-100 border-blue-500/60',
-    coordinator_approved: 'bg-emerald-900/60 text-emerald-100 border-emerald-500/70',
-    coordinator_declined: 'bg-rose-900/60 text-rose-100 border-rose-500/70',
-    with_proofreader: 'bg-purple-900/60 text-purple-100 border-purple-500/70',
-    proofreader_committed: 'bg-indigo-900/60 text-indigo-100 border-indigo-500/70',
-    with_lead_design: 'bg-pink-900/60 text-pink-100 border-pink-500/70',
-    lead_design_committed: 'bg-cyan-900/60 text-cyan-100 border-cyan-500/70',
-    with_editor_in_chief: 'bg-amber-900/60 text-amber-100 border-amber-500/70',
-    published: 'bg-green-900/60 text-green-100 border-green-500/70',
-  };
-  return status ? colors[status] || 'bg-slate-800/70 text-slate-200 border-slate-500/50' : 'bg-slate-800/70 text-slate-200 border-slate-500/50';
-}
-
-// Calculate days since last update
 function getDaysSince(date: Date | string | null): number {
   if (!date) return 0;
-  const now = new Date();
   const updated = date instanceof Date ? date : new Date(date);
-  const diffTime = Math.abs(now.getTime() - updated.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
+  return Math.ceil(Math.abs(Date.now() - updated.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 export default async function EditorInChiefDashboard() {
-  // Require user to be logged in
   const { profile: viewerProfile } = await requireUser('/editor');
-
-  // Get user role from user_roles table
   const userRole = await getCurrentUserRole();
-
-  // Check if user has Editor-in-Chief position
   const isEditorInChief = userRole?.positions?.includes('Editor-in-Chief');
 
   if (!isEditorInChief) {
-    // Redirect to appropriate page based on their role
-    if (userRole?.roles?.includes('committee')) {
-      redirect('/committee');
-    } else {
-      redirect('/mine');
-    }
+    redirect(userRole?.roles?.includes('committee') ? '/committee' : '/mine');
   }
 
   const database = db();
@@ -81,16 +37,13 @@ export default async function EditorInChiefDashboard() {
       .orderBy(desc(submissions.created_at));
 
     if (data) {
-      // Collect all profile IDs we need (owners + assigned editors)
       const profileIds = new Set<string>();
       data.forEach((s) => {
         profileIds.add(s.owner_id);
         if (s.assigned_editor) profileIds.add(s.assigned_editor);
       });
 
-      // Fetch all needed profiles in one query
       const profileMap = new Map<string, { id: string; name: string | null; email: string | null }>();
-
       if (profileIds.size > 0) {
         const profileRows = await database
           .select({ id: profiles.id, name: profiles.name, email: profiles.email })
@@ -99,28 +52,20 @@ export default async function EditorInChiefDashboard() {
         profileRows.forEach((p) => profileMap.set(p.id, p));
       }
 
-      allSubmissions = data.map((submission) => {
-        const ownerProfile = profileMap.get(submission.owner_id) ?? null;
-        const editorProfile = submission.assigned_editor
+      allSubmissions = data.map((submission) => ({
+        ...submission,
+        art_files: Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [],
+        owner: profileMap.get(submission.owner_id) ?? null,
+        assigned_editor_profile: submission.assigned_editor
           ? profileMap.get(submission.assigned_editor) ?? null
-          : null;
-
-        return {
-          ...submission,
-          art_files: Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [],
-          owner: ownerProfile,
-          assigned_editor_profile: editorProfile
-            ? { id: editorProfile.id, name: editorProfile.name, email: editorProfile.email }
-            : null,
-        };
-      });
+          : null,
+      }));
     }
   } catch (error) {
     console.error('Failed to fetch submissions:', error);
     loadIssue = true;
   }
 
-  // Fetch editors for the assignment dropdown
   let editors: { id: string; name: string | null; email: string | null }[] = [];
   let rosterLoadIssue = false;
 
@@ -131,7 +76,6 @@ export default async function EditorInChiefDashboard() {
       .where(eq(userRoles.is_member, true));
 
     const memberIds = committeeMembers.map((m) => m.user_id);
-
     if (memberIds.length > 0) {
       editors = await database
         .select({ id: profiles.id, name: profiles.name, email: profiles.email })
@@ -145,271 +89,59 @@ export default async function EditorInChiefDashboard() {
 
   const viewerName = viewerProfile.name || viewerProfile.email || 'Editor';
 
-  // Calculate metrics
-  const totalSubmissions = allSubmissions.length;
-  const pendingReview = allSubmissions.filter(
-    (s) => !s.committee_status || s.committee_status === 'pending_coordinator'
-  ).length;
-  const inProgress = allSubmissions.filter(
-    (s) =>
-      s.committee_status &&
-      ['with_coordinator', 'with_proofreader', 'with_lead_design'].includes(s.committee_status)
-  ).length;
-  const published = allSubmissions.filter((s) => s.status === 'published').length;
-
-  // Workflow status breakdown
-  const statusCounts: Record<string, number> = {
-    new: allSubmissions.filter((s) => !s.committee_status).length,
-    pending_coordinator: allSubmissions.filter((s) => s.committee_status === 'pending_coordinator').length,
-    with_coordinator: allSubmissions.filter((s) => s.committee_status === 'with_coordinator').length,
-    coordinator_approved: allSubmissions.filter((s) => s.committee_status === 'coordinator_approved').length,
-    with_proofreader: allSubmissions.filter((s) => s.committee_status === 'with_proofreader').length,
-    proofreader_committed: allSubmissions.filter((s) => s.committee_status === 'proofreader_committed').length,
-    with_lead_design: allSubmissions.filter((s) => s.committee_status === 'with_lead_design').length,
-    lead_design_committed: allSubmissions.filter((s) => s.committee_status === 'lead_design_committed').length,
-    with_editor_in_chief: allSubmissions.filter((s) => s.committee_status === 'with_editor_in_chief').length,
+  const metrics = {
+    total: allSubmissions.length,
+    awaitingYou: allSubmissions.filter((s) => s.committee_status === 'with_editor_in_chief').length,
+    inWorkflow: allSubmissions.filter(
+      (s) =>
+        s.committee_status &&
+        ['with_coordinator', 'with_proofreader', 'with_lead_design'].includes(s.committee_status)
+    ).length,
     published: allSubmissions.filter((s) => s.status === 'published').length,
   };
 
-  // Bottleneck detection - submissions stuck for >7 days
-  const bottlenecks = allSubmissions
-    .filter((s) => getDaysSince(s.updated_at) > 7 && s.status !== 'published')
-    .sort((a, b) => getDaysSince(b.updated_at) - getDaysSince(a.updated_at));
-
-  // Find stage with most backlog
-  const maxBacklog = Math.max(...Object.values(statusCounts));
-  const backlogStage = Object.entries(statusCounts).find(([, count]) => count === maxBacklog)?.[0];
-
-  // Recent activity - get last 10 submissions with status changes
-  const recentActivity = allSubmissions
-    .filter((s) => s.updated_at)
-    .sort((a, b) => {
-      const aTime = a.updated_at instanceof Date ? a.updated_at.getTime() : new Date(a.updated_at!).getTime();
-      const bTime = b.updated_at instanceof Date ? b.updated_at.getTime() : new Date(b.updated_at!).getTime();
-      return bTime - aTime;
-    })
-    .slice(0, 10);
-
-  // Submissions by type
-  const writingCount = allSubmissions.filter((s) => s.type === 'writing').length;
-  const visualCount = allSubmissions.filter((s) => s.type === 'visual').length;
-
-  // Genre distribution
-  const genreCounts: Record<string, number> = {};
-  allSubmissions.forEach((s) => {
-    if (s.genre) {
-      genreCounts[s.genre] = (genreCounts[s.genre] || 0) + 1;
-    }
-  });
+  const stuckCount = allSubmissions.filter(
+    (s) => getDaysSince(s.updated_at) > 7 && s.status !== 'published'
+  ).length;
 
   return (
-    <div className="space-y-8">
-      <PageHeader title="Editor-in-Chief Dashboard" />
-
-      {/* Key Metrics Cards */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
-          <div className="text-sm font-medium text-slate-300">Total Submissions</div>
-          <div className="mt-2 text-4xl font-bold text-[var(--text)]">{totalSubmissions}</div>
-          <div className="mt-1 text-xs text-slate-400">All time</div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
-          <div className="text-sm font-medium text-slate-300">Pending Review</div>
-          <div className="mt-2 text-4xl font-bold text-yellow-400">{pendingReview}</div>
-          <div className="mt-1 text-xs text-slate-400">Awaiting coordinator</div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
-          <div className="text-sm font-medium text-slate-300">In Progress</div>
-          <div className="mt-2 text-4xl font-bold text-blue-400">{inProgress}</div>
-          <div className="mt-1 text-xs text-slate-400">Active workflow</div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
-          <div className="text-sm font-medium text-slate-300">Published</div>
-          <div className="mt-2 text-4xl font-bold text-green-400">{published}</div>
-          <div className="mt-1 text-xs text-slate-400">Live on site</div>
-        </div>
-      </div>
-
-      {/* Workflow Status Breakdown */}
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg md:p-8">
-        <h2 className="mb-6 text-xl font-semibold text-[var(--text)]">Workflow Status Breakdown</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Object.entries(statusCounts).map(([status, count]) => (
-            <div
-              key={status}
-              className="rounded-xl border border-white/10 bg-white/5 p-4"
-            >
-              <div className="flex items-center justify-between">
-                <span
-                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase ${getStatusColor(status as CommitteeStatus)}`}
-                >
-                  {formatCommitteeStatus(status as CommitteeStatus)}
-                </span>
-                <span className="text-2xl font-bold text-[var(--text)]">{count}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Bottleneck Detection */}
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg md:p-8">
-        <h2 className="mb-4 text-xl font-semibold text-[var(--text)]">Bottleneck Detection</h2>
-
-        {backlogStage && (
-          <div className="mb-4 rounded-xl border border-amber-500/50 bg-amber-900/20 p-4">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">⚠️</span>
-              <div>
-                <div className="font-semibold text-amber-200">Highest Backlog</div>
-                <div className="text-sm text-amber-300">
-                  {formatCommitteeStatus(backlogStage as CommitteeStatus)} has {maxBacklog} submissions
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-slate-300">
-            Submissions stuck for &gt;7 days ({bottlenecks.length})
-          </h3>
-          {bottlenecks.length === 0 ? (
-            <p className="text-sm text-slate-400">No bottlenecks detected! 🎉</p>
-          ) : (
-            <div className="space-y-2">
-              {bottlenecks.slice(0, 5).map((submission) => (
-                <div
-                  key={submission.id}
-                  className="rounded-xl border border-white/10 bg-white/5 p-3"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <p className="font-semibold text-[var(--text)]">{submission.title}</p>
-                      <p className="text-xs text-slate-300">
-                        {formatCommitteeStatus(submission.committee_status)} • {getDaysSince(submission.updated_at)} days
-                      </p>
-                    </div>
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-semibold ${getStatusColor(submission.committee_status)}`}
-                    >
-                      {formatCommitteeStatus(submission.committee_status)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Two Column Layout */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Activity Feed */}
-        <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg md:p-8">
-          <h2 className="mb-4 text-xl font-semibold text-[var(--text)]">Recent Activity</h2>
-          <div className="space-y-3">
-            {recentActivity.length === 0 ? (
-              <p className="text-sm text-slate-400">No recent activity</p>
-            ) : (
-              recentActivity.map((submission) => (
-                <div
-                  key={submission.id}
-                  className="rounded-xl border border-white/10 bg-white/5 p-3"
-                >
-                  <p className="text-sm font-medium text-[var(--text)]">{submission.title}</p>
-                  <p className="text-xs text-slate-300">
-                    Status: {formatCommitteeStatus(submission.committee_status)}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {submission.updated_at
-                      ? (submission.updated_at instanceof Date ? submission.updated_at : new Date(submission.updated_at)).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : 'N/A'}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* Submissions by Type */}
-        <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg md:p-8">
-          <h2 className="mb-4 text-xl font-semibold text-[var(--text)]">Submissions by Type</h2>
-
-          <div className="space-y-4">
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-300">Writing</span>
-                <span className="text-2xl font-bold text-[var(--text)]">{writingCount}</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full bg-blue-500"
-                  style={{
-                    width: `${totalSubmissions > 0 ? (writingCount / totalSubmissions) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-300">Visual Art</span>
-                <span className="text-2xl font-bold text-[var(--text)]">{visualCount}</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full bg-purple-500"
-                  style={{
-                    width: `${totalSubmissions > 0 ? (visualCount / totalSubmissions) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {Object.keys(genreCounts).length > 0 && (
-            <>
-              <h3 className="mb-3 mt-6 text-sm font-medium text-slate-300">Genre Distribution</h3>
-              <div className="space-y-2">
-                {Object.entries(genreCounts)
-                  .sort(([, a], [, b]) => b - a)
-                  .slice(0, 5)
-                  .map(([genre, count]) => (
-                    <div key={genre} className="flex items-center justify-between text-sm">
-                      <span className="text-slate-300">{genre}</span>
-                      <span className="font-semibold text-[var(--text)]">{count}</span>
-                    </div>
-                  ))}
-              </div>
-            </>
-          )}
-        </section>
-      </div>
-
-      {/* Quick Actions */}
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg md:p-8">
-        <h2 className="mb-4 text-xl font-semibold text-[var(--text)]">Quick Actions</h2>
-        <div className="flex flex-wrap gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <PageHeader title="Editor-in-Chief" />
+        <div className="flex items-center gap-3">
           <Link
             href="/committee"
-            className="rounded-xl border border-white/10 bg-white/5 px-6 py-3 font-semibold text-[var(--text)] transition-colors hover:bg-white/10"
+            className="rounded-md border border-white/20 px-3 py-2 text-sm text-white/70 transition hover:border-white/40 hover:text-white"
           >
-            View Full Committee Workflow
+            Committee workflow
           </Link>
           <ExportReportButton />
         </div>
-      </section>
+      </div>
 
-      {/* Interactive Submissions Manager */}
+      {stuckCount > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-900/20 px-4 py-3 text-sm">
+          <span className="font-semibold text-amber-200">
+            {stuckCount} submission{stuckCount !== 1 ? 's' : ''} stuck
+          </span>
+          <span className="text-amber-300/60">No movement in over 7 days</span>
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: 'Total submissions', value: metrics.total, color: 'text-white' },
+          { label: 'Awaiting you', value: metrics.awaitingYou, color: 'text-amber-400' },
+          { label: 'In workflow', value: metrics.inWorkflow, color: 'text-blue-400' },
+          { label: 'Published', value: metrics.published, color: 'text-emerald-400' },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="rounded-xl border border-white/10 bg-white/5 px-5 py-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-white/40">{label}</p>
+            <p className={`mt-1 text-3xl font-bold ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
       <EditorDashboard
         submissions={allSubmissions}
         editors={editors}

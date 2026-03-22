@@ -39,10 +39,17 @@ type LoadingState = {
   publish: boolean;
 };
 
+function formatCommitteeStatus(status: string | null | undefined): string {
+  if (!status) return 'New';
+  return status
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 export function EditorDashboard({
   submissions,
   editors,
-  viewerName,
   loadIssue = false,
   rosterLoadIssue = false,
 }: EditorDashboardProps) {
@@ -53,7 +60,6 @@ export function EditorDashboard({
   const [isPending, startTransition] = useTransition();
   const confirmation = useConfirmation();
 
-  // Separate loading states for each action
   const [loadingState, setLoadingState] = useState<LoadingState>({
     assignment: false,
     notes: false,
@@ -61,25 +67,24 @@ export function EditorDashboard({
     publish: false,
   });
 
-  // Optimistic state for UI updates
   const [optimisticSubmissions, setOptimisticSubmissions] = useState<EditorSubmission[]>(submissions);
 
-  // Update optimistic state when props change
   useEffect(() => {
     setOptimisticSubmissions(submissions);
   }, [submissions]);
 
-  const filteredSubmissions = useMemo(() => {
-    return optimisticSubmissions.filter((submission) => statusFilter === 'all' || submission.status === statusFilter);
-  }, [optimisticSubmissions, statusFilter]);
+  const filteredSubmissions = useMemo(
+    () => optimisticSubmissions.filter((s) => statusFilter === 'all' || s.status === statusFilter),
+    [optimisticSubmissions, statusFilter]
+  );
 
   const selectedSubmission = useMemo(
-    () => optimisticSubmissions.find((submission) => submission.id === selectedId) ?? filteredSubmissions[0] ?? null,
+    () => optimisticSubmissions.find((s) => s.id === selectedId) ?? filteredSubmissions[0] ?? null,
     [filteredSubmissions, selectedId, optimisticSubmissions]
   );
 
   useEffect(() => {
-    if (filteredSubmissions.length > 0 && !filteredSubmissions.some((submission) => submission.id === selectedId)) {
+    if (filteredSubmissions.length > 0 && !filteredSubmissions.some((s) => s.id === selectedId)) {
       setSelectedId(filteredSubmissions[0]!.id);
     }
   }, [filteredSubmissions, selectedId]);
@@ -95,14 +100,15 @@ export function EditorDashboard({
   );
   const [publishedText, setPublishedText] = useState('');
 
-  const canStudentEdit = selectedSubmission?.status ? EDITABLE_STATUSES.includes(selectedSubmission.status) : false;
-
-  const filters = ['all', ...SUBMISSION_STATUSES] as const;
+  const isAnyLoading = Object.values(loadingState).some(Boolean) || isPending;
+  const assignmentsDisabled = rosterLoadIssue || editors.length === 0;
+  const canStudentEdit = selectedSubmission?.status
+    ? EDITABLE_STATUSES.includes(selectedSubmission.status)
+    : false;
+  const isAwaitingEiC = selectedSubmission?.committee_status === 'with_editor_in_chief';
 
   useEffect(() => {
-    if (!selectedSubmission) {
-      return;
-    }
+    if (!selectedSubmission) return;
     setNotesDraft(selectedSubmission.editor_notes ?? '');
     setAssignedEditor(selectedSubmission.assigned_editor_profile?.id ?? '');
     setVolume(selectedSubmission.volume ?? '');
@@ -112,35 +118,8 @@ export function EditorDashboard({
         ? new Date(selectedSubmission.publish_date).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0]
     );
+    setPublishedText('');
   }, [selectedSubmission]);
-
-  if (!selectedSubmission) {
-    if (loadIssue) {
-      return (
-        <EmptyState
-          variant="error"
-          title="Unable to load submissions"
-          description="We couldn't load the submission list. This might be a temporary issue. Please try refreshing the page or check back later for updates."
-          action={{
-            label: "Refresh page",
-            onClick: () => window.location.reload()
-          }}
-        />
-      );
-    }
-
-    return (
-      <EmptyState
-        variant="editor"
-        title="No submissions to review"
-        description="There are no submissions available for review at this time. Once students begin submitting their work, items will appear here for you to review and manage."
-        secondaryAction={{
-          label: "View published works",
-          href: "/published"
-        }}
-      />
-    );
-  }
 
   async function mutate(
     endpoint: string,
@@ -152,19 +131,11 @@ export function EditorDashboard({
     try {
       const response = await fetch(endpoint, options);
       const result = await response.json().catch(() => ({}));
-      
       if (!response.ok) {
-        const errorMessage = result.error ?? `Request failed with status ${response.status}`;
-        throw new Error(errorMessage);
+        throw new Error(result.error ?? `Request failed with status ${response.status}`);
       }
-      
       notify({ title: 'Success', description: successMessage, variant: 'success' });
-      
-      // Use startTransition for router refresh to avoid blocking UI
-      startTransition(() => {
-        router.refresh();
-      });
-      
+      startTransition(() => { router.refresh(); });
       return true;
     } catch (error) {
       notify({
@@ -180,63 +151,32 @@ export function EditorDashboard({
 
   async function handleAssign(editorId: string | null) {
     if (!selectedSubmission || rosterLoadIssue) return;
-
-    // Validation
     if (editorId && !editors.some((e) => e.id === editorId)) {
-      notify({
-        title: 'Invalid editor',
-        description: 'Please select a valid editor from the list.',
-        variant: 'error',
-      });
+      notify({ title: 'Invalid editor', description: 'Please select a valid editor from the list.', variant: 'error' });
       return;
     }
-
-    // Optimistic update
-    const assignedEditorProfile = editorId 
-      ? editors.find((e) => e.id === editorId) ?? null
-      : null;
-
+    const assignedEditorProfile = editorId ? editors.find((e) => e.id === editorId) ?? null : null;
     setOptimisticSubmissions((prev) =>
       prev.map((sub) =>
-        sub.id === selectedSubmission.id
-          ? { ...sub, assigned_editor_profile: assignedEditorProfile }
-          : sub
+        sub.id === selectedSubmission.id ? { ...sub, assigned_editor_profile: assignedEditorProfile } : sub
       )
     );
-
     const success = await mutate(
       `/api/submissions/${selectedSubmission.id}/assign`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ editorId }),
-      },
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ editorId }) },
       editorId ? 'Editor assigned successfully.' : 'Editor unassigned successfully.',
       'assignment'
     );
-
-    // Revert optimistic update on failure
-    if (!success) {
-      setOptimisticSubmissions(submissions);
-    }
+    if (!success) setOptimisticSubmissions(submissions);
   }
 
   async function handleStatusChange(status: Submission['status'], notes?: string) {
     if (!selectedSubmission) return;
-
     const payloadNotes = notes ?? notesDraft;
-
-    // Validation
     if (status === 'needs_revision' && !payloadNotes.trim()) {
-      notify({
-        title: 'Notes required',
-        description: 'Please add editor notes before requesting revisions.',
-        variant: 'error',
-      });
+      notify({ title: 'Notes required', description: 'Please add editor notes before requesting revisions.', variant: 'error' });
       return;
     }
-
-    // Confirmation for destructive actions
     if (status === 'declined') {
       confirmation.confirm({
         title: 'Decline Submission',
@@ -244,95 +184,61 @@ export function EditorDashboard({
         confirmText: 'Decline',
         cancelText: 'Cancel',
         variant: 'danger',
-        onConfirm: async () => {
-          await performStatusChange(status, payloadNotes);
-        }
+        onConfirm: async () => { await performStatusChange(status, payloadNotes); },
       });
       return;
     }
-
     await performStatusChange(status, payloadNotes);
   }
 
   async function performStatusChange(status: Submission['status'], payloadNotes: string) {
     if (!selectedSubmission) return;
-
-    // Optimistic update
     setOptimisticSubmissions((prev) =>
       prev.map((sub) =>
         sub.id === selectedSubmission.id
-          ? { 
-              ...sub, 
-              status, 
+          ? {
+              ...sub,
+              status,
               editor_notes: payloadNotes,
-              decision_date: status && ['accepted', 'declined', 'needs_revision'].includes(status)
-                ? new Date()
-                : sub.decision_date
+              decision_date:
+                status && ['accepted', 'declined', 'needs_revision'].includes(status)
+                  ? new Date()
+                  : sub.decision_date,
             }
           : sub
       )
     );
-
     const success = await mutate(
       `/api/submissions/${selectedSubmission.id}/status`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, editorNotes: payloadNotes }),
-      },
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status, editorNotes: payloadNotes }) },
       `Status updated to ${formatStatus(status)} successfully.`,
       'status'
     );
-
-    // Revert optimistic update on failure
-    if (!success) {
-      setOptimisticSubmissions(submissions);
-    }
+    if (!success) setOptimisticSubmissions(submissions);
   }
 
   async function handleNotesSave() {
     if (!selectedSubmission) return;
-
-    // Validation
     if (notesDraft.length > 4000) {
-      notify({
-        title: 'Notes too long',
-        description: 'Editor notes must be 4000 characters or less.',
-        variant: 'error',
-      });
+      notify({ title: 'Notes too long', description: 'Editor notes must be 4000 characters or less.', variant: 'error' });
       return;
     }
-
-    // Optimistic update
     setOptimisticSubmissions((prev) =>
       prev.map((sub) =>
-        sub.id === selectedSubmission.id
-          ? { ...sub, editor_notes: notesDraft }
-          : sub
+        sub.id === selectedSubmission.id ? { ...sub, editor_notes: notesDraft } : sub
       )
     );
-
     const success = await mutate(
       `/api/submissions/${selectedSubmission.id}/notes`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ editorNotes: notesDraft }),
-      },
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ editorNotes: notesDraft }) },
       'Notes updated successfully.',
       'notes'
     );
-
-    // Revert optimistic update on failure
-    if (!success) {
-      setOptimisticSubmissions(submissions);
-    }
+    if (!success) setOptimisticSubmissions(submissions);
   }
 
   async function handlePublish() {
     if (!selectedSubmission || !volume || !issueNumber || !publishDate) return;
-
-    // Validation
     if (typeof volume !== 'number' || volume < 1) {
       notify({ title: 'Invalid volume', description: 'Volume must be a positive number.', variant: 'error' });
       return;
@@ -341,24 +247,13 @@ export function EditorDashboard({
       notify({ title: 'Invalid issue', description: 'Issue must be a positive number.', variant: 'error' });
       return;
     }
-
-    // Optimistic update
     setOptimisticSubmissions((prev) =>
       prev.map((sub) =>
         sub.id === selectedSubmission.id
-          ? {
-              ...sub,
-              published: true,
-              volume,
-              issue_number: issueNumber,
-              publish_date: new Date(publishDate),
-              issue: `Vol. ${volume}, No. ${issueNumber}`,
-              status: 'published' as const,
-            }
+          ? { ...sub, published: true, volume, issue_number: issueNumber, publish_date: new Date(publishDate), issue: `Vol. ${volume}, No. ${issueNumber}`, status: 'published' as const }
           : sub
       )
     );
-
     const success = await mutate(
       `/api/submissions/${selectedSubmission.id}/publish`,
       {
@@ -374,18 +269,13 @@ export function EditorDashboard({
       'Published successfully.',
       'publish'
     );
-
-    if (!success) {
-      setOptimisticSubmissions(submissions);
-    }
+    if (!success) setOptimisticSubmissions(submissions);
   }
 
   async function downloadPath(path: string) {
     try {
       const { signedUrl, error } = await getSignedDownloadUrl(path);
-      if (error || !signedUrl) {
-        throw new Error(error ?? 'Unable to generate download link.');
-      }
+      if (error || !signedUrl) throw new Error(error ?? 'Unable to generate download link.');
       window.open(signedUrl, '_blank');
     } catch (error) {
       notify({
@@ -396,142 +286,306 @@ export function EditorDashboard({
     }
   }
 
-  const assignmentsDisabled = rosterLoadIssue || editors.length === 0;
-  const isAnyLoading = Object.values(loadingState).some((loading) => loading) || isPending;
+  if (!selectedSubmission) {
+    if (loadIssue) {
+      return (
+        <EmptyState
+          variant="error"
+          title="Unable to load submissions"
+          description="We couldn't load the submission list. This might be a temporary issue. Please try refreshing the page or check back later for updates."
+          action={{ label: 'Refresh page', onClick: () => window.location.reload() }}
+        />
+      );
+    }
+    return (
+      <EmptyState
+        variant="editor"
+        title="No submissions to review"
+        description="There are no submissions available for review at this time. Once students begin submitting their work, items will appear here for you to review and manage."
+        secondaryAction={{ label: 'View published works', href: '/published' }}
+      />
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-white/50">Signed in as</p>
-          <p className="text-sm font-semibold text-white">{viewerName}</p>
-        </div>
-        <div className="flex flex-wrap gap-2 text-sm">
-          {filters.map((filter) => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() => setStatusFilter(filter)}
-              className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
-                statusFilter === filter
-                  ? 'bg-amber-400 text-slate-900'
-                  : 'bg-white/10 text-white/70 hover:bg-white/15 hover:text-white'
-              }`}
+    <>
+      <div className="grid lg:grid-cols-[18rem_1fr] overflow-hidden rounded-xl border border-white/10">
+        {/* ── LEFT: submission list ── */}
+        <div className="flex flex-col border-b border-white/10 lg:border-b-0 lg:border-r lg:border-white/10">
+          {/* List header */}
+          <div className="border-b border-white/10 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-white/40">
+                Submissions
+              </span>
+              <span className="text-xs text-white/30">{filteredSubmissions.length}</span>
+            </div>
+            <Select
+              value={statusFilter ?? 'all'}
+              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
             >
-              {filter === 'all' ? 'All' : formatStatus(filter)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-white/10">
-        <table className="min-w-full divide-y divide-white/10 text-sm">
-          <thead className="bg-white/5 text-white/70">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold">Title</th>
-              <th className="px-4 py-3 text-left font-semibold">Owner</th>
-              <th className="px-4 py-3 text-left font-semibold">Type</th>
-              <th className="px-4 py-3 text-left font-semibold">Status</th>
-              <th className="px-4 py-3 text-left font-semibold">Updated</th>
-              <th className="px-4 py-3 text-left font-semibold">Assigned</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {filteredSubmissions.map((submission) => (
-              <tr
-                key={submission.id}
-                className={`cursor-pointer transition hover:bg-white/5 ${
-                  submission.id === selectedSubmission.id ? 'bg-amber-400/10' : ''
-                }`}
-                onClick={() => setSelectedId(submission.id)}
-              >
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-white">{submission.title}</p>
-                  <p className="text-xs text-white/50">{submission.summary?.slice(0, 80) ?? 'No summary'}</p>
-                </td>
-                <td className="px-4 py-3 text-white/70">
-                  {submission.owner?.name || submission.owner?.email || 'Unknown'}
-                </td>
-                <td className="px-4 py-3 text-white/70 capitalize">{submission.type}</td>
-                <td className="px-4 py-3 text-white/70">
-                  <StatusBadge status={submission.status} />
-                </td>
-                <td className="px-4 py-3 text-white/70">
-                  {submission.updated_at ? new Date(submission.updated_at).toLocaleString() : '—'}
-                </td>
-                <td className="px-4 py-3 text-white/70">
-                  {submission.assigned_editor_profile?.name || submission.assigned_editor_profile?.email || '—'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <section className="space-y-6 rounded-xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-black/30">
-        <header className="space-y-2">
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-2xl font-semibold text-white">{selectedSubmission.title}</h2>
-            <StatusBadge status={selectedSubmission.status} />
-            <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/60">
-              {selectedSubmission.owner?.email}
-            </span>
-          </div>
-          <p className="text-sm text-white/70">{selectedSubmission.summary ?? 'No summary provided.'}</p>
-        </header>
-
-        <dl className="grid gap-3 text-sm text-white/70 sm:grid-cols-2">
-          <div>
-            <dt className="font-medium text-white/80">Content warnings</dt>
-            <dd>{selectedSubmission.content_warnings || '—'}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-white/80">Genre</dt>
-            <dd>{selectedSubmission.genre || '—'}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-white/80">Assigned editor</dt>
-            <dd>{selectedSubmission.assigned_editor_profile?.name || selectedSubmission.assigned_editor_profile?.email || '—'}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-white/80">Student editing</dt>
-            <dd>{canStudentEdit ? 'Allowed' : 'Locked'}</dd>
-          </div>
-        </dl>
-
-        {selectedSubmission.type === 'writing' ? (
-          <article className="rounded-lg border border-white/10 bg-slate-900/40 p-4">
-            <p className="text-xs uppercase tracking-wide text-white/50">Manuscript</p>
-            <pre className="mt-2 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm text-white/80">
-              {selectedSubmission.text_body ?? ''}
-            </pre>
-          </article>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-xs uppercase tracking-wide text-white/50">Attachments</p>
-            <ul className="space-y-2">
-              {selectedSubmission.art_files.map((path) => (
-                <li key={path} className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
-                  <span>{path.split('/').pop()}</span>
-                  <Button type="button" size="sm" variant="outline" onClick={() => downloadPath(path)}>
-                    Download
-                  </Button>
-                </li>
+              <option value="all">All statuses</option>
+              {SUBMISSION_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {formatStatus(s)}
+                </option>
               ))}
-              {selectedSubmission.art_files.length === 0 ? (
-                <li className="text-xs text-white/50">No attachments.</li>
-              ) : null}
-            </ul>
+            </Select>
           </div>
-        )}
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label>Assign editor</Label>
+          {/* List items */}
+          <div className="overflow-y-auto lg:max-h-[calc(100vh-20rem)]">
+            {filteredSubmissions.length === 0 ? (
+              <p className="p-4 text-sm text-white/30">No submissions match this filter.</p>
+            ) : (
+              filteredSubmissions.map((sub) => {
+                const isSelected = sub.id === selectedSubmission.id;
+                return (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    onClick={() => setSelectedId(sub.id)}
+                    className={`w-full border-b border-white/5 px-3 py-3 text-left transition hover:bg-white/5 ${
+                      isSelected
+                        ? 'border-l-2 border-l-amber-400 bg-amber-400/10'
+                        : 'border-l-2 border-l-transparent'
+                    }`}
+                  >
+                    <p className="truncate text-sm font-medium leading-snug text-white">
+                      {sub.title}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-white/40">
+                      {sub.owner?.name || sub.owner?.email || 'Unknown'}
+                    </p>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <StatusBadge status={sub.status} className="px-2 py-0.5 text-[10px]" />
+                      <span className="text-xs capitalize text-white/30">{sub.type}</span>
+                      {sub.committee_status === 'with_editor_in_chief' && (
+                        <span className="rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
+                          needs you
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* ── RIGHT: detail panel ── */}
+        <div className="overflow-y-auto lg:max-h-[calc(100vh-20rem)] p-6 space-y-6">
+          {/* Header */}
+          <header className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={selectedSubmission.status} />
+              <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs capitalize text-white/50">
+                {selectedSubmission.type}
+              </span>
+              {selectedSubmission.committee_status && (
+                <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs text-white/40">
+                  {formatCommitteeStatus(selectedSubmission.committee_status)}
+                </span>
+              )}
+            </div>
+            <h2 className="text-xl font-semibold leading-tight text-white">
+              {selectedSubmission.title}
+            </h2>
+            <p className="text-xs text-white/40">
+              {selectedSubmission.owner?.name
+                ? `${selectedSubmission.owner.name} · ${selectedSubmission.owner.email}`
+                : selectedSubmission.owner?.email}
+            </p>
+            {selectedSubmission.summary && (
+              <p className="text-sm text-white/60">{selectedSubmission.summary}</p>
+            )}
+          </header>
+
+          {/* Meta */}
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div>
+              <dt className="text-xs text-white/40">Content warnings</dt>
+              <dd className="mt-0.5 text-white/80">{selectedSubmission.content_warnings || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-white/40">Genre</dt>
+              <dd className="mt-0.5 text-white/80">{selectedSubmission.genre || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-white/40">Assigned editor</dt>
+              <dd className="mt-0.5 text-white/80">
+                {selectedSubmission.assigned_editor_profile?.name ||
+                  selectedSubmission.assigned_editor_profile?.email ||
+                  '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-white/40">Student editing</dt>
+              <dd className="mt-0.5 text-white/80">{canStudentEdit ? 'Allowed' : 'Locked'}</dd>
+            </div>
+          </dl>
+
+          {/* Google Docs link */}
+          {selectedSubmission.google_docs_link && (
+            <div className="flex items-center gap-2">
+              <a
+                href={selectedSubmission.google_docs_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition hover:border-white/30 hover:text-white"
+              >
+                Open Google Doc
+                <span className="text-white/30" aria-hidden>↗</span>
+              </a>
+              <span className="text-xs text-white/30">Proofread version</span>
+            </div>
+          )}
+
+          {/* Publish section */}
+          <section
+            className={`space-y-4 rounded-lg border p-4 ${
+              isAwaitingEiC
+                ? 'border-amber-400/40 bg-amber-400/5'
+                : 'border-white/10 bg-white/[0.02]'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <h3
+                className={`text-xs font-semibold uppercase tracking-wide ${
+                  isAwaitingEiC ? 'text-amber-300' : 'text-white/50'
+                }`}
+              >
+                {isAwaitingEiC ? 'Ready to publish' : 'Publish to issue'}
+              </h3>
+              {selectedSubmission.published &&
+                selectedSubmission.volume &&
+                selectedSubmission.issue_number && (
+                  <span className="text-xs text-emerald-300">
+                    Vol. {selectedSubmission.volume}, No. {selectedSubmission.issue_number}
+                  </span>
+                )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-white/40">Volume</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="1"
+                  value={volume}
+                  onChange={(e) => setVolume(e.target.value ? parseInt(e.target.value, 10) : '')}
+                  disabled={isAnyLoading}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-white/40">Issue</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="1"
+                  value={issueNumber}
+                  onChange={(e) => setIssueNumber(e.target.value ? parseInt(e.target.value, 10) : '')}
+                  disabled={isAnyLoading}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-white/40">Date</Label>
+                <Input
+                  type="date"
+                  value={publishDate}
+                  onChange={(e) => setPublishDate(e.target.value)}
+                  disabled={isAnyLoading}
+                />
+              </div>
+            </div>
+
+            {selectedSubmission.type === 'writing' && (
+              <div className="space-y-1">
+                <Label className="text-xs text-white/40">
+                  Final proofread text
+                  {!selectedSubmission.google_docs_link && (
+                    <span className="ml-2 text-amber-400/70">
+                      No Google Doc linked — paste here to show edited version
+                    </span>
+                  )}
+                </Label>
+                <Textarea
+                  value={publishedText}
+                  onChange={(e) => setPublishedText(e.target.value)}
+                  rows={6}
+                  placeholder="Paste the final edited text here. Leave blank to use the original submission."
+                  disabled={isAnyLoading}
+                />
+              </div>
+            )}
+
+            <Button
+              type="button"
+              variant={isAwaitingEiC ? 'primary' : 'outline'}
+              onClick={handlePublish}
+              disabled={loadingState.publish || isAnyLoading || !volume || !issueNumber || !publishDate}
+            >
+              {loadingState.publish ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  <span className="ml-2">Publishing…</span>
+                </>
+              ) : selectedSubmission.published ? (
+                'Update publish settings'
+              ) : (
+                'Publish'
+              )}
+            </Button>
+          </section>
+
+          {/* Content preview */}
+          {selectedSubmission.type === 'writing' ? (
+            <section className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-white/40">
+                Original submission
+              </h3>
+              {selectedSubmission.text_body ? (
+                <div className="max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 p-4 text-sm leading-relaxed text-white/70 whitespace-pre-wrap">
+                  {selectedSubmission.text_body}
+                </div>
+              ) : (
+                <p className="text-sm italic text-white/30">No text body — file upload only.</p>
+              )}
+            </section>
+          ) : (
+            <section className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-white/40">
+                Attachments
+              </h3>
+              <ul className="space-y-2">
+                {selectedSubmission.art_files.map((path) => (
+                  <li
+                    key={path}
+                    className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
+                  >
+                    <span className="truncate">{path.split('/').pop()}</span>
+                    <Button type="button" size="sm" variant="outline" onClick={() => downloadPath(path)}>
+                      Download
+                    </Button>
+                  </li>
+                ))}
+                {selectedSubmission.art_files.length === 0 && (
+                  <li className="text-sm italic text-white/30">No attachments.</li>
+                )}
+              </ul>
+            </section>
+          )}
+
+          {/* Assign editor + notes */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <section className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-white/40">
+                Assign editor
+              </h3>
               <Select
                 value={assignedEditor ?? ''}
-                onChange={(event) => setAssignedEditor(event.target.value)}
+                onChange={(e) => setAssignedEditor(e.target.value)}
                 disabled={assignmentsDisabled || isAnyLoading}
               >
                 <option value="">Unassigned</option>
@@ -541,159 +595,106 @@ export function EditorDashboard({
                   </option>
                 ))}
               </Select>
+              {assignmentsDisabled && (
+                <p className="text-xs text-white/40">
+                  {rosterLoadIssue ? 'Roster could not be loaded.' : 'No editors on roster.'}
+                </p>
+              )}
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => handleAssign(assignedEditor || null)}
                 disabled={assignmentsDisabled || loadingState.assignment || isAnyLoading}
               >
                 {loadingState.assignment ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    <span className="ml-2">Saving...</span>
-                  </>
+                  <><LoadingSpinner size="sm" /><span className="ml-2">Saving…</span></>
                 ) : (
                   'Save assignment'
                 )}
               </Button>
-              {assignmentsDisabled ? (
-                <p className="text-xs text-white/50">
-                  Editor assignments are temporarily disabled because the roster could not be loaded.
-                </p>
-              ) : null}
-            </div>
+            </section>
 
-            <div className="grid gap-2">
-              <Label>
+            <section className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-white/40">
                 Editor notes
-                <span className="ml-2 text-xs text-white/50">
-                  ({notesDraft.length}/4000 characters)
+                <span className="ml-2 font-normal normal-case text-white/30">
+                  {notesDraft.length}/4000
                 </span>
-              </Label>
-              <Textarea 
-                value={notesDraft} 
-                onChange={(event) => setNotesDraft(event.target.value)} 
-                rows={6}
+              </h3>
+              <Textarea
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                rows={4}
                 maxLength={4000}
                 disabled={isAnyLoading}
               />
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={handleNotesSave} 
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleNotesSave}
                 disabled={loadingState.notes || isAnyLoading}
               >
                 {loadingState.notes ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    <span className="ml-2">Saving...</span>
-                  </>
+                  <><LoadingSpinner size="sm" /><span className="ml-2">Saving…</span></>
                 ) : (
                   'Save notes'
                 )}
               </Button>
-            </div>
+            </section>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Publish to issue</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label className="text-xs text-white/50">Volume</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    placeholder="1"
-                    value={volume}
-                    onChange={(event) => setVolume(event.target.value ? parseInt(event.target.value, 10) : '')}
-                    disabled={isAnyLoading}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-white/50">Issue</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    placeholder="1"
-                    value={issueNumber}
-                    onChange={(event) => setIssueNumber(event.target.value ? parseInt(event.target.value, 10) : '')}
-                    disabled={isAnyLoading}
-                  />
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-white/50">Publish date</Label>
-                <Input
-                  type="date"
-                  value={publishDate}
-                  onChange={(event) => setPublishDate(event.target.value)}
-                  disabled={isAnyLoading}
-                />
-              </div>
-              {selectedSubmission.type === 'writing' ? (
-                <div className="grid gap-1">
-                  <Label className="text-xs text-white/50">Final proofread text (paste from Google Doc)</Label>
-                  <Textarea
-                    value={publishedText}
-                    onChange={(event) => setPublishedText(event.target.value)}
-                    rows={8}
-                    placeholder="Paste the final edited text here. Leave blank to use the original submission text."
-                    disabled={isAnyLoading}
-                  />
-                  <p className="text-xs text-white/40">
-                    If the Google Doc is not publicly shared, paste the proofread text here so it appears correctly on the published page.
-                  </p>
-                </div>
-              ) : null}
-              {selectedSubmission.published && selectedSubmission.volume && selectedSubmission.issue_number ? (
-                <p className="text-xs text-emerald-300">
-                  Currently published as Vol. {selectedSubmission.volume}, No. {selectedSubmission.issue_number}
-                </p>
-              ) : null}
+          {/* Status actions */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-white/40">
+              Set status
+            </h3>
+            <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={handlePublish}
-                disabled={loadingState.publish || isAnyLoading || !volume || !issueNumber || !publishDate}
+                size="sm"
+                onClick={() => handleStatusChange('in_review')}
+                disabled={loadingState.status || isAnyLoading}
               >
-                {loadingState.publish ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    <span className="ml-2">Publishing...</span>
-                  </>
-                ) : selectedSubmission.published ? (
-                  'Update publish settings'
-                ) : (
-                  'Publish'
-                )}
+                In Review
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => handleStatusChange('needs_revision')}
+                disabled={loadingState.status || isAnyLoading}
+                className="border border-amber-500/40 bg-transparent text-amber-200 hover:bg-amber-900/20"
+              >
+                Needs Revision
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => handleStatusChange('accepted')}
+                disabled={loadingState.status || isAnyLoading}
+                className="border border-emerald-500/40 bg-transparent text-emerald-200 hover:bg-emerald-900/20"
+              >
+                Accept
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => handleStatusChange('declined')}
+                disabled={loadingState.status || isAnyLoading}
+                className="border border-rose-500/40 bg-transparent text-rose-200 hover:bg-rose-900/20"
+              >
+                Decline
               </Button>
             </div>
-
-            <div className="space-y-2">
-              <Label>Set status</Label>
-              <div className="flex flex-wrap gap-2">
-                {['in_review', 'needs_revision', 'accepted', 'declined'].map((status) => (
-                  <Button
-                    key={status}
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleStatusChange(status as Submission['status'])}
-                    disabled={loadingState.status || isAnyLoading}
-                  >
-                    {formatStatus(status as Submission['status'])}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-white/50">
-                Needs Revision will email the student with the latest notes. Accepted or Declined will also send a summary.
-              </p>
-            </div>
-          </div>
+            <p className="text-xs text-white/30">
+              Needs Revision emails the student with your notes. Accept or Decline sends a decision summary.
+            </p>
+          </section>
         </div>
-      </section>
+      </div>
 
-      {/* Confirmation Dialog */}
       {confirmation.options && (
         <ConfirmModal
           isOpen={confirmation.isOpen}
@@ -706,6 +707,6 @@ export function EditorDashboard({
           variant={confirmation.options.variant}
         />
       )}
-    </div>
+    </>
   );
 }
