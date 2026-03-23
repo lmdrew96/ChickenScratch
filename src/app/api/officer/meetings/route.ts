@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { meetingProposals, officerAvailability, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { notifyOfficersOfMeeting } from '@/lib/officer-notifications';
+import { notifyDiscordMeeting } from '@/lib/discord';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 
 export async function GET() {
@@ -159,8 +160,12 @@ export async function POST(request: NextRequest) {
 
     const proposal = result[0];
 
-    // Notify other officers (fire-and-forget)
     const authorName = profile.name || profile.full_name || profile.email || 'An officer';
+
+    // Discord: fire directly, independent of email
+    void notifyDiscordMeeting(title, description || null, proposed_dates, authorName).catch(() => {});
+
+    // Email: fire-and-forget
     notifyOfficersOfMeeting(title, description || null, proposed_dates, authorName, profile.id).catch((err) =>
       console.error('[officer-email] Failed to send meeting notification:', err)
     );

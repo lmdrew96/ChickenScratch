@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { officerAnnouncements, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { notifyOfficersOfAnnouncement } from '@/lib/officer-notifications';
+import { notifyDiscordAnnouncement } from '@/lib/discord';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 
 export async function GET() {
@@ -122,8 +123,12 @@ export async function POST(request: NextRequest) {
 
     const announcement = result[0];
 
-    // Notify other officers (fire-and-forget)
     const authorName = profile.name || profile.full_name || profile.email || 'An officer';
+
+    // Discord: fire directly, independent of email
+    void notifyDiscordAnnouncement(message, authorName).catch(() => {});
+
+    // Email: fire-and-forget
     notifyOfficersOfAnnouncement(message, authorName, profile.id).catch((err) =>
       console.error('[officer-email] Failed to send announcement notification:', err)
     );

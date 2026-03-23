@@ -5,7 +5,6 @@ import { userRoles, profiles } from '@/lib/db/schema';
 import { OFFICER_POSITIONS } from '@/lib/auth/guards';
 import { escapeHtml } from '@/lib/utils';
 import { logNotificationFailure } from '@/lib/email';
-import { notifyDiscordAnnouncement, notifyDiscordMeeting } from '@/lib/discord';
 
 const BRAND_BLUE = '#00539f';
 const ACCENT_GOLD = '#ffd200';
@@ -60,9 +59,6 @@ export async function notifyOfficersOfAnnouncement(
   const recipients = await getOfficerEmails(excludeUserId);
   if (recipients.length === 0) return { success: true };
 
-  // Always notify Discord
-  notifyDiscordAnnouncement(message, authorName).catch(() => {});
-
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) {
     console.info('[officer-email] announcement notification (Resend not configured)', { recipients });
@@ -112,9 +108,6 @@ export async function notifyOfficersOfMeeting(
   excludeUserId?: string,
 ): Promise<OfficerEmailResult> {
   const recipients = await getOfficerEmails(excludeUserId);
-
-  // Always notify Discord
-  notifyDiscordMeeting(title, description, proposedDates, authorName).catch(() => {});
 
   if (recipients.length === 0) return { success: true };
 
