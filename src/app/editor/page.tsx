@@ -95,7 +95,7 @@ export default async function EditorInChiefDashboard() {
     inWorkflow: allSubmissions.filter(
       (s) =>
         s.committee_status &&
-        ['with_coordinator', 'with_proofreader', 'with_lead_design'].includes(s.committee_status)
+        ['with_coordinator', 'with_proofreader'].includes(s.committee_status)
     ).length,
     published: allSubmissions.filter((s) => s.status === 'published').length,
   };

@@ -33,7 +33,7 @@ export default async function CommitteePage() {
 
   if (userRole && userRole.positions && userRole.positions.length > 0) {
     // Use the first committee position found
-    const committeePositions = ['Editor-in-Chief', 'Submissions Coordinator', 'Proofreader', 'Lead Design'];
+    const committeePositions = ['Editor-in-Chief', 'Submissions Coordinator', 'Proofreader'];
     const position = userRole.positions.find(p => committeePositions.includes(p));
 
     if (position) {

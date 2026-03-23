@@ -26,7 +26,6 @@ const NOTIFIABLE_STATUSES = new Set([
   'coordinator_approved',
   'coordinator_declined',
   'proofreader_committed',
-  'lead_design_committed',
   'editor_approved',
   'editor_declined',
 ]);
@@ -43,7 +42,7 @@ export type NotificationResult = {
  *
  * - New submission → Submissions Coordinators + Editor-in-Chief
  * - Coordinator approves → Proofreaders + Editor-in-Chief
- * - Proofreader commits → Lead Design + Editor-in-Chief
+ * - Proofreader commits → Editor-in-Chief
  * - All other statuses (declines, editor actions, etc.) → Editor-in-Chief only
  */
 function getTargetPositions(
@@ -58,7 +57,7 @@ function getTargetPositions(
     case 'coordinator_approved':
       return ['Proofreader', 'Editor-in-Chief'];
     case 'proofreader_committed':
-      return ['Lead Design', 'Editor-in-Chief'];
+      return ['Editor-in-Chief'];
     default:
       // Editor-in-Chief should always be in the loop for other transitions
       return ['Editor-in-Chief'];

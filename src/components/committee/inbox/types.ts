@@ -3,7 +3,6 @@ import type { Submission } from '@/types/database';
 export type CommitteeRole =
   | 'submissions_coordinator'
   | 'proofreader'
-  | 'lead_design'
   | 'editor_in_chief'
   | 'student';
 
@@ -17,9 +16,6 @@ export type InboxNextActionId =
   | 'decline'
   | 'open_proofread_editor'
   | 'commit_proofread'
-  | 'add_canva_link'
-  | 'open_canva_link'
-  | 'commit_canva_link'
   | 'final_approve'
   | 'final_decline'
   | 'none';
@@ -40,8 +36,6 @@ export type InboxAction = {
     | 'final_approve'
     | 'final_decline'
     | 'request_changes';
-  /** Whether we must prompt for a URL to complete this action */
-  requiresLinkUrl?: 'canva_link';
   /** Whether we must prompt for a comment */
   requiresComment?: boolean;
 };

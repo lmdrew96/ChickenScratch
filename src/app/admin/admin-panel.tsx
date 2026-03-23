@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { updateUserRole } from '@/lib/actions/roles'
 import { Trash2, Search, Filter } from 'lucide-react'
 
-type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief'
+type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Editor-in-Chief'
 
 type UserWithRole = {
   id: string
@@ -26,7 +26,6 @@ const OFFICER_POSITIONS: Position[] = [
 const COMMITTEE_POSITIONS: Position[] = [
   'Submissions Coordinator',
   'Proofreader',
-  'Lead Design',
   'Editor-in-Chief'
 ]
 

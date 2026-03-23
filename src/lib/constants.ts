@@ -27,7 +27,6 @@ export const COMMITTEE_STATUSES = [
   'coordinator_declined',
   'changes_requested',
   'proofreader_committed',
-  'lead_design_committed',
   'editor_approved',
   'editor_declined',
 ] as const;

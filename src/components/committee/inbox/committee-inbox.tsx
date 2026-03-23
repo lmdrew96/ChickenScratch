@@ -15,7 +15,7 @@ type CommitteeInboxProps = {
 
 type PromptState =
   | {
-      type: 'canva_link' | 'request_changes' | 'decline' | 'final_decline';
+      type: 'request_changes' | 'decline' | 'final_decline';
       submission: Submission;
       action: NonNullable<InboxAction['workflowAction']>;
       value: string;
@@ -76,7 +76,6 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [promptState, setPromptState] = useState<PromptState>(null);
-  const promptInputRef = useRef<HTMLInputElement | null>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const items = useMemo(() => shapeInboxItems(submissions, userRole), [submissions, userRole]);
@@ -94,11 +93,7 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
 
   useEffect(() => {
     if (!promptState) return;
-    if (promptState.type === 'canva_link') {
-      promptInputRef.current?.focus();
-    } else {
-      promptTextareaRef.current?.focus();
-    }
+    promptTextareaRef.current?.focus();
   }, [promptState]);
 
   useEffect(() => {
@@ -177,22 +172,6 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
         router.push(`/committee/proofread/${submission.id}`);
         return;
       }
-      if (action.id === 'open_canva_link' && submission.lead_design_commit_link) {
-        window.open(submission.lead_design_commit_link, '_blank');
-      }
-      return;
-    }
-
-    // prompts
-    if (action.requiresLinkUrl === 'canva_link') {
-      setPromptState({
-        type: 'canva_link',
-        submission,
-        action: action.workflowAction,
-        value: submission.lead_design_commit_link ?? '',
-        title: 'Paste Canva link',
-        placeholder: 'https://www.canva.com/...',
-      });
       return;
     }
 
@@ -376,20 +355,13 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
                 )}
               </div>
 
-              {(selected.submission.google_docs_link || selected.submission.lead_design_commit_link) && (
+              {selected.submission.google_docs_link && (
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs font-medium text-white/70">Links</p>
-                  <div className="mt-2 space-y-2 text-sm">
-                    {selected.submission.google_docs_link && (
-                      <a className="block text-blue-300 hover:text-blue-200" href={selected.submission.google_docs_link} target="_blank" rel="noreferrer">
-                        Google Doc (legacy)
-                      </a>
-                    )}
-                    {selected.submission.lead_design_commit_link && (
-                      <a className="block text-blue-300 hover:text-blue-200" href={selected.submission.lead_design_commit_link} target="_blank" rel="noreferrer">
-                        Canva link
-                      </a>
-                    )}
+                  <div className="mt-2 text-sm">
+                    <a className="block text-blue-300 hover:text-blue-200" href={selected.submission.google_docs_link} target="_blank" rel="noreferrer">
+                      Google Doc (legacy)
+                    </a>
                   </div>
                 </div>
               )}
@@ -413,24 +385,14 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
               </button>
             </div>
 
-            {promptState.type === 'canva_link' ? (
-              <input
-                ref={promptInputRef}
-                value={promptState.value}
-                onChange={(e) => setPromptState({ ...promptState, value: e.target.value })}
-                placeholder={promptState.placeholder}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-              />
-            ) : (
-              <textarea
-                ref={promptTextareaRef}
-                value={promptState.value}
-                onChange={(e) => setPromptState({ ...promptState, value: e.target.value })}
-                placeholder={promptState.placeholder}
-                rows={5}
-                className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-              />
-            )}
+            <textarea
+              ref={promptTextareaRef}
+              value={promptState.value}
+              onChange={(e) => setPromptState({ ...promptState, value: e.target.value })}
+              placeholder={promptState.placeholder}
+              rows={5}
+              className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            />
 
             <div className="mt-4 flex justify-end gap-2">
               <button
@@ -449,11 +411,7 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
                   const value = promptState.value.trim();
                   if (!value) return;
 
-                  if (promptState.type === 'canva_link') {
-                    void submitWorkflowAction(promptState.submission, promptState.action, value);
-                  } else {
-                    void submitWorkflowAction(promptState.submission, promptState.action, undefined, value);
-                  }
+                  void submitWorkflowAction(promptState.submission, promptState.action, undefined, value);
                 }}
                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >

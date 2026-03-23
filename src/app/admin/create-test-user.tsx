@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createTestUser } from '@/lib/actions/roles'
 
-type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Lead Design' | 'Editor-in-Chief'
+type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Editor-in-Chief'
 
 const OFFICER_POSITIONS: Position[] = [
   'BBEG',
@@ -15,7 +15,6 @@ const OFFICER_POSITIONS: Position[] = [
 const COMMITTEE_POSITIONS: Position[] = [
   'Submissions Coordinator',
   'Proofreader',
-  'Lead Design',
   'Editor-in-Chief'
 ]
 

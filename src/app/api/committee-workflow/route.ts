@@ -71,8 +71,6 @@ export async function POST(request: NextRequest) {
     userRole = 'submissions_coordinator';
   } else if (positions.includes('Proofreader')) {
     userRole = 'proofreader';
-  } else if (positions.includes('Lead Design')) {
-    userRole = 'lead_design';
   } else if (positions.includes('Editor-in-Chief')) {
     userRole = 'editor_in_chief';
   } else if (hasOfficerAccess(positions, roles)) {
@@ -170,15 +168,6 @@ export async function POST(request: NextRequest) {
         }
         break;
 
-      case 'lead_design':
-        if (action === 'commit' && linkUrl) {
-          newStatus = 'lead_design_committed';
-          updatePayload.lead_design_commit_link = linkUrl;
-          updatePayload.committee_status = newStatus;
-          updatePayload.lead_design_committed_at = new Date();
-        }
-        break;
-
       case 'editor_in_chief':
         if (action === 'approve' || action === 'final_approve') {
           newStatus = 'editor_approved';
@@ -223,7 +212,7 @@ export async function POST(request: NextRequest) {
       .where(eq(submissions.id, submissionId));
 
     // Send notification when a submission transitions to a new status
-    if (newStatus && ['coordinator_approved', 'proofreader_committed', 'lead_design_committed', 'editor_approved', 'editor_declined', 'coordinator_declined', 'with_coordinator'].includes(newStatus)) {
+    if (newStatus && ['coordinator_approved', 'proofreader_committed', 'editor_approved', 'editor_declined', 'coordinator_declined', 'with_coordinator'].includes(newStatus)) {
       try {
         const authorRows = await database
           .select({ full_name: profiles.full_name, email: profiles.email })

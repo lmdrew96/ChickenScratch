@@ -9,7 +9,7 @@ type RoleRequirement = string | string[];
 export const OFFICER_POSITIONS = ['BBEG', 'Dictator-in-Chief', 'Scroll Gremlin', 'PR Nightmare'] as const;
 
 // Committee positions (from user_roles table)
-export const COMMITTEE_POSITIONS = ['Editor-in-Chief', 'Submissions Coordinator', 'Proofreader', 'Lead Design'] as const;
+export const COMMITTEE_POSITIONS = ['Editor-in-Chief', 'Submissions Coordinator', 'Proofreader'] as const;
 
 function buildLoginRedirect(nextUrl?: string) {
   if (!nextUrl) {

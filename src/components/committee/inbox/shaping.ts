@@ -15,8 +15,6 @@ function isDoneForRole(role: CommitteeRole, s: Submission): boolean {
       return cs === 'coordinator_approved' || cs === 'coordinator_declined' || cs === 'proofreader_committed' || cs === 'lead_design_committed' || cs === 'editor_approved' || cs === 'editor_declined';
     case 'proofreader':
       return cs === 'proofreader_committed' || cs === 'editor_approved' || cs === 'editor_declined';
-    case 'lead_design':
-      return cs === 'lead_design_committed' || cs === 'editor_approved' || cs === 'editor_declined';
     case 'editor_in_chief':
       return cs === 'editor_approved' || cs === 'editor_declined';
     default:
@@ -114,36 +112,10 @@ function getActionsForRole(role: CommitteeRole, s: Submission): {
     return none;
   }
 
-  if (role === 'lead_design') {
-    if (cs === 'coordinator_approved' && s.type === 'visual') {
-      const add: InboxAction = { id: 'add_canva_link', label: 'Add Canva link', variant: 'primary', workflowAction: 'commit', requiresLinkUrl: 'canva_link' };
-      return {
-        section: 'action_required',
-        nextActionLabel: 'Add Canva link',
-        priority: 100,
-        actions: [add],
-        primaryAction: add,
-      };
-    }
-
-    if (s.lead_design_commit_link && !s.lead_design_committed_at) {
-      const open: InboxAction = { id: 'open_canva_link', label: 'Open Canva', variant: 'neutral' };
-      const commit: InboxAction = { id: 'commit_canva_link', label: 'Mark committed', variant: 'success', workflowAction: 'commit', requiresLinkUrl: 'canva_link' };
-      return {
-        section: 'action_required',
-        nextActionLabel: 'Finish design',
-        priority: 80,
-        actions: [open, commit],
-        primaryAction: open,
-      };
-    }
-
-    return none;
-  }
-
   if (role === 'editor_in_chief') {
-    // EIC acts after design committed
-    if (cs === 'lead_design_committed') {
+    // EIC acts after proofreader commits (writing) or coordinator approves (visual)
+    // Also handles legacy lead_design_committed status
+    if (cs === 'lead_design_committed' || cs === 'proofreader_committed' || (cs === 'coordinator_approved' && s.type === 'visual')) {
       const approve: InboxAction = { id: 'final_approve', label: 'Final approve', variant: 'success', workflowAction: 'final_approve' };
       const requestChanges: InboxAction = { id: 'request_changes', label: 'Request changes', variant: 'warning', workflowAction: 'request_changes', requiresComment: true };
       const decline: InboxAction = { id: 'final_decline', label: 'Final decline', variant: 'danger', workflowAction: 'final_decline', requiresComment: true };
@@ -157,7 +129,7 @@ function getActionsForRole(role: CommitteeRole, s: Submission): {
     }
 
     // Otherwise viewing-only
-    const isPipeline = !cs || ['pending_coordinator', 'with_coordinator', 'coordinator_approved', 'proofreader_committed', 'lead_design_committed'].includes(cs);
+    const isPipeline = !cs || ['pending_coordinator', 'with_coordinator', 'coordinator_approved', 'proofreader_committed'].includes(cs);
     if (isPipeline) {
       return { ...none, section: 'waiting', nextActionLabel: 'In progress', priority: 10 };
     }

@@ -182,9 +182,8 @@ async function getEmailForUserId(database: ReturnType<typeof db>, userId: string
 const STATUS_TO_POSITION: Record<string, string | { writing: string; visual: string }> = {
   'pending_coordinator': 'Submissions Coordinator',
   'with_coordinator': 'Submissions Coordinator',
-  'coordinator_approved': { writing: 'Proofreader', visual: 'Lead Design' },
-  'proofreader_committed': 'Lead Design',
-  'lead_design_committed': 'Editor-in-Chief',
+  'coordinator_approved': { writing: 'Proofreader', visual: 'Editor-in-Chief' },
+  'proofreader_committed': 'Editor-in-Chief',
 };
 
 const STATUS_TO_TIMESTAMP: Record<string, string> = {
@@ -192,7 +191,6 @@ const STATUS_TO_TIMESTAMP: Record<string, string> = {
   'with_coordinator': 'updated_at',
   'coordinator_approved': 'coordinator_reviewed_at',
   'proofreader_committed': 'proofreader_committed_at',
-  'lead_design_committed': 'lead_design_committed_at',
 };
 
 export async function checkStaleSubmissions(): Promise<ReminderResult> {
@@ -212,7 +210,6 @@ export async function checkStaleSubmissions(): Promise<ReminderResult> {
       updated_at: submissions.updated_at,
       coordinator_reviewed_at: submissions.coordinator_reviewed_at,
       proofreader_committed_at: submissions.proofreader_committed_at,
-      lead_design_committed_at: submissions.lead_design_committed_at,
     })
     .from(submissions)
     .where(inArray(submissions.committee_status, activeStatuses));
@@ -493,9 +490,8 @@ function wrapEmail(heading: string, bodyContent: string, ctaUrl: string, ctaLabe
 const STATUS_LABELS: Record<string, string> = {
   'pending_coordinator': 'Pending coordinator review',
   'with_coordinator': 'With coordinator',
-  'coordinator_approved': 'Awaiting proofreading / design',
-  'proofreader_committed': 'Awaiting design layout',
-  'lead_design_committed': 'Awaiting Editor-in-Chief decision',
+  'coordinator_approved': 'Awaiting proofreading',
+  'proofreader_committed': 'Awaiting Editor-in-Chief decision',
 };
 
 function generateStaleSubmissionEmail(title: string, status: string, daysSince: number): string {
