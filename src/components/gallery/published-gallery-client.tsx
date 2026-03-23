@@ -388,13 +388,12 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
             {(() => {
               const { wrapperStyle: lbWrapperStyle, imgStyle: lbImgStyle } = getImageTransformStyles(lightbox.imageTransform);
               return (
-                <div className="relative h-[90vh] w-[90vw] overflow-hidden rounded-lg" style={lbWrapperStyle}>
-                  <Image
+                <div className="overflow-hidden rounded-lg" style={{ width: 'fit-content', ...lbWrapperStyle }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={lightbox.imageUrl}
                     alt={lightbox.title}
-                    fill
-                    sizes="90vw"
-                    className="object-contain"
+                    className="block max-h-[90vh] max-w-[90vw] w-auto"
                     style={lbImgStyle}
                   />
                 </div>
