@@ -11,11 +11,12 @@ interface Announcement {
   created_by_profile?: { display_name: string; email: string };
 }
 
-export function Announcements() {
+export function Announcements({ currentUserId }: { currentUserId: string }) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState('');
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAnnouncements();
@@ -32,6 +33,22 @@ export function Announcements() {
       console.error('Error fetching announcements:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeleting(id);
+    try {
+      await fetch('/api/officer/announcements', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+    } catch (error) {
+      console.error('Error deleting announcement:', error);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -115,9 +132,19 @@ export function Announcements() {
                 <span>
                   {announcement.created_by_profile?.display_name || 'Unknown'}
                 </span>
-                <span>
-                  {new Date(announcement.created_at).toLocaleString()}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span>{new Date(announcement.created_at).toLocaleString()}</span>
+                  {announcement.created_by === currentUserId && (
+                    <button
+                      onClick={() => handleDelete(announcement.id)}
+                      disabled={deleting === announcement.id}
+                      className="text-slate-500 hover:text-rose-400 transition-colors disabled:opacity-40"
+                      aria-label="Delete announcement"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))

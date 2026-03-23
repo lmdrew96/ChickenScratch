@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { eq, desc, inArray } from 'drizzle-orm';
+import { eq, desc, inArray, and } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { officerAnnouncements, profiles, userRoles } from '@/lib/db/schema';
@@ -136,6 +136,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ announcement }, { status: 201 });
   } catch (error) {
     console.error('Error in POST /api/officer/announcements:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const profile = await ensureProfile(userId);
+    if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { id } = await request.json();
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    const database = db();
+
+    const deleted = await database
+      .delete(officerAnnouncements)
+      .where(and(eq(officerAnnouncements.id, id), eq(officerAnnouncements.created_by, profile.id)))
+      .returning({ id: officerAnnouncements.id });
+
+    if (deleted.length === 0) {
+      return NextResponse.json({ error: 'Not found or not authorized' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in DELETE /api/officer/announcements:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
