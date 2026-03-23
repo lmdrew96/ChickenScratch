@@ -159,14 +159,16 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
           {assetEntries.map(({ path, signedUrl }) => (
             <div key={path} className="space-y-2">
               {signedUrl ? (
-                <div className="overflow-hidden rounded-xl border border-white/10" style={wrapperStyle}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={signedUrl}
-                    alt={path.split('/').pop() ?? submission.title}
-                    className="mx-auto block max-h-[80vh] w-auto object-contain"
-                    style={imgStyle}
-                  />
+                <div className="flex justify-center rounded-xl border border-white/10 overflow-hidden">
+                  <div className="overflow-hidden" style={{ width: 'fit-content', ...wrapperStyle }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={signedUrl}
+                      alt={path.split('/').pop() ?? submission.title}
+                      className="block max-h-[80vh] w-auto"
+                      style={imgStyle}
+                    />
+                  </div>
                 </div>
               ) : null}
               <div className="flex items-center justify-between text-sm text-white/60">

@@ -69,14 +69,16 @@ export function ImageEditor({ submissionId, imageUrl, initialTransform, onSave }
       </div>
 
       {/* Live preview */}
-      <div className="overflow-hidden rounded-lg bg-black/30" style={wrapperStyle}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageUrl}
-          alt="Preview"
-          className="mx-auto block max-h-64 object-contain"
-          style={imgStyle}
-        />
+      <div className="flex justify-center rounded-lg bg-black/30">
+        <div className="overflow-hidden" style={{ width: 'fit-content', ...wrapperStyle }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt="Preview"
+            className="block max-h-64 w-auto"
+            style={imgStyle}
+          />
+        </div>
       </div>
 
       {/* Rotation */}
