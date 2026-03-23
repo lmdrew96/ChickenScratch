@@ -12,6 +12,7 @@ import {
   exhibitionSubmissions,
   exhibitionConfig,
 } from '@/lib/db/schema';
+import type { ImageTransform } from '@/types/image-transform';
 
 // Generic JSON type (matches jsonb columns)
 export type Json =
@@ -80,13 +81,15 @@ export type PublishedSubmissionRow = Pick<
   | 'issue_number'
   | 'publish_date'
   | 'art_files'
+  | 'image_transform'
   | 'updated_at'
   | 'created_at'
 >;
 
-export type PublishedSubmission = Omit<PublishedSubmissionRow, 'art_files'> & {
+export type PublishedSubmission = Omit<PublishedSubmissionRow, 'art_files' | 'image_transform'> & {
   art_files: string[];
   coverSignedUrl: string | null;
+  imageTransform: ImageTransform | null;
 };
 
 export type PublishedDetailRow = Pick<
@@ -105,5 +108,6 @@ export type PublishedDetailRow = Pick<
   | 'issue_number'
   | 'publish_date'
   | 'published_html'
+  | 'image_transform'
   | 'updated_at'
 >;

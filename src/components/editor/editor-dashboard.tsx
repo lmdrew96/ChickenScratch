@@ -17,6 +17,8 @@ import { useConfirmation } from '@/hooks/use-confirmation';
 import { EDITABLE_STATUSES, SUBMISSION_STATUSES, formatStatus } from '@/lib/constants';
 import { getSignedDownloadUrl } from '@/lib/actions/storage';
 import type { Submission } from '@/types/database';
+import { parseImageTransform, getImageTransformStyles } from '@/types/image-transform';
+import { ImageEditor } from '@/components/committee/visual/image-editor';
 
 export type EditorSubmission = Submission & {
   art_files: string[];
@@ -99,9 +101,14 @@ export function EditorDashboard({
       : new Date().toISOString().split('T')[0]
   );
   const [publishedText, setPublishedText] = useState('');
+  const [artSignedUrls, setArtSignedUrls] = useState<string[]>([]);
 
   const isAnyLoading = Object.values(loadingState).some(Boolean) || isPending;
   const assignmentsDisabled = rosterLoadIssue || editors.length === 0;
+  const artTransform = selectedSubmission?.type === 'visual'
+    ? parseImageTransform(selectedSubmission.image_transform)
+    : null;
+  const { wrapperStyle: artWrapperStyle, imgStyle: artImgStyle } = getImageTransformStyles(artTransform);
   const canStudentEdit = selectedSubmission?.status
     ? EDITABLE_STATUSES.includes(selectedSubmission.status)
     : false;
@@ -119,6 +126,12 @@ export function EditorDashboard({
         : new Date().toISOString().split('T')[0]
     );
     setPublishedText('');
+    setArtSignedUrls([]);
+    if (selectedSubmission.type === 'visual' && selectedSubmission.art_files.length > 0) {
+      void Promise.all(selectedSubmission.art_files.map((p) => getSignedDownloadUrl(p))).then((results) =>
+        setArtSignedUrls(results.map((r) => r.signedUrl ?? ''))
+      );
+    }
   }, [selectedSubmission]);
 
   async function mutate(
@@ -563,26 +576,52 @@ export function EditorDashboard({
               )}
             </section>
           ) : (
-            <section className="space-y-2">
+            <section className="space-y-4">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-white/40">
-                Attachments
+                Visual art
               </h3>
-              <ul className="space-y-2">
-                {selectedSubmission.art_files.map((path) => (
-                  <li
-                    key={path}
-                    className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
-                  >
-                    <span className="truncate">{path.split('/').pop()}</span>
-                    <Button type="button" size="sm" variant="outline" onClick={() => downloadPath(path)}>
-                      Download
-                    </Button>
-                  </li>
-                ))}
-                {selectedSubmission.art_files.length === 0 && (
-                  <li className="text-sm italic text-white/30">No attachments.</li>
-                )}
-              </ul>
+              {artSignedUrls.map((url, i) =>
+                url ? (
+                  <div key={i} className="space-y-1">
+                    <div className="overflow-hidden rounded-lg border border-white/10 bg-black/20" style={artWrapperStyle}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={selectedSubmission.art_files[i]?.split('/').pop() ?? 'Artwork'}
+                        className="mx-auto block max-h-96 w-auto object-contain"
+                        style={artImgStyle}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-white/40">
+                      <span>{selectedSubmission.art_files[i]?.split('/').pop()}</span>
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadPath(selectedSubmission.art_files[i]!)}>
+                        Download
+                      </Button>
+                    </div>
+                  </div>
+                ) : null
+              )}
+              {artSignedUrls.length === 0 && selectedSubmission.art_files.length > 0 && (
+                <ul className="space-y-2">
+                  {selectedSubmission.art_files.map((path) => (
+                    <li key={path} className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
+                      <span className="truncate">{path.split('/').pop()}</span>
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadPath(path)}>Download</Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {selectedSubmission.art_files.length === 0 && (
+                <p className="text-sm italic text-white/30">No attachments.</p>
+              )}
+              {artSignedUrls[0] && (
+                <ImageEditor
+                  submissionId={selectedSubmission.id}
+                  imageUrl={artSignedUrls[0]}
+                  initialTransform={artTransform}
+                  onSave={() => { startTransition(() => { router.refresh(); }); }}
+                />
+              )}
             </section>
           )}
 

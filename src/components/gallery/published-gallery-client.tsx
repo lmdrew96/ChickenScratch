@@ -6,6 +6,8 @@ import Image from 'next/image';
 import { StatusBadge } from '@/components/common/status-badge';
 import { EmptyState } from '@/components/ui';
 import type { PublishedSubmission } from '@/types/database';
+import { getImageTransformStyles } from '@/types/image-transform';
+import type { ImageTransform } from '@/types/image-transform';
 
 interface PublishedGalleryClientProps {
   submissions: PublishedSubmission[];
@@ -16,6 +18,7 @@ interface LightboxState {
   imageUrl: string;
   title: string;
   downloadUrl?: string;
+  imageTransform?: ImageTransform | null;
 }
 
 export function PublishedGalleryClient({ submissions }: PublishedGalleryClientProps) {
@@ -77,8 +80,8 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
     setCurrentPage(1);
   };
 
-  const openLightbox = (imageUrl: string, title: string, downloadUrl?: string) => {
-    setLightbox({ isOpen: true, imageUrl, title, downloadUrl });
+  const openLightbox = (imageUrl: string, title: string, downloadUrl?: string, imageTransform?: ImageTransform | null) => {
+    setLightbox({ isOpen: true, imageUrl, title, downloadUrl, imageTransform });
     document.body.style.overflow = 'hidden';
   };
 
@@ -173,13 +176,15 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
 
         {/* Gallery Grid */}
         <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {paginatedSubmissions.map((submission) => (
+          {paginatedSubmissions.map((submission) => {
+            const { wrapperStyle, imgStyle } = getImageTransformStyles(submission.imageTransform);
+            return (
             <article
               key={submission.id}
               className="group flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-lg shadow-black/30 transition-all duration-300 hover:scale-[1.02] hover:border-white/20 hover:shadow-xl hover:shadow-black/40"
             >
               {/* Image */}
-              <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-amber-500/40 to-purple-500/30">
+              <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-amber-500/40 to-purple-500/30" style={wrapperStyle}>
                 {submission.coverSignedUrl ? (
                   <>
                     <Image
@@ -188,12 +193,13 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover transition-transform duration-300 group-hover:scale-110"
+                      style={imgStyle}
                     />
                     {/* Overlay buttons for visual art */}
                     {submission.type === 'visual' && (
                       <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                         <button
-                          onClick={() => openLightbox(submission.coverSignedUrl!, submission.title, submission.coverSignedUrl ?? undefined)}
+                          onClick={() => openLightbox(submission.coverSignedUrl!, submission.title, submission.coverSignedUrl ?? undefined, submission.imageTransform)}
                           className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-gray-900 transition hover:bg-white"
                           title="View full size"
                         >
@@ -258,7 +264,8 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
                 </div>
               </div>
             </article>
-          ))}
+            );
+          })}
         </section>
 
         {/* Empty State */}
@@ -378,15 +385,21 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
             className="relative max-h-[90vh] max-w-[90vw]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="relative h-[90vh] w-[90vw]">
-              <Image
-                src={lightbox.imageUrl}
-                alt={lightbox.title}
-                fill
-                sizes="90vw"
-                className="rounded-lg object-contain"
-              />
-            </div>
+            {(() => {
+              const { wrapperStyle: lbWrapperStyle, imgStyle: lbImgStyle } = getImageTransformStyles(lightbox.imageTransform);
+              return (
+                <div className="relative h-[90vh] w-[90vw] overflow-hidden rounded-lg" style={lbWrapperStyle}>
+                  <Image
+                    src={lightbox.imageUrl}
+                    alt={lightbox.title}
+                    fill
+                    sizes="90vw"
+                    className="object-contain"
+                    style={lbImgStyle}
+                  />
+                </div>
+              );
+            })()}
             <p className="mt-4 text-center text-sm text-white/80">{lightbox.title}</p>
           </div>
         </div>

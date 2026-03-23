@@ -4,6 +4,9 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 import type { Submission } from '@/types/database';
+import { parseImageTransform, getImageTransformStyles } from '@/types/image-transform';
+import { getSignedDownloadUrl } from '@/lib/actions/storage';
+import { ImageEditor } from '@/components/committee/visual/image-editor';
 
 import type { CommitteeRole, InboxItem, InboxSectionId, InboxAction } from './types';
 import { shapeInboxItems } from './shaping';
@@ -77,6 +80,7 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
   const [actionError, setActionError] = useState<string | null>(null);
   const [promptState, setPromptState] = useState<PromptState>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [artSignedUrl, setArtSignedUrl] = useState<string | null>(null);
 
   const items = useMemo(() => shapeInboxItems(submissions, userRole), [submissions, userRole]);
 
@@ -95,6 +99,16 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
     if (!promptState) return;
     promptTextareaRef.current?.focus();
   }, [promptState]);
+
+  useEffect(() => {
+    setArtSignedUrl(null);
+    if (!selected || selected.submission.type !== 'visual') return;
+    const s = selected.submission;
+    const artFiles = Array.isArray(s.art_files) ? (s.art_files as string[]) : [];
+    const path = artFiles[0] ?? s.cover_image ?? null;
+    if (!path) return;
+    void getSignedDownloadUrl(path).then((r) => setArtSignedUrl(r.signedUrl));
+  }, [selected]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -331,6 +345,23 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
                 </div>
               </div>
 
+              {/* Visual art inline display */}
+              {selected.submission.type === 'visual' && artSignedUrl && (() => {
+                const t = parseImageTransform(selected.submission.image_transform);
+                const { wrapperStyle: vw, imgStyle: vi } = getImageTransformStyles(t);
+                return (
+                  <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20" style={vw}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={artSignedUrl}
+                      alt={selected.submission.title}
+                      className="mx-auto block max-h-72 w-auto object-contain"
+                      style={vi}
+                    />
+                  </div>
+                );
+              })()}
+
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-sm text-white/80">Next: {selected.nextActionLabel}</p>
                 {selected.actions.length === 0 ? (
@@ -354,6 +385,17 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
                   </div>
                 )}
               </div>
+
+              {/* Image editor for coordinators and EiC on visual submissions */}
+              {selected.submission.type === 'visual' && artSignedUrl &&
+                (userRole === 'submissions_coordinator' || userRole === 'editor_in_chief') && (
+                <ImageEditor
+                  submissionId={selected.submission.id}
+                  imageUrl={artSignedUrl}
+                  initialTransform={parseImageTransform(selected.submission.image_transform)}
+                  onSave={() => router.refresh()}
+                />
+              )}
 
               {selected.submission.google_docs_link && (
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">

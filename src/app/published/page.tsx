@@ -7,6 +7,7 @@ import { createSignedUrl } from '@/lib/storage';
 import { db } from '@/lib/db';
 import { submissions } from '@/lib/db/schema';
 import type { PublishedSubmission } from '@/types/database';
+import { parseImageTransform } from '@/types/image-transform';
 
 export default async function PublishedPage() {
   let rawSubmissions: {
@@ -21,6 +22,7 @@ export default async function PublishedPage() {
     issue_number: number | null;
     publish_date: Date | null;
     art_files: unknown;
+    image_transform: unknown;
     updated_at: Date | null;
     created_at: Date | null;
   }[] = [];
@@ -40,6 +42,7 @@ export default async function PublishedPage() {
         issue_number: submissions.issue_number,
         publish_date: submissions.publish_date,
         art_files: submissions.art_files,
+        image_transform: submissions.image_transform,
         updated_at: submissions.updated_at,
         created_at: submissions.created_at,
       })
@@ -55,10 +58,11 @@ export default async function PublishedPage() {
   }
 
   const publishedSubmissions: PublishedSubmission[] = await Promise.all(
-    rawSubmissions.map(async (submission) => ({
+    rawSubmissions.map(async ({ image_transform, ...submission }) => ({
       ...submission,
       art_files: Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [],
       coverSignedUrl: submission.cover_image ? await createSignedUrl(submission.cover_image) : null,
+      imageTransform: parseImageTransform(image_transform),
     }))
   );
 

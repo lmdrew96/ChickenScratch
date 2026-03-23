@@ -8,6 +8,7 @@ import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl, createSignedUrls } from '@/lib/storage';
 import { db } from '@/lib/db';
 import { submissions } from '@/lib/db/schema';
+import { parseImageTransform, getImageTransformStyles } from '@/types/image-transform';
 
 export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,6 +27,7 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
     issue_number: number | null;
     publish_date: Date | null;
     published_html: string | null;
+    image_transform: unknown;
     updated_at: Date | null;
   } | null = null;
   let encounteredLoadIssue = false;
@@ -47,6 +49,7 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
         issue_number: submissions.issue_number,
         publish_date: submissions.publish_date,
         published_html: submissions.published_html,
+        image_transform: submissions.image_transform,
         updated_at: submissions.updated_at,
       })
       .from(submissions)
@@ -88,6 +91,8 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
   const artFiles = Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [];
   const coverUrl = submission.cover_image ? await createSignedUrl(submission.cover_image) : null;
   const assetEntries = await createSignedUrls(artFiles);
+  const imageTransform = parseImageTransform(submission.image_transform);
+  const { wrapperStyle, imgStyle } = getImageTransformStyles(imageTransform);
 
   return (
     <div className="space-y-6">
@@ -113,13 +118,14 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
       </header>
 
       {coverUrl ? (
-        <div className="relative w-full aspect-video">
+        <div className="relative w-full aspect-video overflow-hidden rounded-xl border border-white/10" style={wrapperStyle}>
           <Image
             src={coverUrl}
             alt={submission.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-            className="rounded-xl border border-white/10 object-cover"
+            className="object-cover"
+            style={imgStyle}
           />
         </div>
       ) : null}
@@ -149,28 +155,35 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
           )}
         </article>
       ) : (
-        <section className="space-y-4">
-          <p className="text-sm text-white/70">Download attachments to view the full-resolution work.</p>
-          <ul className="space-y-2">
-            {assetEntries.map(({ path, signedUrl }) => (
-              <li
-                key={path}
-                className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
-              >
+        <section className="space-y-6">
+          {assetEntries.map(({ path, signedUrl }) => (
+            <div key={path} className="space-y-2">
+              {signedUrl ? (
+                <div className="overflow-hidden rounded-xl border border-white/10" style={wrapperStyle}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={signedUrl}
+                    alt={path.split('/').pop() ?? submission.title}
+                    className="mx-auto block max-h-[80vh] w-auto object-contain"
+                    style={imgStyle}
+                  />
+                </div>
+              ) : null}
+              <div className="flex items-center justify-between text-sm text-white/60">
                 <span>{path.split('/').pop()}</span>
                 {signedUrl ? (
                   <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="text-amber-200 hover:text-amber-100">
-                    Download
+                    Download full resolution
                   </a>
                 ) : (
                   <span className="text-xs text-white/50">Link unavailable</span>
                 )}
-              </li>
-            ))}
-            {assetEntries.length === 0 ? (
-              <li className="text-xs text-white/50">No attachments available.</li>
-            ) : null}
-          </ul>
+              </div>
+            </div>
+          ))}
+          {assetEntries.length === 0 ? (
+            <p className="text-sm text-white/50">No artwork available.</p>
+          ) : null}
           {submission.published_url ? (
             <a
               href={submission.published_url}
