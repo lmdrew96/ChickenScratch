@@ -9,6 +9,7 @@ import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess, hasEditorAccess } from '@/lib/auth/guards';
 import { sendSubmissionNotification } from '@/lib/notifications';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
+import { importTextForProofread } from '@/lib/import-text-for-proofread';
 import type { NewSubmission } from '@/types/database';
 
 
@@ -83,6 +84,13 @@ export async function POST(request: NextRequest) {
     const data = result[0];
     if (!data) {
       return NextResponse.json({ error: 'Failed to create submission' }, { status: 400 });
+    }
+
+    // For writing submissions, kick off text import immediately (non-blocking)
+    if (data.type === 'writing') {
+      void importTextForProofread(data.id, profile.id).catch((err) => {
+        console.error('[importTextForProofread] Background import failed:', err);
+      });
     }
 
     // Send notification to Submissions Coordinators about new submission

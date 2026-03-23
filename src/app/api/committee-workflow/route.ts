@@ -168,12 +168,62 @@ export async function POST(request: NextRequest) {
         }
         break;
 
-      case 'editor_in_chief':
-        if (action === 'approve' || action === 'final_approve') {
+      case 'editor_in_chief': {
+        const cs = submission.committee_status;
+        const isEarlyStage = !cs || cs === 'pending_coordinator' || cs === 'with_coordinator';
+
+        if (action === 'review') {
+          if (!cs || cs === 'pending_coordinator') {
+            newStatus = 'with_coordinator';
+            updatePayload.committee_status = newStatus;
+          } else if (cs === 'with_coordinator') {
+            if (submission.type === 'visual') {
+              if (!submission.file_url) {
+                return NextResponse.json({ error: 'No file attached to submission' }, { status: 400 });
+              }
+              const signedUrl = await createSignedUrl(submission.file_url, 60 * 60, getBucketName());
+              if (!signedUrl) {
+                return NextResponse.json({ error: 'Failed to generate file URL' }, { status: 500 });
+              }
+              revalidatePath('/committee');
+              return NextResponse.json({ success: true, file_url: signedUrl });
+            } else {
+              await importTextForProofread(submissionId, profile.id);
+              revalidatePath('/committee');
+              return NextResponse.json({ success: true, proofread_editor_url: `/committee/proofread/${submissionId}` });
+            }
+          }
+        } else if (action === 'commit') {
+          newStatus = 'proofreader_committed';
+          updatePayload.committee_status = newStatus;
+          updatePayload.proofreader_committed_at = new Date();
+        } else if (action === 'approve') {
+          if (isEarlyStage) {
+            newStatus = 'coordinator_approved';
+            updatePayload.committee_status = newStatus;
+            updatePayload.coordinator_reviewed_at = new Date();
+          } else {
+            newStatus = 'editor_approved';
+            updatePayload.committee_status = newStatus;
+            updatePayload.editor_reviewed_at = new Date();
+          }
+        } else if (action === 'final_approve') {
           newStatus = 'editor_approved';
           updatePayload.committee_status = newStatus;
           updatePayload.editor_reviewed_at = new Date();
-        } else if (action === 'decline' || action === 'final_decline') {
+        } else if (action === 'decline') {
+          if (isEarlyStage) {
+            newStatus = 'coordinator_declined';
+            updatePayload.committee_status = newStatus;
+            updatePayload.decline_reason = comment;
+            updatePayload.coordinator_reviewed_at = new Date();
+          } else {
+            newStatus = 'editor_declined';
+            updatePayload.committee_status = newStatus;
+            updatePayload.decline_reason = comment;
+            updatePayload.editor_reviewed_at = new Date();
+          }
+        } else if (action === 'final_decline') {
           newStatus = 'editor_declined';
           updatePayload.committee_status = newStatus;
           updatePayload.decline_reason = comment;
@@ -186,6 +236,7 @@ export async function POST(request: NextRequest) {
           updatePayload.editor_reviewed_at = new Date();
         }
         break;
+      }
 
       default:
         return NextResponse.json({ error: 'Invalid role for this action' }, { status: 403 });

@@ -113,25 +113,37 @@ function getActionsForRole(role: CommitteeRole, s: Submission): {
   }
 
   if (role === 'editor_in_chief') {
-    // EIC acts after proofreader commits (writing) or coordinator approves (visual)
-    // Also handles legacy lead_design_committed status
+    // EiC can act in any capacity
+
+    // Coordinator stage: new submission
+    if (!cs || cs === 'pending_coordinator') {
+      const start: InboxAction = { id: 'start_review', label: 'Start review', variant: 'primary', workflowAction: 'review' };
+      return { section: 'action_required', nextActionLabel: 'Start review', priority: 100, actions: [start], primaryAction: start };
+    }
+
+    // Coordinator stage: under review
+    if (cs === 'with_coordinator') {
+      const review: InboxAction = { id: 'review', label: s.type === 'visual' ? 'View file' : 'Read submission', variant: 'primary', workflowAction: 'review' };
+      const approve: InboxAction = { id: 'approve', label: 'Approve', variant: 'success', workflowAction: 'approve' };
+      const requestChanges: InboxAction = { id: 'request_changes', label: 'Request changes', variant: 'warning', workflowAction: 'request_changes', requiresComment: true };
+      const decline: InboxAction = { id: 'decline', label: 'Decline', variant: 'danger', workflowAction: 'decline', requiresComment: true };
+      return { section: 'action_required', nextActionLabel: 'Decision needed', priority: 90, actions: [review, approve, requestChanges, decline], primaryAction: review };
+    }
+
+    // Proofreader stage: writing needs editing
+    if (cs === 'coordinator_approved' && s.type === 'writing') {
+      const edit: InboxAction = { id: 'open_proofread_editor', label: s.proofread_html ? 'Resume editing' : 'Edit in app', variant: 'primary' };
+      const commit: InboxAction = { id: 'commit_proofread', label: 'Mark committed', variant: 'success', workflowAction: 'commit' };
+      const requestChanges: InboxAction = { id: 'request_changes', label: 'Request changes', variant: 'warning', workflowAction: 'request_changes', requiresComment: true };
+      return { section: 'action_required', nextActionLabel: s.proofread_html ? 'Resume editing' : 'Edit in app', priority: 100, actions: [edit, commit, requestChanges], primaryAction: edit };
+    }
+
+    // Final decision stage
     if (cs === 'lead_design_committed' || cs === 'proofreader_committed' || (cs === 'coordinator_approved' && s.type === 'visual')) {
       const approve: InboxAction = { id: 'final_approve', label: 'Final approve', variant: 'success', workflowAction: 'final_approve' };
       const requestChanges: InboxAction = { id: 'request_changes', label: 'Request changes', variant: 'warning', workflowAction: 'request_changes', requiresComment: true };
       const decline: InboxAction = { id: 'final_decline', label: 'Final decline', variant: 'danger', workflowAction: 'final_decline', requiresComment: true };
-      return {
-        section: 'action_required',
-        nextActionLabel: 'Final decision',
-        priority: 100,
-        actions: [approve, requestChanges, decline],
-        primaryAction: approve,
-      };
-    }
-
-    // Otherwise viewing-only
-    const isPipeline = !cs || ['pending_coordinator', 'with_coordinator', 'coordinator_approved', 'proofreader_committed'].includes(cs);
-    if (isPipeline) {
-      return { ...none, section: 'waiting', nextActionLabel: 'In progress', priority: 10 };
+      return { section: 'action_required', nextActionLabel: 'Final decision', priority: 100, actions: [approve, requestChanges, decline], primaryAction: approve };
     }
 
     return none;
