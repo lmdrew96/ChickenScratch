@@ -60,6 +60,9 @@ export async function notifyOfficersOfAnnouncement(
   const recipients = await getOfficerEmails(excludeUserId);
   if (recipients.length === 0) return { success: true };
 
+  // Always notify Discord
+  notifyDiscordAnnouncement(message, authorName).catch(() => {});
+
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) {
     console.info('[officer-email] announcement notification (Resend not configured)', { recipients });
@@ -95,8 +98,6 @@ export async function notifyOfficersOfAnnouncement(
     return { success: false };
   }
 
-  notifyDiscordAnnouncement(message, authorName).catch(() => {});
-
   return { success: true, recipients };
 }
 
@@ -111,6 +112,10 @@ export async function notifyOfficersOfMeeting(
   excludeUserId?: string,
 ): Promise<OfficerEmailResult> {
   const recipients = await getOfficerEmails(excludeUserId);
+
+  // Always notify Discord
+  notifyDiscordMeeting(title, description, proposedDates, authorName).catch(() => {});
+
   if (recipients.length === 0) return { success: true };
 
   const resendApiKey = process.env.RESEND_API_KEY;
@@ -147,8 +152,6 @@ export async function notifyOfficersOfMeeting(
     });
     return { success: false };
   }
-
-  notifyDiscordMeeting(title, description, proposedDates, authorName).catch(() => {});
 
   return { success: true, recipients };
 }
