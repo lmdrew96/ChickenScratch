@@ -32,18 +32,12 @@ export function SubmissionsListWithDelete({
   const handleDeleteConfirm = async () => {
     if (!selectedSubmission) return;
 
-    console.log('[Delete] Calling API for submission:', selectedSubmission.id);
-
     try {
       const response = await fetch(`/api/submissions/${selectedSubmission.id}/delete`, {
         method: 'DELETE',
       });
 
-      console.log('[Delete] API response status:', response.status);
-      console.log('[Delete] API response ok:', response.ok);
-
       const data = await response.json();
-      console.log('[Delete] API response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to delete submission');
@@ -53,8 +47,6 @@ export function SubmissionsListWithDelete({
       setDeleteModalOpen(false);
       setSelectedSubmission(null);
 
-      // Refresh the page to update the list
-      console.log('[Delete] Refreshing page');
       router.refresh();
     } catch (error) {
       console.error('[Delete] Error deleting submission:', error);
