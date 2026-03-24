@@ -322,7 +322,7 @@ export function EditorDashboard({
 
   return (
     <>
-      <div className="grid lg:grid-cols-[18rem_1fr] overflow-hidden rounded-xl border border-white/10">
+      <div className="grid lg:grid-cols-[18rem_1fr] rounded-xl border border-white/10">
         {/* ── LEFT: submission list ── */}
         <div className="flex flex-col border-b border-white/10 lg:border-b-0 lg:border-r lg:border-white/10">
           {/* List header */}
@@ -347,7 +347,7 @@ export function EditorDashboard({
           </div>
 
           {/* List items */}
-          <div className="overflow-y-auto lg:max-h-[calc(100vh-20rem)]">
+          <div className="overflow-y-auto max-h-64 lg:max-h-[calc(100vh-20rem)]">
             {filteredSubmissions.length === 0 ? (
               <p className="p-4 text-sm text-white/30">No submissions match this filter.</p>
             ) : (
@@ -415,7 +415,7 @@ export function EditorDashboard({
           </header>
 
           {/* Meta */}
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
             <div>
               <dt className="text-xs text-white/40">Content warnings</dt>
               <dd className="mt-0.5 text-white/80">{selectedSubmission.content_warnings || '—'}</dd>
@@ -479,7 +479,7 @@ export function EditorDashboard({
                 )}
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs text-white/40">Volume</Label>
                 <Input
