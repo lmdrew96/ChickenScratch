@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
         to: submitterEmail,
         title,
         submissionId: submission.id,
-      }).catch(() => {});
+      }).catch((err) => console.error('[exhibition-submit] confirmation email failed:', err));
     }
 
     notifyOfficersOfExhibitionSubmission({
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
       type,
       medium,
       submissionId: submission.id,
-    }).catch(() => {});
+    }).catch((err) => console.error('[exhibition-submit] officer notification failed:', err));
 
     return NextResponse.json({ submission }, { status: 201 });
   } catch (error) {

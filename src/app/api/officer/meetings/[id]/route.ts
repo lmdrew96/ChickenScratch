@@ -105,7 +105,7 @@ export async function PATCH(
     if (finalized_date !== undefined) {
       const result = await database
         .update(meetingProposals)
-        .set({ finalized_date })
+        .set({ finalized_date: new Date(finalized_date) })
         .where(eq(meetingProposals.id, id))
         .returning();
 
