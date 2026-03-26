@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
 import { eq, desc } from 'drizzle-orm';
 
@@ -8,10 +9,25 @@ import { zineIssues, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
-import { uploadFile, getPublicUrl } from '@/lib/storage';
 
-const ZINES_BUCKET = 'zines';
-const PDF_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+const createSchema = z.object({
+  title: z.string().min(1).max(200),
+  volume: z.number().int().positive().nullable().optional(),
+  issue_number: z.number().int().positive().nullable().optional(),
+  publish_date: z.string().nullable().optional(),
+  pdf_url: z.string().url().nullable().optional(),
+  is_published: z.boolean().optional().default(false),
+});
+
+const updateSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).max(200).optional(),
+  volume: z.number().int().positive().nullable().optional(),
+  issue_number: z.number().int().positive().nullable().optional(),
+  publish_date: z.string().nullable().optional(),
+  pdf_url: z.string().url().nullable().optional(),
+  is_published: z.boolean().optional(),
+});
 
 async function requireCommitteeAuth() {
   const { userId } = await auth();
@@ -41,22 +57,6 @@ async function requireCommitteeAuth() {
   return { profile, database };
 }
 
-async function uploadPdf(file: File): Promise<{ url: string } | { error: string }> {
-  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-    return { error: 'Only PDF files are accepted.' };
-  }
-  if (file.size > PDF_MAX_BYTES) {
-    return { error: 'PDF must be under 50 MB.' };
-  }
-  const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const filePath = `${Date.now()}-${sanitizedName}`;
-  const { error: uploadError } = await uploadFile(ZINES_BUCKET, filePath, file, {
-    contentType: 'application/pdf',
-  });
-  if (uploadError) return { error: 'PDF upload failed.' };
-  return { url: getPublicUrl(ZINES_BUCKET, filePath) };
-}
-
 export async function GET() {
   try {
     const issues = await db()
@@ -83,40 +83,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
   }
 
-  const formData = await request.formData().catch(() => null);
-  if (!formData) {
-    return NextResponse.json({ error: 'Invalid form data.' }, { status: 400 });
+  const body = await request.json().catch(() => null);
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid data.', details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const title = formData.get('title')?.toString().trim() ?? '';
-  if (!title) {
-    return NextResponse.json({ error: 'Title is required.' }, { status: 400 });
-  }
-
-  const volumeRaw = formData.get('volume')?.toString();
-  const issueNumberRaw = formData.get('issue_number')?.toString();
-  const publishDateRaw = formData.get('publish_date')?.toString();
-  const isPublished = formData.get('is_published')?.toString() === 'true';
-  const pdfFile = formData.get('pdf') instanceof File ? (formData.get('pdf') as File) : null;
-
-  let pdf_url: string | null = null;
-  if (pdfFile && pdfFile.size > 0) {
-    const result = await uploadPdf(pdfFile);
-    if ('error' in result) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
-    }
-    pdf_url = result.url;
-  }
+  const { title, volume, issue_number, publish_date, pdf_url, is_published } = parsed.data;
 
   const [issue] = await database
     .insert(zineIssues)
     .values({
       title,
-      volume: volumeRaw ? parseInt(volumeRaw, 10) : null,
-      issue_number: issueNumberRaw ? parseInt(issueNumberRaw, 10) : null,
-      publish_date: publishDateRaw ? new Date(publishDateRaw) : null,
-      pdf_url,
-      is_published: isPublished,
+      volume: volume ?? null,
+      issue_number: issue_number ?? null,
+      publish_date: publish_date ? new Date(publish_date) : null,
+      pdf_url: pdf_url ?? null,
+      is_published: is_published ?? false,
     })
     .returning();
 
@@ -137,41 +120,17 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
   }
 
-  const formData = await request.formData().catch(() => null);
-  if (!formData) {
-    return NextResponse.json({ error: 'Invalid form data.' }, { status: 400 });
+  const body = await request.json().catch(() => null);
+  const parsed = updateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid data.', details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const id = formData.get('id')?.toString();
-  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
-    return NextResponse.json({ error: 'Valid id is required.' }, { status: 400 });
-  }
+  const { id, publish_date, ...rest } = parsed.data;
 
-  const title = formData.get('title')?.toString().trim();
-  if (!title) {
-    return NextResponse.json({ error: 'Title is required.' }, { status: 400 });
-  }
-
-  const volumeRaw = formData.get('volume')?.toString();
-  const issueNumberRaw = formData.get('issue_number')?.toString();
-  const publishDateRaw = formData.get('publish_date')?.toString();
-  const isPublishedRaw = formData.get('is_published')?.toString();
-  const pdfFile = formData.get('pdf') instanceof File ? (formData.get('pdf') as File) : null;
-
-  const updatePayload: Record<string, unknown> = {
-    title,
-    volume: volumeRaw ? parseInt(volumeRaw, 10) : null,
-    issue_number: issueNumberRaw ? parseInt(issueNumberRaw, 10) : null,
-    publish_date: publishDateRaw ? new Date(publishDateRaw) : null,
-    is_published: isPublishedRaw === 'true',
-  };
-
-  if (pdfFile && pdfFile.size > 0) {
-    const result = await uploadPdf(pdfFile);
-    if ('error' in result) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
-    }
-    updatePayload.pdf_url = result.url;
+  const updatePayload: Record<string, unknown> = { ...rest };
+  if (publish_date !== undefined) {
+    updatePayload.publish_date = publish_date ? new Date(publish_date) : null;
   }
 
   const [updated] = await database

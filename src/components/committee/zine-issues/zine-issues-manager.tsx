@@ -86,47 +86,75 @@ export default function ZineIssuesManager({ initialIssues }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
-  function buildFormData(id?: string): FormData {
-    const fd = new FormData();
-    if (id) fd.append('id', id);
-    fd.append('title', form.title);
-    if (form.volume) fd.append('volume', form.volume);
-    if (form.issue_number) fd.append('issue_number', form.issue_number);
-    if (form.publish_date) fd.append('publish_date', new Date(form.publish_date).toISOString());
-    fd.append('is_published', String(form.is_published));
-    if (pdfFile) fd.append('pdf', pdfFile);
-    return fd;
+  function buildPayload(pdfPublicUrl?: string | null) {
+    return {
+      title: form.title,
+      volume: form.volume ? parseInt(form.volume, 10) : null,
+      issue_number: form.issue_number ? parseInt(form.issue_number, 10) : null,
+      publish_date: form.publish_date ? new Date(form.publish_date).toISOString() : null,
+      is_published: form.is_published,
+      ...(pdfPublicUrl !== undefined && { pdf_url: pdfPublicUrl }),
+    };
+  }
+
+  // Step 1: get presigned URL + publicUrl from server
+  // Step 2: PUT directly to R2 (never touches Vercel's body limit)
+  // Returns the public URL to store, or null if no file selected
+  async function uploadPdfIfPresent(): Promise<string | null> {
+    if (!pdfFile) return null;
+
+    const params = new URLSearchParams({ filename: pdfFile.name, fileSize: String(pdfFile.size) });
+    const urlRes = await fetch(`/api/zine-issues/upload-url?${params}`);
+    const urlData = await urlRes.json();
+    if (!urlRes.ok) throw new Error(urlData.error ?? 'Failed to get upload URL.');
+
+    const uploadRes = await fetch(urlData.uploadUrl, {
+      method: 'PUT',
+      body: pdfFile,
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+    if (!uploadRes.ok) throw new Error('Failed to upload PDF to storage.');
+
+    return urlData.publicUrl as string;
   }
 
   async function handleCreate() {
     setError(null);
-    const res = await fetch('/api/zine-issues', {
-      method: 'POST',
-      body: buildFormData(),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? 'Failed to create issue.');
-      return;
+    try {
+      const pdfPublicUrl = await uploadPdfIfPresent();
+      const res = await fetch('/api/zine-issues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildPayload(pdfPublicUrl)),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? 'Failed to create issue.'); return; }
+      setIssues(prev => [data.issue, ...prev]);
+      closeForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed.');
     }
-    setIssues(prev => [data.issue, ...prev]);
-    closeForm();
   }
 
   async function handleUpdate() {
     if (!editingId) return;
     setError(null);
-    const res = await fetch('/api/zine-issues', {
-      method: 'PATCH',
-      body: buildFormData(editingId),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? 'Failed to update issue.');
-      return;
+    try {
+      const pdfPublicUrl = await uploadPdfIfPresent();
+      const res = await fetch('/api/zine-issues', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        // Only include pdf_url when a new file was uploaded; omitting it
+        // leaves the existing URL untouched (buildPayload skips undefined)
+        body: JSON.stringify({ id: editingId, ...buildPayload(pdfPublicUrl ?? undefined) }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? 'Failed to update issue.'); return; }
+      setIssues(prev => prev.map(i => (i.id === editingId ? data.issue : i)));
+      closeForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed.');
     }
-    setIssues(prev => prev.map(i => (i.id === editingId ? data.issue : i)));
-    closeForm();
   }
 
   async function handleDelete(id: string) {
