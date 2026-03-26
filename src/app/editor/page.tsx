@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { desc, eq, inArray, ne } from 'drizzle-orm';
 
 import PageHeader from '@/components/shell/page-header';
 import { requireUser } from '@/lib/auth/guards';
@@ -34,6 +34,7 @@ export default async function EditorInChiefDashboard() {
     const data = await database
       .select()
       .from(submissions)
+      .where(ne(submissions.status, 'withdrawn'))
       .orderBy(desc(submissions.created_at));
 
     if (data) {

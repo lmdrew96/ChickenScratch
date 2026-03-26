@@ -8,6 +8,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        fraunces: ['var(--font-fraunces)', 'serif'],
+      },
       colors: {
         background: '#030712',
         foreground: '#f8fafc',
