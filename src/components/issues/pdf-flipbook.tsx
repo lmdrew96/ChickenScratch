@@ -20,6 +20,10 @@ export function PdfFlipbook({ pdfUrl, title }: Props) {
   const [aspectRatio, setAspectRatio] = useState(0); // height / width of one PDF page
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
+  // Flipbook ref for programmatic page turns
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const flipBookRef = useRef<any>(null);
+
   // Responsive layout state — driven by ResizeObserver on the container
   const containerRef = useRef<HTMLDivElement>(null);
   const [pageWidth, setPageWidth] = useState(MAX_PAGE_WIDTH);
@@ -94,6 +98,17 @@ export function PdfFlipbook({ pdfUrl, title }: Props) {
   const displayHeight = aspectRatio > 0 ? Math.round(pageWidth * aspectRatio) : 0;
   const ready = status === 'ready' && displayHeight > 0;
 
+  // Arrow key navigation
+  useEffect(() => {
+    if (!ready) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'ArrowRight') flipBookRef.current?.pageFlip().flipNext();
+      if (e.key === 'ArrowLeft')  flipBookRef.current?.pageFlip().flipPrev();
+    }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [ready]);
+
   return (
     <div ref={containerRef} className="w-full">
       {status === 'loading' && (
@@ -118,6 +133,7 @@ export function PdfFlipbook({ pdfUrl, title }: Props) {
           aria-label={`Flipbook for ${title}`}
         >
           <HTMLFlipBook
+            ref={flipBookRef}
             width={pageWidth}
             height={displayHeight}
             size="fixed"
