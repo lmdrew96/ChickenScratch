@@ -198,3 +198,16 @@ export const notificationFailures = pgTable('notification_failures', {
   context: jsonb('context'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
+
+export const zineIssues = pgTable('zine_issues', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').notNull(),
+  volume: integer('volume'),
+  issue_number: integer('issue_number'),
+  publish_date: timestamp('publish_date', { withTimezone: true }),
+  pdf_url: text('pdf_url'),
+  is_published: boolean('is_published').default(false),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('zine_issues_is_published_idx').on(table.is_published),
+]);

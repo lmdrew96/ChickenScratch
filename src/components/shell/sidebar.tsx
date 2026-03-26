@@ -125,13 +125,21 @@ export default function Sidebar({ signedIn = false, userProfile, navAccess }: Si
         >
           My Submissions
         </Link>
-        <Link 
-          href="/published" 
-          className={is('/published') ? 'active' : ''} 
+        <Link
+          href="/published"
+          className={is('/published') ? 'active' : ''}
           onClick={closeMobileMenu}
           aria-current={is('/published') ? 'page' : undefined}
         >
           Published
+        </Link>
+        <Link
+          href="/issues"
+          className={is('/issues') ? 'active' : ''}
+          onClick={closeMobileMenu}
+          aria-current={is('/issues') ? 'page' : undefined}
+        >
+          Issues
         </Link>
         <Link 
           href="/exhibition" 
@@ -168,14 +176,24 @@ export default function Sidebar({ signedIn = false, userProfile, navAccess }: Si
           </Link>
         )}
         {(navAccess?.officer || navAccess?.committee) && (
-          <Link
-            href="/committee"
-            className={is('/committee') ? 'active' : ''}
-            onClick={closeMobileMenu}
-            aria-current={is('/committee') ? 'page' : undefined}
-          >
-            Committee
-          </Link>
+          <>
+            <Link
+              href="/committee"
+              className={pathname === '/committee' ? 'active' : ''}
+              onClick={closeMobileMenu}
+              aria-current={pathname === '/committee' ? 'page' : undefined}
+            >
+              Committee
+            </Link>
+            <Link
+              href="/committee/zine-issues"
+              className={is('/committee/zine-issues') ? 'active' : ''}
+              onClick={closeMobileMenu}
+              aria-current={is('/committee/zine-issues') ? 'page' : undefined}
+            >
+              Zine Issues
+            </Link>
+          </>
         )}
         {(navAccess?.officer || navAccess?.editor) && (
           <Link

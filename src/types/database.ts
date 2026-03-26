@@ -11,6 +11,7 @@ import {
   notificationFailures,
   exhibitionSubmissions,
   exhibitionConfig,
+  zineIssues,
 } from '@/lib/db/schema';
 import type { ImageTransform } from '@/types/image-transform';
 
@@ -111,3 +112,7 @@ export type PublishedDetailRow = Pick<
   | 'image_transform'
   | 'updated_at'
 >;
+
+// --- Zine Issues ---
+export type ZineIssue = InferSelectModel<typeof zineIssues>;
+export type NewZineIssue = InferInsertModel<typeof zineIssues>;
