@@ -10,6 +10,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         fraunces: ['var(--font-fraunces)', 'serif'],
+        sans: ['var(--font-dm-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
         background: '#030712',

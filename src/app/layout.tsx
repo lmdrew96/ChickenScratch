@@ -1,8 +1,9 @@
 import './globals.css'
-import { Fraunces } from 'next/font/google'
+import { Fraunces, DM_Sans } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 
 const fraunces = Fraunces({ subsets: ['latin'], variable: '--font-fraunces' })
+const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans' })
 import { auth } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
 import AccountBadge from '@/components/account-badge';
@@ -73,7 +74,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={fraunces.variable}>
+        <body className={`${fraunces.variable} ${dmSans.variable}`}>
           <ToastProvider>
             <ErrorBoundary>
               <SkipLinks />
