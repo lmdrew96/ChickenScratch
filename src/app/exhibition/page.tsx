@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PageHeader } from '@/components/navigation';
 import { db } from '@/lib/db';
 import { exhibitionConfig } from '@/lib/db/schema';
 import { parseConfigDate } from '@/lib/utils';
@@ -53,6 +54,11 @@ export default async function ExhibitionPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-10 py-8">
+      <PageHeader
+        title="Exhibition"
+        description="Hen & Ink Society's End-of-Year Flock Party"
+      />
+
       {/* Hero */}
       <div className="space-y-4">
         <div
@@ -61,9 +67,6 @@ export default async function ExhibitionPage() {
         >
           {accepting ? 'Now Accepting Submissions' : 'Submissions Closed'}
         </div>
-        <h1 className="text-4xl font-bold leading-tight text-white">
-          Hen &amp; Ink Society&rsquo;s End&#8209;of&#8209;Year Flock Party
-        </h1>
         <p className="text-lg text-slate-300">
           <strong style={{ color: 'var(--accent)' }}>{exhibitionDateFormatted}</strong>
           <span className="ml-2 text-slate-400">5–8pm</span>

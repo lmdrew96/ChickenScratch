@@ -1,5 +1,6 @@
 import { eq, desc } from 'drizzle-orm';
 
+import { PageHeader } from '@/components/navigation';
 import { PublishedGalleryClient } from '@/components/gallery';
 import { EmptyState } from '@/components/ui';
 import { logHandledIssue } from '@/lib/logging';
@@ -89,16 +90,14 @@ export default async function PublishedPage() {
     // Non-fatal: links just won't appear
   }
 
-  // Show error state if there was a loading issue
-  if (encounteredLoadIssue && publishedSubmissions.length === 0) {
-    return (
-      <div className="space-y-6">
-        <header className="space-y-2">
-          <h1 className="text-3xl font-semibold text-white">Published pieces</h1>
-          <p className="text-sm text-white/70">
-            Explore the latest stories and artwork from the Chicken Scratch community.
-          </p>
-        </header>
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Published"
+        description="Explore the latest stories and artwork from the Chicken Scratch community."
+      />
+
+      {encounteredLoadIssue && publishedSubmissions.length === 0 ? (
         <EmptyState
           variant="error"
           title="Unable to load gallery"
@@ -112,20 +111,7 @@ export default async function PublishedPage() {
             href: "/"
           }}
         />
-      </div>
-    );
-  }
-
-  // Show empty state if no published works exist
-  if (publishedSubmissions.length === 0) {
-    return (
-      <div className="space-y-6">
-        <header className="space-y-2">
-          <h1 className="text-3xl font-semibold text-white">Published pieces</h1>
-          <p className="text-sm text-white/70">
-            Explore the latest stories and artwork from the Chicken Scratch community.
-          </p>
-        </header>
+      ) : publishedSubmissions.length === 0 ? (
         <EmptyState
           variant="published"
           title="No published works yet"
@@ -139,9 +125,9 @@ export default async function PublishedPage() {
             href: "/about"
           }}
         />
-      </div>
-    );
-  }
-
-  return <PublishedGalleryClient submissions={publishedSubmissions} issueIdMap={issueIdMap} />;
+      ) : (
+        <PublishedGalleryClient submissions={publishedSubmissions} issueIdMap={issueIdMap} />
+      )}
+    </div>
+  );
 }

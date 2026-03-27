@@ -103,15 +103,6 @@ export function PublishedGalleryClient({ submissions, issueIdMap = {} }: Publish
   return (
     <>
       <div className="space-y-6">
-        {/* Header */}
-        <header className="space-y-2">
-          <h1 className="text-3xl font-semibold text-white">Published pieces</h1>
-          <p className="text-sm text-white/70">
-            Explore the latest stories and artwork from the Chicken Scratch community. Visual work includes signed download
-            links valid for seven days.
-          </p>
-        </header>
-
         {/* Search and Filters */}
         <div className="space-y-4">
           {/* Search Bar */}
