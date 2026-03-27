@@ -60,6 +60,7 @@ export default async function EditorInChiefDashboard() {
         assigned_editor_profile: submission.assigned_editor
           ? profileMap.get(submission.assigned_editor) ?? null
           : null,
+        daysSinceUpdate: getDaysSince(submission.updated_at),
       }));
     }
   } catch (error) {
