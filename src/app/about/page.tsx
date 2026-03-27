@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
 
 export const metadata = {
@@ -59,6 +60,45 @@ export default function AboutPage() {
             Whether you&apos;re a writer, an artist, a photographer, someone who just likes being around creative people, or someone who hasn&apos;t made anything yet but wants to—<span className="text-white font-semibold">there&apos;s a spot for you in our flock.</span>
           </p>
         </section>
+
+        {/* Scrapbook photos */}
+        <div className="flex flex-wrap justify-center items-end gap-10 py-2">
+          {/* Group photo — tilted left */}
+          <div
+            className="shrink-0 bg-white p-3 pb-10 shadow-2xl"
+            style={{ transform: 'rotate(-2.5deg)', borderRadius: '4px', maxWidth: '240px' }}
+          >
+            <Image
+              src="/hen-and-ink-outside-2025.jpg"
+              alt="Hen & Ink Society members hanging out outside, fall 2025"
+              width={214}
+              height={268}
+              className="block w-full object-cover"
+              style={{ borderRadius: '2px' }}
+            />
+            <p className="mt-3 text-center font-fraunces italic text-sm text-gray-500">
+              the flock, fall 2025
+            </p>
+          </div>
+
+          {/* Geocaching photo — tilted right */}
+          <div
+            className="shrink-0 bg-white p-3 pb-10 shadow-2xl"
+            style={{ transform: 'rotate(2deg)', borderRadius: '4px', maxWidth: '300px' }}
+          >
+            <Image
+              src="/hen-and-ink-geocaching-find-2025.png"
+              alt="Hen & Ink members celebrating a geocaching find, 2025"
+              width={274}
+              height={206}
+              className="block w-full object-cover"
+              style={{ borderRadius: '2px' }}
+            />
+            <p className="mt-3 text-center font-fraunces italic text-sm text-gray-500">
+              geocaching adventure, 2025
+            </p>
+          </div>
+        </div>
 
         {/* About Chicken Scratch */}
         <section className="rounded-2xl border border-white/10 bg-white/5 p-8">
