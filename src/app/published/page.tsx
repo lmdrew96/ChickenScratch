@@ -74,7 +74,7 @@ export default async function PublishedPage() {
   );
 
   // Build a map from "volume_issueNumber" → zine issue ID for linking gallery items to their issue pages
-  let issueIdMap: Record<string, string> = {};
+  const issueIdMap: Record<string, string> = {};
   try {
     const issues = await db()
       .select({ id: zineIssues.id, volume: zineIssues.volume, issue_number: zineIssues.issue_number })
