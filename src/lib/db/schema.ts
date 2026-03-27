@@ -30,6 +30,7 @@ export const submissions = pgTable('submissions', {
   file_type: text('file_type'),
   file_size: integer('file_size'),
   art_files: jsonb('art_files').default([]),
+  art_file_statuses: jsonb('art_file_statuses').default({}),
   cover_image: text('cover_image'),
   status: text('status').default('submitted'),
   assigned_editor: uuid('assigned_editor').references(() => profiles.id),

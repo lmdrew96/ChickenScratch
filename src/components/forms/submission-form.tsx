@@ -71,7 +71,7 @@ export function SubmissionForm({}: SubmissionFormProps = {}) {
   const [contentWarnings, setContentWarnings] = useState('');
   const [text, setText] = useState('');
   const [writingFile, setWritingFile] = useState<File | null>(null);
-  const [visualFile, setVisualFile] = useState<File | null>(null);
+  const [visualFiles, setVisualFiles] = useState<File[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
   const writingFileInputRef = useRef<HTMLInputElement | null>(null);
   const visualFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -87,14 +87,14 @@ export function SubmissionForm({}: SubmissionFormProps = {}) {
   useEffect(() => {
     if (!kind || !category || !preferredName.trim()) {
       setCurrentStep(0);
-    } else if (kind === 'visual' && !visualFile) {
+    } else if (kind === 'visual' && visualFiles.length === 0) {
       setCurrentStep(1);
     } else if (kind === 'writing' && !writingFile) {
       setCurrentStep(1);
     } else {
       setCurrentStep(2);
     }
-  }, [kind, category, preferredName, visualFile, writingFile]);
+  }, [kind, category, preferredName, visualFiles, writingFile]);
 
   // Auto-save functionality
   const autoSave = useCallback(async () => {
@@ -222,29 +222,29 @@ export function SubmissionForm({}: SubmissionFormProps = {}) {
     const files = event.target.files;
 
     if (!files || files.length === 0) {
-      setVisualFile(null);
+      setVisualFiles([]);
       setErrors((prev) => ({ ...prev, file: undefined }));
       return;
     }
 
-    if (files.length > 1) {
-      setErrors((prev) => ({ ...prev, file: 'Please upload a single file.' }));
-      setVisualFile(null);
+    if (files.length > 3) {
+      setErrors((prev) => ({ ...prev, file: 'You can upload up to 3 image files.' }));
+      setVisualFiles([]);
       event.target.value = '';
       return;
     }
 
-    const nextFile = files[0];
-    if (!nextFile) return;
-
-    if (nextFile.size > 10 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, file: 'File must be smaller than 10 MB.' }));
-      setVisualFile(null);
-      event.target.value = '';
-      return;
+    const nextFiles = Array.from(files);
+    for (const file of nextFiles) {
+      if (file.size > 10 * 1024 * 1024) {
+        setErrors((prev) => ({ ...prev, file: `"${file.name}" must be smaller than 10 MB.` }));
+        setVisualFiles([]);
+        event.target.value = '';
+        return;
+      }
     }
 
-    setVisualFile(nextFile);
+    setVisualFiles(nextFiles);
     setErrors((prev) => ({ ...prev, file: undefined }));
   }
 
@@ -268,10 +268,10 @@ export function SubmissionForm({}: SubmissionFormProps = {}) {
 
     if (kind === 'visual') {
       const pendingVisualFiles = visualFileInputRef.current?.files;
-      if (pendingVisualFiles && pendingVisualFiles.length > 1) {
-        validationErrors.file = 'Only one file can be uploaded.';
+      if (pendingVisualFiles && pendingVisualFiles.length > 3) {
+        validationErrors.file = 'You can upload up to 3 image files.';
       }
-      if (!visualFile) {
+      if (visualFiles.length === 0) {
         validationErrors.file = validationErrors.file ?? 'Add the piece you want to share.';
       }
     }
@@ -295,39 +295,132 @@ export function SubmissionForm({}: SubmissionFormProps = {}) {
     setIsSubmitting(true);
 
     try {
-      const activeFile = kind === 'writing' ? writingFile : visualFile;
-      if (!activeFile) {
+      if (kind === 'writing' && !writingFile) {
         showError('Please attach a file before submitting.', 'Submission Failed');
         return;
       }
-
-      // Step 1: Get a presigned upload URL
-      const uploadUrlParams = new URLSearchParams({
-        type: kind,
-        filename: activeFile.name,
-        contentType: activeFile.type || 'application/octet-stream',
-        fileSize: String(activeFile.size),
-      });
-      const uploadUrlRes = await fetch(`/api/submissions/upload-url?${uploadUrlParams}`);
-      if (!uploadUrlRes.ok) {
-        let message = 'Could not prepare upload. Please try again.';
-        try {
-          const data = await uploadUrlRes.json();
-          if (data?.error) message = data.error;
-        } catch { /* ignore */ }
-        showError(message, 'Submission Failed');
+      if (kind === 'visual' && visualFiles.length === 0) {
+        showError('Please attach at least one image before submitting.', 'Submission Failed');
         return;
       }
-      const { uploadUrl, filePath } = await uploadUrlRes.json();
 
-      // Step 2: Upload file directly to R2 (bypasses Vercel payload limit)
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: activeFile,
-        headers: { 'Content-Type': activeFile.type || 'application/octet-stream' },
-      });
-      if (!uploadRes.ok) {
-        showError('File upload failed. Please try again.', 'Submission Failed');
+      let primaryFilePath = '';
+      let primaryFileName = '';
+      let primaryFileType = '';
+      let primaryFileSize = 0;
+
+      if (kind === 'writing') {
+        const activeFile = writingFile!;
+        // Step 1: Get a presigned upload URL
+        const uploadUrlParams = new URLSearchParams({
+          type: kind,
+          filename: activeFile.name,
+          contentType: activeFile.type || 'application/octet-stream',
+          fileSize: String(activeFile.size),
+        });
+        const uploadUrlRes = await fetch(`/api/submissions/upload-url?${uploadUrlParams}`);
+        if (!uploadUrlRes.ok) {
+          let message = 'Could not prepare upload. Please try again.';
+          try {
+            const data = await uploadUrlRes.json();
+            if (data?.error) message = data.error;
+          } catch { /* ignore */ }
+          showError(message, 'Submission Failed');
+          return;
+        }
+        const { uploadUrl, filePath } = await uploadUrlRes.json();
+
+        // Step 2: Upload file directly to R2
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: activeFile,
+          headers: { 'Content-Type': activeFile.type || 'application/octet-stream' },
+        });
+        if (!uploadRes.ok) {
+          showError('File upload failed. Please try again.', 'Submission Failed');
+          return;
+        }
+
+        primaryFilePath = filePath;
+        primaryFileName = activeFile.name;
+        primaryFileType = activeFile.type || 'application/octet-stream';
+        primaryFileSize = activeFile.size;
+      } else {
+        // Visual: upload up to 3 images
+        const uploadedPaths: string[] = [];
+        for (const file of visualFiles) {
+          const uploadUrlParams = new URLSearchParams({
+            type: kind,
+            filename: file.name,
+            contentType: file.type || 'application/octet-stream',
+            fileSize: String(file.size),
+          });
+          const uploadUrlRes = await fetch(`/api/submissions/upload-url?${uploadUrlParams}`);
+          if (!uploadUrlRes.ok) {
+            let message = 'Could not prepare upload. Please try again.';
+            try {
+              const data = await uploadUrlRes.json();
+              if (data?.error) message = data.error;
+            } catch { /* ignore */ }
+            showError(message, 'Submission Failed');
+            return;
+          }
+          const { uploadUrl, filePath } = await uploadUrlRes.json();
+
+          const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            body: file,
+            headers: { 'Content-Type': file.type || 'application/octet-stream' },
+          });
+          if (!uploadRes.ok) {
+            showError(`Upload failed for "${file.name}". Please try again.`, 'Submission Failed');
+            return;
+          }
+
+          uploadedPaths.push(filePath);
+        }
+
+        primaryFilePath = uploadedPaths[0]!;
+        primaryFileName = visualFiles[0]!.name;
+        primaryFileType = visualFiles[0]!.type || 'application/octet-stream';
+        primaryFileSize = visualFiles[0]!.size;
+
+        // Step 3: POST metadata (no file binary) to create the submission record
+        const formData = new FormData();
+        formData.append('title', title.trim() || `${category} by ${preferredName.trim()}`);
+        formData.append('type', kind);
+        formData.append('preferredName', preferredName.trim());
+        formData.append('filePath', primaryFilePath);
+        formData.append('filePaths', JSON.stringify(uploadedPaths));
+        formData.append('fileName', primaryFileName);
+        formData.append('fileType', primaryFileType);
+        formData.append('fileSize', String(primaryFileSize));
+        if (category) formData.append('genre', category);
+        if (summary.trim()) formData.append('summary', summary.trim());
+        if (contentWarnings.trim()) formData.append('contentWarnings', contentWarnings.trim());
+
+        const response = await fetch('/api/submissions', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          let message = 'We could not submit your work. Please try again.';
+          try {
+            const data = await response.json();
+            if (data && typeof data.error === 'string' && data.error.trim().length > 0) {
+              message = data.error;
+            }
+          } catch {
+            // ignore JSON parsing issues
+          }
+          showError(message, 'Submission Failed');
+          return;
+        }
+
+        localStorage.removeItem('submission-draft');
+        showSuccess('Your submission has been received and will be reviewed by our editorial team.', 'Submission Successful', true);
+        setTimeout(() => { router.push('/mine'); }, 2000);
         return;
       }
 
@@ -336,10 +429,10 @@ export function SubmissionForm({}: SubmissionFormProps = {}) {
       formData.append('title', title.trim() || `${category} by ${preferredName.trim()}`);
       formData.append('type', kind);
       formData.append('preferredName', preferredName.trim());
-      formData.append('filePath', filePath);
-      formData.append('fileName', activeFile.name);
-      formData.append('fileType', activeFile.type || 'application/octet-stream');
-      formData.append('fileSize', String(activeFile.size));
+      formData.append('filePath', primaryFilePath);
+      formData.append('fileName', primaryFileName);
+      formData.append('fileType', primaryFileType);
+      formData.append('fileSize', String(primaryFileSize));
       if (category) formData.append('genre', category);
       if (summary.trim()) formData.append('summary', summary.trim());
       if (contentWarnings.trim()) formData.append('contentWarnings', contentWarnings.trim());
@@ -570,21 +663,24 @@ export function SubmissionForm({}: SubmissionFormProps = {}) {
               ref={visualFileInputRef}
               type="file"
               accept="image/*,.jpg,.jpeg,.png,.gif,.webp,application/pdf"
+              multiple
               aria-required="true"
               onChange={handleVisualFileChange}
               className="w-full rounded-xl border border-slate-500/40 bg-transparent px-3 py-2 text-sm outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-200 focus:border-[var(--accent)]"
             />
-            {visualFile && (
-              <div className="space-y-2">
-                <p className="text-xs text-slate-300">Selected: {visualFile.name}</p>
-                <div className="text-xs text-slate-400">
-                  Size: {(visualFile.size / 1024 / 1024).toFixed(2)} MB
-                </div>
-              </div>
+            {visualFiles.length > 0 && (
+              <ul className="space-y-1">
+                {visualFiles.map((file, i) => (
+                  <li key={i} className="flex items-center justify-between text-xs text-slate-300">
+                    <span>{file.name}</span>
+                    <span className="text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                  </li>
+                ))}
+              </ul>
             )}
             <div className="space-y-1">
-              <p className="text-xs text-slate-400">Accepted formats: .jpg, .png, .gif, .webp, or PDF</p>
-              <p className="text-xs text-slate-500">Maximum file size: 10 MB</p>
+              <p className="text-xs text-slate-400">Accepted formats: .jpg, .png, .gif, .webp, or PDF &mdash; up to 3 files</p>
+              <p className="text-xs text-slate-500">Maximum file size: 10 MB per file</p>
             </div>
             <FieldError error={errors.file} />
           </div>

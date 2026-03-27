@@ -80,8 +80,9 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
   const [actionError, setActionError] = useState<string | null>(null);
   const [promptState, setPromptState] = useState<PromptState>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const [artSignedUrl, setArtSignedUrl] = useState<string | null>(null);
+  const [artSignedUrls, setArtSignedUrls] = useState<Array<{ path: string; signedUrl: string }>>([]);
   const [originalArtUrl, setOriginalArtUrl] = useState<string | null>(null);
+  const [fileStatusUpdating, setFileStatusUpdating] = useState<string | null>(null);
 
   const items = useMemo(() => shapeInboxItems(submissions, userRole), [submissions, userRole]);
 
@@ -102,21 +103,24 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
   }, [promptState]);
 
   useEffect(() => {
-    setArtSignedUrl(null);
+    setArtSignedUrls([]);
     setOriginalArtUrl(null);
     if (!selected || selected.submission.type !== 'visual') return;
     const s = selected.submission;
     const t = parseImageTransform(s.image_transform);
-    const artFiles = Array.isArray(s.art_files) ? (s.art_files as string[]) : [];
-    const originalPath = artFiles[0] ?? s.cover_image ?? null;
+    const filePaths = Array.isArray(s.art_files) ? (s.art_files as string[]) : [];
 
+    // Fetch signed URLs for all art files
+    void Promise.all(
+      filePaths.map((path) => getSignedDownloadUrl(path).then((r) => ({ path, signedUrl: r.signedUrl })))
+    ).then(setArtSignedUrls);
+
+    // For the image editor: show processed version of the first image if available
     if (t?.processedPath) {
-      void getSignedDownloadUrl(t.processedPath).then((r) => setArtSignedUrl(r.signedUrl));
-      if (originalPath) {
-        void getSignedDownloadUrl(originalPath).then((r) => setOriginalArtUrl(r.signedUrl));
+      const firstPath = filePaths[0] ?? s.cover_image ?? null;
+      if (firstPath) {
+        void getSignedDownloadUrl(firstPath).then((r) => setOriginalArtUrl(r.signedUrl));
       }
-    } else if (originalPath) {
-      void getSignedDownloadUrl(originalPath).then((r) => setArtSignedUrl(r.signedUrl));
     }
   }, [selected]);
 
@@ -184,6 +188,20 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
       setActionError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsProcessing(null);
+    }
+  }
+
+  async function setArtFileStatus(submissionId: string, filePath: string, status: 'approved' | 'declined' | 'pending') {
+    setFileStatusUpdating(filePath);
+    try {
+      await fetch(`/api/submissions/${submissionId}/art-files`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath, status }),
+      });
+      router.refresh();
+    } finally {
+      setFileStatusUpdating(null);
     }
   }
 
@@ -355,15 +373,68 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
                 </div>
               </div>
 
-              {/* Visual art inline display */}
-              {selected.submission.type === 'visual' && artSignedUrl && (
-                <div className="flex justify-center rounded-xl border border-white/10 bg-black/20 p-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={artSignedUrl}
-                    alt={selected.submission.title}
-                    className="block max-h-72 w-auto"
-                  />
+              {/* Visual art inline display — one card per file with per-image approve/decline */}
+              {selected.submission.type === 'visual' && artSignedUrls.length > 0 && (
+                <div className="space-y-3">
+                  {artSignedUrls.map(({ path, signedUrl }) => {
+                    const statuses = (
+                      selected.submission.art_file_statuses &&
+                      typeof selected.submission.art_file_statuses === 'object' &&
+                      !Array.isArray(selected.submission.art_file_statuses)
+                        ? selected.submission.art_file_statuses
+                        : {}
+                    ) as Record<string, string>;
+                    const fileStatus = statuses[path] ?? 'pending';
+                    const isUpdating = fileStatusUpdating === path;
+                    return (
+                      <div key={path} className="rounded-xl border border-white/10 bg-black/20 p-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={signedUrl}
+                          alt={selected.submission.title}
+                          className="block max-h-72 w-auto mx-auto"
+                        />
+                        <div className="mt-2 flex items-center justify-between gap-2 px-1">
+                          <span className={cx(
+                            'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                            fileStatus === 'approved' && 'border-emerald-400/30 bg-emerald-500/15 text-emerald-200',
+                            fileStatus === 'declined' && 'border-rose-400/30 bg-rose-500/15 text-rose-200',
+                            fileStatus === 'pending' && 'border-white/10 bg-white/5 text-white/60',
+                          )}>
+                            {fileStatus}
+                          </span>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={isUpdating || fileStatus === 'approved'}
+                              onClick={() => void setArtFileStatus(selected.submission.id, path, 'approved')}
+                              className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
+                            >
+                              {isUpdating ? '…' : 'Approve'}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isUpdating || fileStatus === 'declined'}
+                              onClick={() => void setArtFileStatus(selected.submission.id, path, 'declined')}
+                              className="rounded-lg bg-rose-600 px-3 py-1 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-40"
+                            >
+                              {isUpdating ? '…' : 'Decline'}
+                            </button>
+                            {fileStatus !== 'pending' && (
+                              <button
+                                type="button"
+                                disabled={isUpdating}
+                                onClick={() => void setArtFileStatus(selected.submission.id, path, 'pending')}
+                                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70 hover:bg-white/10 disabled:opacity-40"
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -391,17 +462,18 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
                 )}
               </div>
 
-              {/* Image editor for coordinators and EiC on visual submissions */}
-              {selected.submission.type === 'visual' && artSignedUrl &&
+              {/* Image editor for coordinators and EiC — operates on the first art file */}
+              {selected.submission.type === 'visual' && artSignedUrls.length > 0 &&
                 (userRole === 'submissions_coordinator' || userRole === 'editor_in_chief') && (() => {
                 const t = parseImageTransform(selected.submission.image_transform);
                 const artFiles = Array.isArray(selected.submission.art_files)
                   ? (selected.submission.art_files as string[]) : [];
                 const artOriginalPath = t?.originalPath ?? artFiles[0] ?? selected.submission.cover_image ?? '';
+                const firstSignedUrl = artSignedUrls[0]?.signedUrl ?? '';
                 return (
                   <ImageEditor
                     submissionId={selected.submission.id}
-                    imageUrl={artSignedUrl}
+                    imageUrl={firstSignedUrl}
                     originalImageUrl={originalArtUrl ?? undefined}
                     initialTransform={t ? { ...t, originalPath: artOriginalPath } : { originalPath: artOriginalPath }}
                     onSave={() => router.refresh()}

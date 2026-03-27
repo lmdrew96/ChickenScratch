@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
     const preferredName = formData.get('preferredName')?.toString() || null;
     const contentWarnings = formData.get('contentWarnings')?.toString() || null;
     const filePath = formData.get('filePath')?.toString() ?? '';
+    const filePathsRaw = formData.get('filePaths')?.toString();
     const fileName = formData.get('fileName')?.toString() ?? '';
     const fileType = formData.get('fileType')?.toString() ?? '';
     const fileSize = parseInt(formData.get('fileSize')?.toString() ?? '0', 10);
@@ -55,6 +56,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid file path.' }, { status: 400 });
     }
 
+    // Parse additional file paths for visual submissions (up to 3 images)
+    let allFilePaths: string[] = [filePath];
+    if (type === 'visual' && filePathsRaw) {
+      try {
+        const parsed: unknown = JSON.parse(filePathsRaw);
+        if (Array.isArray(parsed) && parsed.length >= 1 && parsed.length <= 3) {
+          const paths = parsed as string[];
+          if (paths.every((p) => typeof p === 'string' && p.startsWith(`${profile.id}/`))) {
+            allFilePaths = paths;
+          }
+        }
+      } catch { /* fall back to single filePath */ }
+    }
+
     const insertPayload: NewSubmission = {
       owner_id: profile.id,
       title,
@@ -72,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     if (type === 'visual') {
       insertPayload.cover_image = filePath;
-      insertPayload.art_files = [filePath];
+      insertPayload.art_files = allFilePaths;
     }
 
     const database = db();
