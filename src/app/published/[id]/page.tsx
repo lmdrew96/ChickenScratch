@@ -146,7 +146,7 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
         ) : null}
       </header>
 
-      {(processedUrl ?? coverUrl) ? (
+      {submission.type === 'writing' && (processedUrl ?? coverUrl) ? (
         <div className="flex justify-center rounded-xl border border-white/10 overflow-hidden p-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
