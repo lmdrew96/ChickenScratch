@@ -58,12 +58,19 @@ export default async function PublishedPage() {
   }
 
   const publishedSubmissions: PublishedSubmission[] = await Promise.all(
-    rawSubmissions.map(async ({ image_transform, ...submission }) => ({
-      ...submission,
-      art_files: Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [],
-      coverSignedUrl: submission.cover_image ? await createSignedUrl(submission.cover_image) : null,
-      imageTransform: parseImageTransform(image_transform),
-    }))
+    rawSubmissions.map(async ({ image_transform, ...submission }) => {
+      const transform = parseImageTransform(image_transform);
+      const processedSignedUrl = transform?.processedPath
+        ? await createSignedUrl(transform.processedPath)
+        : null;
+      return {
+        ...submission,
+        art_files: Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [],
+        coverSignedUrl: processedSignedUrl ?? (submission.cover_image ? await createSignedUrl(submission.cover_image) : null),
+        imageTransform: transform,
+        processedSignedUrl,
+      };
+    })
   );
 
   // Build a map from "volume_issueNumber" → zine issue ID for linking gallery items to their issue pages

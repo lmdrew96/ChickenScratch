@@ -8,8 +8,7 @@ import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl, createSignedUrls } from '@/lib/storage';
 import { db } from '@/lib/db';
 import { submissions, zineIssues } from '@/lib/db/schema';
-import { parseImageTransform, getObjectPosition } from '@/types/image-transform';
-import { CroppedImage } from '@/components/gallery/cropped-image';
+import { parseImageTransform } from '@/types/image-transform';
 
 export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -112,6 +111,9 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
   }
   const assetEntries = await createSignedUrls(artFiles);
   const imageTransform = parseImageTransform(submission.image_transform);
+  const processedUrl = imageTransform?.processedPath
+    ? await createSignedUrl(imageTransform.processedPath)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -153,10 +155,6 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
             className="object-cover"
-            style={{
-              objectPosition: getObjectPosition(imageTransform?.crop),
-              ...(imageTransform?.rotation ? { transform: `rotate(${imageTransform.rotation}deg)` } : {}),
-            }}
           />
         </div>
       ) : null}
@@ -187,16 +185,17 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
         </article>
       ) : (
         <section className="space-y-6">
-          {assetEntries.map(({ path, signedUrl }) => (
+          {assetEntries.map(({ path, signedUrl }, index) => {
+            const displayUrl = index === 0 && processedUrl ? processedUrl : signedUrl;
+            return (
             <div key={path} className="space-y-2">
-              {signedUrl ? (
+              {displayUrl ? (
                 <div className="flex justify-center rounded-xl border border-white/10 overflow-hidden p-2">
-                  <CroppedImage
-                    src={signedUrl}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={displayUrl}
                     alt={path.split('/').pop() ?? submission.title}
-                    crop={imageTransform?.crop}
-                    rotation={imageTransform?.rotation}
-                    maxHeight="80vh"
+                    className="block max-h-[80vh] w-auto"
                   />
                 </div>
               ) : null}
@@ -211,7 +210,8 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
           {assetEntries.length === 0 ? (
             <p className="text-sm text-white/50">No artwork available.</p>
           ) : null}

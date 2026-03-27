@@ -6,9 +6,6 @@ import Image from 'next/image';
 import { StatusBadge } from '@/components/common/status-badge';
 import { EmptyState } from '@/components/ui';
 import type { PublishedSubmission } from '@/types/database';
-import { getObjectPosition } from '@/types/image-transform';
-import type { ImageTransform } from '@/types/image-transform';
-import { CroppedImage } from '@/components/gallery/cropped-image';
 
 interface PublishedGalleryClientProps {
   submissions: PublishedSubmission[];
@@ -20,7 +17,6 @@ interface LightboxState {
   imageUrl: string;
   title: string;
   downloadUrl?: string;
-  imageTransform?: ImageTransform | null;
 }
 
 export function PublishedGalleryClient({ submissions, issueIdMap = {} }: PublishedGalleryClientProps) {
@@ -90,8 +86,8 @@ export function PublishedGalleryClient({ submissions, issueIdMap = {} }: Publish
     setCurrentPage(1);
   };
 
-  const openLightbox = (imageUrl: string, title: string, downloadUrl?: string, imageTransform?: ImageTransform | null) => {
-    setLightbox({ isOpen: true, imageUrl, title, downloadUrl, imageTransform });
+  const openLightbox = (imageUrl: string, title: string, downloadUrl?: string) => {
+    setLightbox({ isOpen: true, imageUrl, title, downloadUrl });
     document.body.style.overflow = 'hidden';
   };
 
@@ -187,8 +183,6 @@ export function PublishedGalleryClient({ submissions, issueIdMap = {} }: Publish
         {/* Gallery Grid */}
         <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {paginatedSubmissions.map((submission) => {
-            const crop = submission.imageTransform?.crop;
-            const rotation = submission.imageTransform?.rotation;
             return (
             <article
               key={submission.id}
@@ -204,16 +198,12 @@ export function PublishedGalleryClient({ submissions, issueIdMap = {} }: Publish
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover transition-transform duration-300 group-hover:scale-110"
-                      style={{
-                        objectPosition: getObjectPosition(crop),
-                        ...(rotation ? { transform: `rotate(${rotation}deg)` } : {}),
-                      }}
                     />
                     {/* Overlay buttons for visual art */}
                     {submission.type === 'visual' && (
                       <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                         <button
-                          onClick={() => openLightbox(submission.coverSignedUrl!, submission.title, submission.coverSignedUrl ?? undefined, submission.imageTransform)}
+                          onClick={() => openLightbox(submission.coverSignedUrl!, submission.title, submission.coverSignedUrl ?? undefined)}
                           className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-gray-900 transition hover:bg-white"
                           title="View full size"
                         >
@@ -407,12 +397,10 @@ export function PublishedGalleryClient({ submissions, issueIdMap = {} }: Publish
             className="relative max-h-[90vh] max-w-[90vw]"
             onClick={(e) => e.stopPropagation()}
           >
-            <CroppedImage
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={lightbox.imageUrl}
               alt={lightbox.title}
-              crop={lightbox.imageTransform?.crop}
-              rotation={lightbox.imageTransform?.rotation}
-              maxHeight="90vh"
               className="block max-h-[90vh] max-w-[90vw] w-auto"
             />
             <p className="mt-4 text-center text-sm text-white/80">{lightbox.title}</p>
