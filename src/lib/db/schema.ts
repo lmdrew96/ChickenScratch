@@ -189,6 +189,13 @@ export const exhibitionConfig = pgTable('exhibition_config', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+export const siteConfig = pgTable('site_config', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: text('key').notNull().unique(),
+  value: text('value').notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 export const notificationFailures = pgTable('notification_failures', {
   id: uuid('id').primaryKey().defaultRandom(),
   type: text('type').notNull(), // 'committee' | 'author_status' | 'officer' | 'reminder' | 'contact'

@@ -4,10 +4,7 @@ import { Resend } from 'resend';
 import { escapeHtml } from '@/lib/utils';
 import { env } from '@/lib/env';
 import { rateLimit, contactFormLimiter, getClientIp } from '@/lib/rate-limit';
-
-const CONTACT_RECIPIENTS = env.CONTACT_FORM_RECIPIENTS
-  ? env.CONTACT_FORM_RECIPIENTS.split(',').map(e => e.trim()).filter(Boolean)
-  : [];
+import { getContactFormRecipients } from '@/lib/site-config';
 
 const contactFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -33,6 +30,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const CONTACT_RECIPIENTS = await getContactFormRecipients();
     const body = await request.json();
     const parsed = contactFormSchema.safeParse(body);
 

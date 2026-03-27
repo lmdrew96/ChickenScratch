@@ -3,13 +3,22 @@ import { auth } from '@clerk/nextjs/server'
 import { desc } from 'drizzle-orm'
 import { isAdmin, getAllUsersWithRoles } from '@/lib/actions/roles'
 import { db } from '@/lib/db'
-import { notificationFailures } from '@/lib/db/schema'
+import { notificationFailures, siteConfig } from '@/lib/db/schema'
 import Link from 'next/link'
 import AdminPanel from './admin-panel'
 import CreateTestUser from './create-test-user'
 import NotificationFailures from './notification-failures'
+import SiteConfigEditor from './site-config-editor'
+import StorageCleanup from './storage-cleanup'
 
 export const dynamic = 'force-dynamic'
+
+async function fetchSiteConfig(): Promise<Record<string, string>> {
+  const rows = await db().select().from(siteConfig);
+  const config: Record<string, string> = {};
+  for (const row of rows) config[row.key] = row.value;
+  return config;
+}
 
 async function fetchFailures() {
   const rows = await db()
@@ -45,9 +54,13 @@ export default async function AdminPage() {
   // Wrap only the data fetching in try-catch, not the redirects
   let users
   let failures: Awaited<ReturnType<typeof fetchFailures>> = []
+  let siteConfigData: Record<string, string> = {}
   try {
-    users = await getAllUsersWithRoles()
-    failures = await fetchFailures()
+    ;[users, failures, siteConfigData] = await Promise.all([
+      getAllUsersWithRoles(),
+      fetchFailures(),
+      fetchSiteConfig(),
+    ])
   } catch (error) {
     console.error('Error fetching users:', error)
     return (
@@ -98,8 +111,26 @@ export default async function AdminPage() {
         </div>
       )}
       <div className="mt-8">
+        <SiteConfigEditor initialConfig={siteConfigData} />
+      </div>
+      <div className="mt-8">
+        <StorageCleanup />
+      </div>
+      <div className="mt-8">
         <h2 className="text-2xl font-bold mb-4">Manage Member Roles</h2>
-        <AdminPanel initialUsers={users} />
+        <AdminPanel
+          initialUsers={users}
+          officerPositions={
+            siteConfigData.officer_positions
+              ? (JSON.parse(siteConfigData.officer_positions) as string[])
+              : undefined
+          }
+          committeePositions={
+            siteConfigData.committee_positions
+              ? (JSON.parse(siteConfigData.committee_positions) as string[])
+              : undefined
+          }
+        />
       </div>
     </div>
   )

@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectsCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -136,6 +137,48 @@ export async function uploadFile(
   } catch (error) {
     return { path: '', error: error as Error };
   }
+}
+
+export interface StorageFile {
+  key: string;        // relative path (without prefix), matching DB storage format
+  size: number;
+  lastModified: Date;
+}
+
+/** List all files under a given prefix (e.g. 'art' or 'submissions').
+ *  Returns paths in the same relative format stored in the DB. */
+export async function listFiles(prefix: string): Promise<StorageFile[]> {
+  const client = getS3Client();
+  const files: StorageFile[] = [];
+  let continuationToken: string | undefined;
+  const fullPrefix = `${prefix}/`;
+
+  do {
+    const command = new ListObjectsV2Command({
+      Bucket: env.R2_BUCKET_NAME,
+      Prefix: fullPrefix,
+      ContinuationToken: continuationToken,
+      MaxKeys: 1000,
+    });
+    const response = await client.send(command);
+
+    for (const obj of response.Contents ?? []) {
+      if (obj.Key && obj.Size !== undefined) {
+        const relativePath = obj.Key.slice(fullPrefix.length);
+        if (relativePath) {
+          files.push({
+            key: relativePath,
+            size: obj.Size,
+            lastModified: obj.LastModified ?? new Date(),
+          });
+        }
+      }
+    }
+
+    continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  return files;
 }
 
 export async function deleteFiles(

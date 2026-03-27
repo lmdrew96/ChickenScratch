@@ -1,4 +1,5 @@
 import { logNotificationFailure } from '@/lib/email';
+import { getDiscordWebhookUrl } from '@/lib/site-config';
 
 interface DiscordEmbed {
   title?: string;
@@ -11,10 +12,10 @@ interface DiscordEmbed {
 }
 
 export async function sendDiscordEmbed(embed: DiscordEmbed): Promise<boolean> {
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = await getDiscordWebhookUrl();
 
   if (!webhookUrl) {
-    console.info('[discord] DISCORD_WEBHOOK_URL not set, skipping notification');
+    console.info('[discord] No webhook URL configured, skipping notification');
     return true;
   }
 

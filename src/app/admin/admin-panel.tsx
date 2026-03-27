@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { updateUserRole } from '@/lib/actions/roles'
 import { Trash2, Search, Filter } from 'lucide-react'
 
-type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Editor-in-Chief'
+type Position = string
 
 type UserWithRole = {
   id: string
@@ -16,24 +16,31 @@ type UserWithRole = {
   positions?: Position[]
 }
 
-const OFFICER_POSITIONS: Position[] = [
+const DEFAULT_OFFICER_POSITIONS: Position[] = [
   'BBEG',
   'Dictator-in-Chief',
   'Scroll Gremlin',
   'PR Nightmare'
 ]
 
-const COMMITTEE_POSITIONS: Position[] = [
+const DEFAULT_COMMITTEE_POSITIONS: Position[] = [
   'Submissions Coordinator',
   'Proofreader',
   'Editor-in-Chief'
 ]
 
-const ALL_POSITIONS = [...OFFICER_POSITIONS, ...COMMITTEE_POSITIONS]
-
 type SortOption = 'name-asc' | 'name-desc' | 'email-asc' | 'date-newest' | 'date-oldest'
 
-export default function AdminPanel({ initialUsers }: { initialUsers: UserWithRole[] }) {
+export default function AdminPanel({
+  initialUsers,
+  officerPositions = DEFAULT_OFFICER_POSITIONS,
+  committeePositions = DEFAULT_COMMITTEE_POSITIONS,
+}: {
+  initialUsers: UserWithRole[]
+  officerPositions?: Position[]
+  committeePositions?: Position[]
+}) {
+  const ALL_POSITIONS = [...officerPositions, ...committeePositions]
   const [users, setUsers] = useState(initialUsers)
   const [loading, setLoading] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ userId: string; email: string } | null>(null)
@@ -42,7 +49,7 @@ export default function AdminPanel({ initialUsers }: { initialUsers: UserWithRol
   // Filter and sort state
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'officer' | 'committee' | 'editor' | 'admin'>('all')
-  const [positionFilter, setPositionFilter] = useState<'all' | Position>('all')
+  const [positionFilter, setPositionFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<SortOption>('name-asc')
 
   // Filtered and sorted users
@@ -110,11 +117,11 @@ export default function AdminPanel({ initialUsers }: { initialUsers: UserWithRol
   }, [users, searchQuery, roleFilter, positionFilter, sortBy])
 
   async function handleRoleUpdate(
-    userId: string, 
-    updates: { 
-      is_member?: boolean; 
-      roles?: ('officer' | 'committee')[]; 
-      positions?: Position[] 
+    userId: string,
+    updates: {
+      is_member?: boolean;
+      roles?: ('officer' | 'committee')[];
+      positions?: string[];
     }
   ) {
     setLoading(true)
@@ -142,7 +149,7 @@ export default function AdminPanel({ initialUsers }: { initialUsers: UserWithRol
     handleRoleUpdate(userId, { roles: newRoles })
   }
 
-  function togglePosition(userId: string, position: Position, currentPositions: Position[] = []) {
+  function togglePosition(userId: string, position: string, currentPositions: string[] = []) {
     const hasPosition = currentPositions.includes(position)
     const newPositions = hasPosition
       ? currentPositions.filter(p => p !== position)
@@ -230,7 +237,7 @@ export default function AdminPanel({ initialUsers }: { initialUsers: UserWithRol
             </label>
             <select
               value={positionFilter}
-              onChange={(e) => setPositionFilter(e.target.value as typeof positionFilter)}
+              onChange={(e) => setPositionFilter(e.target.value)}
               className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             >
               <option value="all">All Positions</option>
@@ -344,7 +351,7 @@ export default function AdminPanel({ initialUsers }: { initialUsers: UserWithRol
                       <div className="ml-4 mb-3">
                         <p className="text-sm text-gray-400 mb-2">Officer Positions:</p>
                         <div className="space-y-1">
-                          {OFFICER_POSITIONS.map(position => (
+                          {officerPositions.map(position => (
                             <label key={position} className="flex items-center gap-2">
                               <input
                                 type="checkbox"
@@ -359,12 +366,12 @@ export default function AdminPanel({ initialUsers }: { initialUsers: UserWithRol
                         </div>
                       </div>
                     )}
-                    
+
                     {isCommittee && (
                       <div className="ml-4">
                         <p className="text-sm text-gray-400 mb-2">Committee Positions:</p>
                         <div className="space-y-1">
-                          {COMMITTEE_POSITIONS.map(position => (
+                          {committeePositions.map(position => (
                             <label key={position} className="flex items-center gap-2">
                               <input
                                 type="checkbox"

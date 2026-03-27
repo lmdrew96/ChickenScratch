@@ -6,7 +6,10 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { profiles, userRoles } from '@/lib/db/schema'
 import { ensureProfile } from '@/lib/auth/clerk'
+import { env } from '@/lib/env'
 import type { UserRole } from '@/types/database'
+
+const ADMIN_POSITIONS = ['Dictator-in-Chief', 'Scroll Gremlin'] as const
 
 type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Editor-in-Chief'
 
@@ -37,7 +40,22 @@ export async function getCurrentUserRole(): Promise<UserRole | { is_member: fals
 export async function isAdmin(): Promise<boolean> {
   const role = await getCurrentUserRole()
   if (!role) return false
-  return role.positions?.includes('Dictator-in-Chief') === true || role.positions?.includes('Scroll Gremlin') === true
+
+  if (ADMIN_POSITIONS.some((p) => role.positions?.includes(p))) {
+    return true
+  }
+
+  // Emergency recovery: set EMERGENCY_ADMIN_EMAIL on Vercel to restore admin access
+  // without needing DB access. Only checked when env var is present.
+  if (env.EMERGENCY_ADMIN_EMAIL) {
+    const { userId: clerkId } = await auth()
+    if (clerkId) {
+      const profile = await ensureProfile(clerkId)
+      if (profile?.email === env.EMERGENCY_ADMIN_EMAIL) return true
+    }
+  }
+
+  return false
 }
 
 export async function updateUserRole(
@@ -49,6 +67,44 @@ export async function updateUserRole(
   }
 
   const database = db()
+
+  // Safety check: prevent removing the last admin
+  if (updates.positions !== undefined) {
+    const newPositions = (updates.positions ?? []) as string[]
+    const removingAdminPosition = ADMIN_POSITIONS.some((p) => !newPositions.includes(p))
+
+    if (removingAdminPosition) {
+      // Check whether this user currently holds an admin position
+      const current = await database
+        .select({ positions: userRoles.positions })
+        .from(userRoles)
+        .where(eq(userRoles.user_id, userId))
+        .limit(1)
+
+      const currentPositions = (current[0]?.positions ?? []) as string[]
+      const hadAdminPosition = ADMIN_POSITIONS.some((p) => currentPositions.includes(p))
+
+      if (hadAdminPosition) {
+        // Count other admins
+        const allRoles = await database
+          .select({ user_id: userRoles.user_id, positions: userRoles.positions })
+          .from(userRoles)
+
+        const otherAdminCount = allRoles.filter(
+          (r) =>
+            r.user_id !== userId &&
+            ADMIN_POSITIONS.some((p) => (r.positions as string[])?.includes(p))
+        ).length
+
+        if (otherAdminCount === 0) {
+          return {
+            error:
+              'Cannot remove the last admin. Assign another Dictator-in-Chief or Scroll Gremlin first.',
+          }
+        }
+      }
+    }
+  }
 
   // Check if user already has a role entry
   const existing = await database
