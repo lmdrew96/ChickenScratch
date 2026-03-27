@@ -19,7 +19,6 @@ import { getSignedDownloadUrl } from '@/lib/actions/storage';
 import type { Submission } from '@/types/database';
 import { parseImageTransform } from '@/types/image-transform';
 import { ImageEditor } from '@/components/committee/visual/image-editor';
-import { CroppedImage } from '@/components/gallery/cropped-image';
 
 export type EditorSubmission = Submission & {
   art_files: string[];
@@ -103,6 +102,7 @@ export function EditorDashboard({
   );
   const [publishedText, setPublishedText] = useState('');
   const [artSignedUrls, setArtSignedUrls] = useState<string[]>([]);
+  const [originalArtUrl, setOriginalArtUrl] = useState<string | null>(null);
 
   const isAnyLoading = Object.values(loadingState).some(Boolean) || isPending;
   const assignmentsDisabled = rosterLoadIssue || editors.length === 0;
@@ -127,10 +127,21 @@ export function EditorDashboard({
     );
     setPublishedText('');
     setArtSignedUrls([]);
+    setOriginalArtUrl(null);
     if (selectedSubmission.type === 'visual' && selectedSubmission.art_files.length > 0) {
-      void Promise.all(selectedSubmission.art_files.map((p) => getSignedDownloadUrl(p))).then((results) =>
-        setArtSignedUrls(results.map((r) => r.signedUrl ?? ''))
-      );
+      const t = parseImageTransform(selectedSubmission.image_transform);
+      if (t?.processedPath) {
+        void getSignedDownloadUrl(t.processedPath).then((r) => {
+          setArtSignedUrls([r.signedUrl ?? '']);
+        });
+        void getSignedDownloadUrl(selectedSubmission.art_files[0]!).then((r) => {
+          setOriginalArtUrl(r.signedUrl);
+        });
+      } else {
+        void Promise.all(selectedSubmission.art_files.map((p) => getSignedDownloadUrl(p))).then((results) =>
+          setArtSignedUrls(results.map((r) => r.signedUrl ?? ''))
+        );
+      }
     }
   }, [selectedSubmission]);
 
@@ -584,12 +595,11 @@ export function EditorDashboard({
                 url ? (
                   <div key={i} className="space-y-1">
                     <div className="flex justify-center rounded-lg border border-white/10 bg-black/20 p-2">
-                      <CroppedImage
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
                         src={url}
                         alt={selectedSubmission.art_files[i]?.split('/').pop() ?? 'Artwork'}
-                        crop={artTransform?.crop}
-                        rotation={artTransform?.rotation}
-                        maxHeight="384px"
+                        className="block max-h-96 w-auto"
                       />
                     </div>
                     <div className="flex items-center justify-between text-xs text-white/40">
@@ -614,14 +624,18 @@ export function EditorDashboard({
               {selectedSubmission.art_files.length === 0 && (
                 <p className="text-sm italic text-white/30">No attachments.</p>
               )}
-              {artSignedUrls[0] && (
-                <ImageEditor
-                  submissionId={selectedSubmission.id}
-                  imageUrl={artSignedUrls[0]}
-                  initialTransform={artTransform}
-                  onSave={() => { startTransition(() => { router.refresh(); }); }}
-                />
-              )}
+              {artSignedUrls[0] && (() => {
+                const artOriginalPath = artTransform?.originalPath ?? selectedSubmission.art_files[0] ?? '';
+                return (
+                  <ImageEditor
+                    submissionId={selectedSubmission.id}
+                    imageUrl={artSignedUrls[0]!}
+                    originalImageUrl={originalArtUrl ?? undefined}
+                    initialTransform={artTransform ? { ...artTransform, originalPath: artOriginalPath } : { originalPath: artOriginalPath }}
+                    onSave={() => { startTransition(() => { router.refresh(); }); }}
+                  />
+                );
+              })()}
             </section>
           )}
 
