@@ -18,49 +18,52 @@ type Rotation = 0 | 90 | 180 | 270;
 
 const DEFAULT_CROP: PercentCrop = { unit: '%', x: 10, y: 10, width: 80, height: 80 };
 
+function rotateImageToDataUrl(img: HTMLImageElement, rotation: Rotation): string {
+  const natW = img.naturalWidth;
+  const natH = img.naturalHeight;
+  const isTransposed = rotation === 90 || rotation === 270;
+  const canvasW = isTransposed ? natH : natW;
+  const canvasH = isTransposed ? natW : natH;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return img.src;
+
+  ctx.save();
+  switch (rotation) {
+    case 90:
+      ctx.translate(canvasW, 0);
+      ctx.rotate((Math.PI / 180) * 90);
+      break;
+    case 180:
+      ctx.translate(canvasW, canvasH);
+      ctx.rotate((Math.PI / 180) * 180);
+      break;
+    case 270:
+      ctx.translate(0, canvasH);
+      ctx.rotate((Math.PI / 180) * 270);
+      break;
+  }
+  ctx.drawImage(img, 0, 0, natW, natH);
+  ctx.restore();
+
+  return canvas.toDataURL('image/png');
+}
+
 function generateProcessedBlob(
   img: HTMLImageElement,
-  crop: PercentCrop,
-  rotation: Rotation
+  crop: PercentCrop
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const natW = img.naturalWidth;
     const natH = img.naturalHeight;
 
-    // Step 1: draw the full image rotated onto a temporary canvas
-    const isTransposed = rotation === 90 || rotation === 270;
-    const rotatedW = isTransposed ? natH : natW;
-    const rotatedH = isTransposed ? natW : natH;
-
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = rotatedW;
-    tempCanvas.height = rotatedH;
-    const tempCtx = tempCanvas.getContext('2d');
-    if (!tempCtx) return reject(new Error('Canvas not supported'));
-
-    tempCtx.save();
-    switch (rotation) {
-      case 90:
-        tempCtx.translate(rotatedW, 0);
-        tempCtx.rotate((Math.PI / 180) * 90);
-        break;
-      case 180:
-        tempCtx.translate(rotatedW, rotatedH);
-        tempCtx.rotate((Math.PI / 180) * 180);
-        break;
-      case 270:
-        tempCtx.translate(0, rotatedH);
-        tempCtx.rotate((Math.PI / 180) * 270);
-        break;
-    }
-    tempCtx.drawImage(img, 0, 0, natW, natH);
-    tempCtx.restore();
-
-    // Step 2: extract the crop region from the rotated canvas
-    const cropX = (crop.x / 100) * rotatedW;
-    const cropY = (crop.y / 100) * rotatedH;
-    const cropW = (crop.width / 100) * rotatedW;
-    const cropH = (crop.height / 100) * rotatedH;
+    const cropX = (crop.x / 100) * natW;
+    const cropY = (crop.y / 100) * natH;
+    const cropW = (crop.width / 100) * natW;
+    const cropH = (crop.height / 100) * natH;
 
     const outCanvas = document.createElement('canvas');
     outCanvas.width = Math.round(cropW);
@@ -69,7 +72,7 @@ function generateProcessedBlob(
     if (!outCtx) return reject(new Error('Canvas not supported'));
 
     outCtx.drawImage(
-      tempCanvas,
+      img,
       Math.round(cropX), Math.round(cropY), Math.round(cropW), Math.round(cropH),
       0, 0, outCanvas.width, outCanvas.height
     );
@@ -94,40 +97,61 @@ export function ImageEditor({
 }: Props) {
   const [rotation, setRotation] = useState<Rotation>(0);
   const [crop, setCrop] = useState<PercentCrop>(DEFAULT_CROP);
+  const [rotatedSrc, setRotatedSrc] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [reverting, setReverting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
+  const sourceImgRef = useRef<HTMLImageElement>(null);
+  const cropImgRef = useRef<HTMLImageElement>(null);
 
   const hasProcessed = Boolean(initialTransform?.processedPath);
   const originalPath = initialTransform?.originalPath;
 
-  // When the source image changes (e.g. after save/revert), reset editor state
+  // When the source image changes, reset editor state
   useEffect(() => {
     setRotation(0);
+    setRotatedSrc(null);
     setCrop(DEFAULT_CROP);
     setSaved(false);
     setError(null);
   }, [imageUrl]);
 
-  const onImageLoad = useCallback(() => {
-    // Reset crop when a new image loads
+  // Re-render rotated canvas whenever rotation changes and source image is loaded
+  const applyRotation = useCallback((rot: Rotation) => {
+    const img = sourceImgRef.current;
+    if (!img || !img.complete || !img.naturalWidth) return;
+    if (rot === 0) {
+      setRotatedSrc(null);
+    } else {
+      setRotatedSrc(rotateImageToDataUrl(img, rot));
+    }
     setCrop(DEFAULT_CROP);
+    setSaved(false);
   }, []);
 
   function rotateLeft() {
-    setRotation((r) => ((r - 90 + 360) % 360) as Rotation);
-    setSaved(false);
+    const next = ((rotation - 90 + 360) % 360) as Rotation;
+    setRotation(next);
+    applyRotation(next);
   }
 
   function rotateRight() {
-    setRotation((r) => ((r + 90) % 360) as Rotation);
-    setSaved(false);
+    const next = ((rotation + 90) % 360) as Rotation;
+    setRotation(next);
+    applyRotation(next);
   }
 
+  const onSourceLoad = useCallback(() => {
+    if (rotation !== 0) {
+      applyRotation(rotation);
+    } else {
+      setCrop(DEFAULT_CROP);
+    }
+  }, [rotation, applyRotation]);
+
   async function handleSave() {
-    const img = imgRef.current;
+    const img = cropImgRef.current;
     if (!img) return;
 
     setSaving(true);
@@ -135,7 +159,7 @@ export function ImageEditor({
     setSaved(false);
 
     try {
-      const blob = await generateProcessedBlob(img, crop, rotation);
+      const blob = await generateProcessedBlob(img, crop);
 
       const artOriginalPath = originalPath ?? '';
       if (!artOriginalPath) {
@@ -188,9 +212,22 @@ export function ImageEditor({
   }
 
   const editSrc = hasProcessed && originalImageUrl ? originalImageUrl : imageUrl;
+  const displaySrc = rotatedSrc ?? editSrc;
 
   return (
     <div className="space-y-4 rounded-xl border border-white/10 bg-white/5 p-4">
+      {/* Hidden source image used for rotation canvas operations */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={sourceImgRef}
+        src={editSrc}
+        alt=""
+        crossOrigin="anonymous"
+        onLoad={onSourceLoad}
+        className="hidden"
+        draggable={false}
+      />
+
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/40">
           Edit image
@@ -220,13 +257,11 @@ export function ImageEditor({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            ref={imgRef}
-            src={editSrc}
+            ref={cropImgRef}
+            src={displaySrc}
             alt="Edit"
             crossOrigin="anonymous"
-            onLoad={onImageLoad}
             className="max-h-[420px] w-auto"
-            style={rotation ? { transform: `rotate(${rotation}deg)` } : undefined}
             draggable={false}
           />
         </ReactCrop>
