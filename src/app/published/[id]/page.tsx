@@ -8,7 +8,8 @@ import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl, createSignedUrls } from '@/lib/storage';
 import { db } from '@/lib/db';
 import { submissions, zineIssues } from '@/lib/db/schema';
-import { parseImageTransform, getImageTransformStyles } from '@/types/image-transform';
+import { parseImageTransform, getObjectPosition } from '@/types/image-transform';
+import { CroppedImage } from '@/components/gallery/cropped-image';
 
 export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -111,7 +112,6 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
   }
   const assetEntries = await createSignedUrls(artFiles);
   const imageTransform = parseImageTransform(submission.image_transform);
-  const { wrapperStyle, imgStyle } = getImageTransformStyles(imageTransform);
 
   return (
     <div className="space-y-6">
@@ -146,14 +146,17 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
       </header>
 
       {coverUrl ? (
-        <div className="relative w-full aspect-video overflow-hidden rounded-xl border border-white/10" style={wrapperStyle}>
+        <div className="relative w-full aspect-video overflow-hidden rounded-xl border border-white/10">
           <Image
             src={coverUrl}
             alt={submission.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
             className="object-cover"
-            style={imgStyle}
+            style={{
+              objectPosition: getObjectPosition(imageTransform?.crop),
+              ...(imageTransform?.rotation ? { transform: `rotate(${imageTransform.rotation}deg)` } : {}),
+            }}
           />
         </div>
       ) : null}
@@ -187,16 +190,14 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
           {assetEntries.map(({ path, signedUrl }) => (
             <div key={path} className="space-y-2">
               {signedUrl ? (
-                <div className="flex justify-center rounded-xl border border-white/10 overflow-hidden">
-                  <div className="overflow-hidden" style={{ width: 'fit-content', ...wrapperStyle }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={signedUrl}
-                      alt={path.split('/').pop() ?? submission.title}
-                      className="block max-h-[80vh] w-auto"
-                      style={imgStyle}
-                    />
-                  </div>
+                <div className="flex justify-center rounded-xl border border-white/10 overflow-hidden p-2">
+                  <CroppedImage
+                    src={signedUrl}
+                    alt={path.split('/').pop() ?? submission.title}
+                    crop={imageTransform?.crop}
+                    rotation={imageTransform?.rotation}
+                    maxHeight="80vh"
+                  />
                 </div>
               ) : null}
               <div className="flex items-center justify-between text-sm text-white/60">

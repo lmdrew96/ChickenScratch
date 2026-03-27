@@ -30,6 +30,15 @@ export function parseImageTransform(raw: unknown): ImageTransform | null {
   return { rotation, crop };
 }
 
+/** Returns a CSS object-position value that centers a fill-mode image on the cropped region. */
+export function getObjectPosition(crop?: ImageTransform['crop']): string {
+  if (!crop) return '50% 50%';
+  const { top = 0, right = 0, bottom = 0, left = 0 } = crop;
+  const x = left + (100 - left - right) / 2;
+  const y = top + (100 - top - bottom) / 2;
+  return `${x}% ${y}%`;
+}
+
 /** CSS styles to apply: put wrapperStyle on a container div, imgStyle on the <img>. */
 export function getImageTransformStyles(t: ImageTransform | null | undefined): {
   wrapperStyle: CSSProperties;

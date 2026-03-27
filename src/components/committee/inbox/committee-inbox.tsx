@@ -4,7 +4,8 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 import type { Submission } from '@/types/database';
-import { parseImageTransform, getImageTransformStyles } from '@/types/image-transform';
+import { parseImageTransform } from '@/types/image-transform';
+import { CroppedImage } from '@/components/gallery/cropped-image';
 import { getSignedDownloadUrl } from '@/lib/actions/storage';
 import { ImageEditor } from '@/components/committee/visual/image-editor';
 
@@ -348,15 +349,14 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
               {/* Visual art inline display */}
               {selected.submission.type === 'visual' && artSignedUrl && (() => {
                 const t = parseImageTransform(selected.submission.image_transform);
-                const { wrapperStyle: vw, imgStyle: vi } = getImageTransformStyles(t);
                 return (
-                  <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20" style={vw}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                  <div className="flex justify-center rounded-xl border border-white/10 bg-black/20 p-2">
+                    <CroppedImage
                       src={artSignedUrl}
                       alt={selected.submission.title}
-                      className="mx-auto block max-h-72 w-auto object-contain"
-                      style={vi}
+                      crop={t?.crop}
+                      rotation={t?.rotation}
+                      maxHeight="288px"
                     />
                   </div>
                 );

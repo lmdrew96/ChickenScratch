@@ -6,8 +6,9 @@ import Image from 'next/image';
 import { StatusBadge } from '@/components/common/status-badge';
 import { EmptyState } from '@/components/ui';
 import type { PublishedSubmission } from '@/types/database';
-import { getImageTransformStyles } from '@/types/image-transform';
+import { getObjectPosition } from '@/types/image-transform';
 import type { ImageTransform } from '@/types/image-transform';
+import { CroppedImage } from '@/components/gallery/cropped-image';
 
 interface PublishedGalleryClientProps {
   submissions: PublishedSubmission[];
@@ -186,14 +187,15 @@ export function PublishedGalleryClient({ submissions, issueIdMap = {} }: Publish
         {/* Gallery Grid */}
         <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {paginatedSubmissions.map((submission) => {
-            const { wrapperStyle, imgStyle } = getImageTransformStyles(submission.imageTransform);
+            const crop = submission.imageTransform?.crop;
+            const rotation = submission.imageTransform?.rotation;
             return (
             <article
               key={submission.id}
               className="group flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-lg shadow-black/30 transition-all duration-300 hover:scale-[1.02] hover:border-white/20 hover:shadow-xl hover:shadow-black/40"
             >
               {/* Image */}
-              <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-amber-500/40 to-purple-500/30" style={wrapperStyle}>
+              <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-amber-500/40 to-purple-500/30">
                 {submission.coverSignedUrl ? (
                   <>
                     <Image
@@ -202,7 +204,10 @@ export function PublishedGalleryClient({ submissions, issueIdMap = {} }: Publish
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover transition-transform duration-300 group-hover:scale-110"
-                      style={imgStyle}
+                      style={{
+                        objectPosition: getObjectPosition(crop),
+                        ...(rotation ? { transform: `rotate(${rotation}deg)` } : {}),
+                      }}
                     />
                     {/* Overlay buttons for visual art */}
                     {submission.type === 'visual' && (
@@ -402,20 +407,14 @@ export function PublishedGalleryClient({ submissions, issueIdMap = {} }: Publish
             className="relative max-h-[90vh] max-w-[90vw]"
             onClick={(e) => e.stopPropagation()}
           >
-            {(() => {
-              const { wrapperStyle: lbWrapperStyle, imgStyle: lbImgStyle } = getImageTransformStyles(lightbox.imageTransform);
-              return (
-                <div className="overflow-hidden rounded-lg" style={{ width: 'fit-content', ...lbWrapperStyle }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={lightbox.imageUrl}
-                    alt={lightbox.title}
-                    className="block max-h-[90vh] max-w-[90vw] w-auto"
-                    style={lbImgStyle}
-                  />
-                </div>
-              );
-            })()}
+            <CroppedImage
+              src={lightbox.imageUrl}
+              alt={lightbox.title}
+              crop={lightbox.imageTransform?.crop}
+              rotation={lightbox.imageTransform?.rotation}
+              maxHeight="90vh"
+              className="block max-h-[90vh] max-w-[90vw] w-auto"
+            />
             <p className="mt-4 text-center text-sm text-white/80">{lightbox.title}</p>
           </div>
         </div>

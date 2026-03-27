@@ -8,7 +8,18 @@ export default defineConfig({
     },
   },
   test: {
+    include: ['tests/**/*.{test,spec}.{ts,tsx}'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.next/**',
+      '**/playwright-report/**',
+      '**/.claude/**',
+      'tests/e2e/**',
+      'tests/**/*.spec.ts',
+    ],
     environment: 'node',
+    environmentMatchGlobs: [['**/*.test.tsx', 'jsdom'], ['**/*.spec.tsx', 'jsdom']],
     globals: false,
     coverage: {
       provider: 'v8',

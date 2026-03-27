@@ -17,8 +17,9 @@ import { useConfirmation } from '@/hooks/use-confirmation';
 import { EDITABLE_STATUSES, SUBMISSION_STATUSES, formatStatus } from '@/lib/constants';
 import { getSignedDownloadUrl } from '@/lib/actions/storage';
 import type { Submission } from '@/types/database';
-import { parseImageTransform, getImageTransformStyles } from '@/types/image-transform';
+import { parseImageTransform } from '@/types/image-transform';
 import { ImageEditor } from '@/components/committee/visual/image-editor';
+import { CroppedImage } from '@/components/gallery/cropped-image';
 
 export type EditorSubmission = Submission & {
   art_files: string[];
@@ -108,7 +109,6 @@ export function EditorDashboard({
   const artTransform = selectedSubmission?.type === 'visual'
     ? parseImageTransform(selectedSubmission.image_transform)
     : null;
-  const { wrapperStyle: artWrapperStyle, imgStyle: artImgStyle } = getImageTransformStyles(artTransform);
   const canStudentEdit = selectedSubmission?.status
     ? EDITABLE_STATUSES.includes(selectedSubmission.status)
     : false;
@@ -583,13 +583,13 @@ export function EditorDashboard({
               {artSignedUrls.map((url, i) =>
                 url ? (
                   <div key={i} className="space-y-1">
-                    <div className="overflow-hidden rounded-lg border border-white/10 bg-black/20" style={artWrapperStyle}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                    <div className="flex justify-center rounded-lg border border-white/10 bg-black/20 p-2">
+                      <CroppedImage
                         src={url}
                         alt={selectedSubmission.art_files[i]?.split('/').pop() ?? 'Artwork'}
-                        className="mx-auto block max-h-96 w-auto object-contain"
-                        style={artImgStyle}
+                        crop={artTransform?.crop}
+                        rotation={artTransform?.rotation}
+                        maxHeight="384px"
                       />
                     </div>
                     <div className="flex items-center justify-between text-xs text-white/40">
