@@ -425,7 +425,56 @@ export async function checkMeetingResponses(): Promise<ReminderResult> {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Stale meeting proposals — Discord ping
+// 5. Upcoming finalized meetings — Discord reminder (24h before)
+// ---------------------------------------------------------------------------
+
+export async function checkUpcomingMeetingsDiscord(): Promise<ReminderResult> {
+  const database = db();
+  const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const upcoming = await database
+    .select({ id: meetingProposals.id, title: meetingProposals.title, finalized_date: meetingProposals.finalized_date })
+    .from(meetingProposals)
+    .where(and(gt(meetingProposals.finalized_date, now), lt(meetingProposals.finalized_date, in24h)));
+
+  if (upcoming.length === 0) return { sent: 0 };
+
+  let sent = 0;
+  for (const meeting of upcoming) {
+    const alreadySent = await wasRecentlyReminded(database, 'meeting', meeting.id, 'upcoming_meeting_discord', 'discord');
+    if (alreadySent) continue;
+
+    const formattedDate = meeting.finalized_date!.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: 'America/New_York',
+    });
+
+    const ok = await sendDiscordEmbed({
+      title: `📅 Meeting Tomorrow: ${meeting.title}`.slice(0, 256),
+      description: 'This meeting is happening in less than 24 hours.',
+      color: 16765440, // ACCENT_GOLD
+      fields: [{ name: 'Date & time', value: formattedDate, inline: false }],
+      footer: { text: 'Chicken Scratch • chickenscratch.me/officers' },
+      url: 'https://chickenscratch.me/officers',
+    });
+
+    if (ok) {
+      await logReminder(database, 'meeting', meeting.id, 'upcoming_meeting_discord', 'discord');
+      sent++;
+    }
+  }
+
+  return { sent };
+}
+
+// ---------------------------------------------------------------------------
+// 6. Stale meeting proposals — Discord ping
 // ---------------------------------------------------------------------------
 
 export async function checkStaleMeetingsDiscord(): Promise<ReminderResult> {
