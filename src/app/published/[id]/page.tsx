@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { eq, and } from 'drizzle-orm';
 
@@ -147,14 +146,13 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
         ) : null}
       </header>
 
-      {coverUrl ? (
-        <div className="relative w-full aspect-video overflow-hidden rounded-xl border border-white/10">
-          <Image
-            src={coverUrl}
+      {(processedUrl ?? coverUrl) ? (
+        <div className="flex justify-center rounded-xl border border-white/10 overflow-hidden p-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={processedUrl ?? coverUrl!}
             alt={submission.title}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-            className="object-cover"
+            className="block max-h-[80vh] w-auto"
           />
         </div>
       ) : null}

@@ -189,7 +189,7 @@ export function PublishedGalleryClient({ submissions, issueIdMap = {} }: Publish
               className="group flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-lg shadow-black/30 transition-all duration-300 hover:scale-[1.02] hover:border-white/20 hover:shadow-xl hover:shadow-black/40"
             >
               {/* Image */}
-              <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-amber-500/40 to-purple-500/30">
+              <div className="relative flex h-48 w-full items-center justify-center overflow-hidden bg-gradient-to-br from-amber-500/40 to-purple-500/30">
                 {submission.coverSignedUrl ? (
                   <>
                     <Image
@@ -197,7 +197,7 @@ export function PublishedGalleryClient({ submissions, issueIdMap = {} }: Publish
                       alt={submission.title}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      className="object-cover transition-transform duration-300 group-hover:scale-110"
+                      className="object-contain transition-transform duration-300 group-hover:scale-110"
                     />
                     {/* Overlay buttons for visual art */}
                     {submission.type === 'visual' && (
