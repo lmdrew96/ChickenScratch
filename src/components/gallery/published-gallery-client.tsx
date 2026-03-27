@@ -11,6 +11,7 @@ import type { ImageTransform } from '@/types/image-transform';
 
 interface PublishedGalleryClientProps {
   submissions: PublishedSubmission[];
+  issueIdMap?: Record<string, string>;
 }
 
 interface LightboxState {
@@ -21,7 +22,7 @@ interface LightboxState {
   imageTransform?: ImageTransform | null;
 }
 
-export function PublishedGalleryClient({ submissions }: PublishedGalleryClientProps) {
+export function PublishedGalleryClient({ submissions, issueIdMap = {} }: PublishedGalleryClientProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'writing' | 'visual'>('all');
   const [issueFilter, setIssueFilter] = useState<string>('all');
@@ -40,6 +41,14 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
       return `Vol. ${submission.volume}, No. ${submission.issue_number}`;
     }
     return submission.issue ?? null;
+  }
+
+  function getIssueHref(submission: PublishedSubmission): string | null {
+    if (submission.volume && submission.issue_number) {
+      const id = issueIdMap[`${submission.volume}_${submission.issue_number}`];
+      return id ? `/issues/${id}` : null;
+    }
+    return null;
   }
 
   // Get unique issues for filter
@@ -230,9 +239,17 @@ export function PublishedGalleryClient({ submissions }: PublishedGalleryClientPr
               <div className="flex flex-1 flex-col gap-3 p-5">
                 <div className="flex items-center gap-2 text-xs text-white/60">
                   <StatusBadge status="published" />
-                  {getIssueLabel(submission) && (
-                    <span className="rounded-full bg-white/10 px-2 py-1">{getIssueLabel(submission)}</span>
-                  )}
+                  {getIssueLabel(submission) && (() => {
+                    const label = getIssueLabel(submission)!;
+                    const href = getIssueHref(submission);
+                    return href ? (
+                      <Link href={href} className="rounded-full bg-white/10 px-2 py-1 transition hover:bg-white/20 hover:text-white/80">
+                        {label}
+                      </Link>
+                    ) : (
+                      <span className="rounded-full bg-white/10 px-2 py-1">{label}</span>
+                    );
+                  })()}
                   <span>{submission.type === 'writing' ? 'Writing' : 'Visual art'}</span>
                 </div>
                 

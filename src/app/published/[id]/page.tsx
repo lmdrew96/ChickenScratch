@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/common/status-badge';
 import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl, createSignedUrls } from '@/lib/storage';
 import { db } from '@/lib/db';
-import { submissions } from '@/lib/db/schema';
+import { submissions, zineIssues } from '@/lib/db/schema';
 import { parseImageTransform, getImageTransformStyles } from '@/types/image-transform';
 
 export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -90,6 +90,25 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
 
   const artFiles = Array.isArray(submission.art_files) ? (submission.art_files as string[]) : [];
   const coverUrl = submission.cover_image ? await createSignedUrl(submission.cover_image) : null;
+
+  // Look up the matching zine issue to link the issue badge
+  let issuePageId: string | null = null;
+  if (submission.volume && submission.issue_number) {
+    try {
+      const issueResult = await db()
+        .select({ id: zineIssues.id })
+        .from(zineIssues)
+        .where(and(
+          eq(zineIssues.volume, submission.volume),
+          eq(zineIssues.issue_number, submission.issue_number),
+          eq(zineIssues.is_published, true),
+        ))
+        .limit(1);
+      issuePageId = issueResult[0]?.id ?? null;
+    } catch {
+      // Non-fatal: badge renders as plain text
+    }
+  }
   const assetEntries = await createSignedUrls(artFiles);
   const imageTransform = parseImageTransform(submission.image_transform);
   const { wrapperStyle, imgStyle } = getImageTransformStyles(imageTransform);
@@ -103,9 +122,18 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
             {submission.type === 'writing' ? 'Writing' : 'Visual art'}
           </span>
           {(submission.volume && submission.issue_number) ? (
-            <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/60">
-              Vol. {submission.volume}, No. {submission.issue_number}
-            </span>
+            issuePageId ? (
+              <Link
+                href={`/issues/${issuePageId}`}
+                className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/60 transition hover:bg-white/20 hover:text-white/80"
+              >
+                Vol. {submission.volume}, No. {submission.issue_number}
+              </Link>
+            ) : (
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/60">
+                Vol. {submission.volume}, No. {submission.issue_number}
+              </span>
+            )
           ) : submission.issue ? (
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/60">{submission.issue}</span>
           ) : null}

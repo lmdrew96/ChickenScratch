@@ -5,7 +5,7 @@ import { EmptyState } from '@/components/ui';
 import { logHandledIssue } from '@/lib/logging';
 import { createSignedUrl } from '@/lib/storage';
 import { db } from '@/lib/db';
-import { submissions } from '@/lib/db/schema';
+import { submissions, zineIssues } from '@/lib/db/schema';
 import type { PublishedSubmission } from '@/types/database';
 import { parseImageTransform } from '@/types/image-transform';
 
@@ -66,6 +66,22 @@ export default async function PublishedPage() {
     }))
   );
 
+  // Build a map from "volume_issueNumber" → zine issue ID for linking gallery items to their issue pages
+  let issueIdMap: Record<string, string> = {};
+  try {
+    const issues = await db()
+      .select({ id: zineIssues.id, volume: zineIssues.volume, issue_number: zineIssues.issue_number })
+      .from(zineIssues)
+      .where(eq(zineIssues.is_published, true));
+    for (const issue of issues) {
+      if (issue.volume && issue.issue_number) {
+        issueIdMap[`${issue.volume}_${issue.issue_number}`] = issue.id;
+      }
+    }
+  } catch {
+    // Non-fatal: links just won't appear
+  }
+
   // Show error state if there was a loading issue
   if (encounteredLoadIssue && publishedSubmissions.length === 0) {
     return (
@@ -120,5 +136,5 @@ export default async function PublishedPage() {
     );
   }
 
-  return <PublishedGalleryClient submissions={publishedSubmissions} />;
+  return <PublishedGalleryClient submissions={publishedSubmissions} issueIdMap={issueIdMap} />;
 }

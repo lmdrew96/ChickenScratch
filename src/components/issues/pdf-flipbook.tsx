@@ -6,7 +6,7 @@ import * as pdfjs from 'pdfjs-dist';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-const RENDER_SCALE = 2.0;
+const RENDER_SCALE = 3.0;
 const MAX_PAGE_WIDTH = 420;
 const PORTRAIT_BREAKPOINT = 640; // px — below this, switch to single-page mode
 
@@ -72,7 +72,7 @@ export function PdfFlipbook({ pdfUrl, title }: Props) {
           canvas.width = viewport.width;
           canvas.height = viewport.height;
           await page.render({ canvasContext: canvas.getContext('2d')!, viewport }).promise;
-          rendered.push(canvas.toDataURL('image/jpeg', 0.92));
+          rendered.push(canvas.toDataURL('image/jpeg', 0.95));
           page.cleanup();
         }
 

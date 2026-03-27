@@ -52,6 +52,10 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
         showBackButton
         backButtonHref="/issues"
         backButtonLabel="All Issues"
+        breadcrumbItems={[
+          { label: 'Issues', href: '/issues' },
+          { label: issue.title, href: `/issues/${id}` },
+        ]}
       />
 
       {issue.pdf_url ? (
