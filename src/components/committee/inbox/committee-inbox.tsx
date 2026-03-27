@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 
 import type { Submission } from '@/types/database';
 import { parseImageTransform } from '@/types/image-transform';
-import { CroppedImage } from '@/components/gallery/cropped-image';
 import { getSignedDownloadUrl } from '@/lib/actions/storage';
 import { ImageEditor } from '@/components/committee/visual/image-editor';
 
@@ -82,6 +81,7 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
   const [promptState, setPromptState] = useState<PromptState>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [artSignedUrl, setArtSignedUrl] = useState<string | null>(null);
+  const [originalArtUrl, setOriginalArtUrl] = useState<string | null>(null);
 
   const items = useMemo(() => shapeInboxItems(submissions, userRole), [submissions, userRole]);
 
@@ -103,12 +103,21 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
 
   useEffect(() => {
     setArtSignedUrl(null);
+    setOriginalArtUrl(null);
     if (!selected || selected.submission.type !== 'visual') return;
     const s = selected.submission;
+    const t = parseImageTransform(s.image_transform);
     const artFiles = Array.isArray(s.art_files) ? (s.art_files as string[]) : [];
-    const path = artFiles[0] ?? s.cover_image ?? null;
-    if (!path) return;
-    void getSignedDownloadUrl(path).then((r) => setArtSignedUrl(r.signedUrl));
+    const originalPath = artFiles[0] ?? s.cover_image ?? null;
+
+    if (t?.processedPath) {
+      void getSignedDownloadUrl(t.processedPath).then((r) => setArtSignedUrl(r.signedUrl));
+      if (originalPath) {
+        void getSignedDownloadUrl(originalPath).then((r) => setOriginalArtUrl(r.signedUrl));
+      }
+    } else if (originalPath) {
+      void getSignedDownloadUrl(originalPath).then((r) => setArtSignedUrl(r.signedUrl));
+    }
   }, [selected]);
 
   useEffect(() => {
@@ -347,20 +356,16 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
               </div>
 
               {/* Visual art inline display */}
-              {selected.submission.type === 'visual' && artSignedUrl && (() => {
-                const t = parseImageTransform(selected.submission.image_transform);
-                return (
-                  <div className="flex justify-center rounded-xl border border-white/10 bg-black/20 p-2">
-                    <CroppedImage
-                      src={artSignedUrl}
-                      alt={selected.submission.title}
-                      crop={t?.crop}
-                      rotation={t?.rotation}
-                      maxHeight="288px"
-                    />
-                  </div>
-                );
-              })()}
+              {selected.submission.type === 'visual' && artSignedUrl && (
+                <div className="flex justify-center rounded-xl border border-white/10 bg-black/20 p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={artSignedUrl}
+                    alt={selected.submission.title}
+                    className="block max-h-72 w-auto"
+                  />
+                </div>
+              )}
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-sm text-white/80">Next: {selected.nextActionLabel}</p>
@@ -388,14 +393,21 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
 
               {/* Image editor for coordinators and EiC on visual submissions */}
               {selected.submission.type === 'visual' && artSignedUrl &&
-                (userRole === 'submissions_coordinator' || userRole === 'editor_in_chief') && (
-                <ImageEditor
-                  submissionId={selected.submission.id}
-                  imageUrl={artSignedUrl}
-                  initialTransform={parseImageTransform(selected.submission.image_transform)}
-                  onSave={() => router.refresh()}
-                />
-              )}
+                (userRole === 'submissions_coordinator' || userRole === 'editor_in_chief') && (() => {
+                const t = parseImageTransform(selected.submission.image_transform);
+                const artFiles = Array.isArray(selected.submission.art_files)
+                  ? (selected.submission.art_files as string[]) : [];
+                const artOriginalPath = t?.originalPath ?? artFiles[0] ?? selected.submission.cover_image ?? '';
+                return (
+                  <ImageEditor
+                    submissionId={selected.submission.id}
+                    imageUrl={artSignedUrl}
+                    originalImageUrl={originalArtUrl ?? undefined}
+                    initialTransform={t ? { ...t, originalPath: artOriginalPath } : { originalPath: artOriginalPath }}
+                    onSave={() => router.refresh()}
+                  />
+                );
+              })()}
 
               {selected.submission.google_docs_link && (
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
