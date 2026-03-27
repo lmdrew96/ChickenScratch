@@ -159,21 +159,37 @@ export function ImageEditor({
     setSaved(false);
 
     try {
-      const blob = await generateProcessedBlob(img, crop);
-
       const artOriginalPath = originalPath ?? '';
       if (!artOriginalPath) {
         setError('Cannot determine original image path.');
         return;
       }
 
-      const formData = new FormData();
-      formData.append('file', blob, 'processed.png');
-      formData.append('originalPath', artOriginalPath);
+      // Step 1: get a presigned PUT URL for the processed image
+      const urlRes = await fetch(`/api/submissions/${submissionId}/image-transform`);
+      if (!urlRes.ok) {
+        setError('Failed to prepare upload.');
+        return;
+      }
+      const { uploadUrl, processedPath } = (await urlRes.json()) as { uploadUrl: string; processedPath: string };
 
+      // Step 2: generate the processed blob and upload directly to R2
+      const blob = await generateProcessedBlob(img, crop);
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: blob,
+        headers: { 'Content-Type': 'image/png' },
+      });
+      if (!putRes.ok) {
+        setError('Upload failed.');
+        return;
+      }
+
+      // Step 3: record the processed path in the database
       const res = await fetch(`/api/submissions/${submissionId}/image-transform`, {
         method: 'PATCH',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ processedPath, originalPath: artOriginalPath }),
       });
 
       if (!res.ok) {
