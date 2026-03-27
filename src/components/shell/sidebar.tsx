@@ -14,7 +14,8 @@ interface SidebarProps {
 
 function getInitialOpenSections(pathname: string): Set<string> {
   const open = new Set<string>()
-  if (['/published', '/issues', '/exhibition'].some(p => pathname === p || pathname.startsWith(p + '/'))) open.add('zine')
+  if (['/published', '/issues'].some(p => pathname === p || pathname.startsWith(p + '/'))) open.add('zine')
+  if (['/exhibition'].some(p => pathname === p || pathname.startsWith(p + '/'))) open.add('community')
   if (['/submit', '/mine'].some(p => pathname === p || pathname.startsWith(p + '/'))) open.add('mywork')
   if (['/about', '/contact'].some(p => pathname === p || pathname.startsWith(p + '/'))) open.add('info')
   if (['/officers', '/committee', '/editor'].some(p => pathname === p || pathname.startsWith(p + '/'))) open.add('staff')
@@ -159,14 +160,6 @@ export default function Sidebar({ signedIn = false, userProfile, navAccess }: Si
               >
                 Issues
               </Link>
-              <Link
-                href="/exhibition"
-                className={is('/exhibition') ? 'active' : ''}
-                onClick={closeMobileMenu}
-                aria-current={is('/exhibition') ? 'page' : undefined}
-              >
-                Exhibition
-              </Link>
             </div>
           )}
         </div>
@@ -203,6 +196,35 @@ export default function Sidebar({ signedIn = false, userProfile, navAccess }: Si
                 aria-current={is('/mine') ? 'page' : undefined}
               >
                 My Submissions
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* ── Community ── */}
+        <div>
+          <button
+            type="button"
+            data-nav-toggle
+            onClick={() => toggleSection('community')}
+            aria-expanded={openSections.has('community')}
+            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-white/50 transition-colors hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          >
+            <span>Community</span>
+            <ChevronRight
+              className="h-3 w-3 transition-transform duration-150"
+              style={{ transform: openSections.has('community') ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            />
+          </button>
+          {openSections.has('community') && (
+            <div className="mt-0.5 grid gap-0.5 pl-2">
+              <Link
+                href="/exhibition"
+                className={is('/exhibition') ? 'active' : ''}
+                onClick={closeMobileMenu}
+                aria-current={is('/exhibition') ? 'page' : undefined}
+              >
+                Exhibition
               </Link>
             </div>
           )}
