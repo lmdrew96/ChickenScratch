@@ -35,23 +35,23 @@ Chicken Scratch is the submissions portal for the **Hen & Ink Society** — a st
 
 ## Tech stack
 
-| Layer           | Technology                                                        |
-| --------------- | ----------------------------------------------------------------- |
-| Framework       | [Next.js 15](https://nextjs.org/) (App Router), React 19, TypeScript |
-| Styling         | Tailwind CSS v3                                                   |
-| Database        | Neon Postgres via [Drizzle ORM](https://orm.drizzle.team/)       |
-| Auth            | [Clerk](https://clerk.com/)                                      |
-| Storage         | Cloudflare R2 (S3-compatible)                                    |
-| Email           | [Resend](https://resend.com/)                                    |
-| File conversion | Make.com webhook (submission file to Google Doc)                 |
-| Testing         | Vitest, Playwright                                               |
-| Package manager | pnpm                                                             |
+| Layer           | Technology |
+| --------------- | ---------- |
+| Framework       | [Next.js](https://nextjs.org/) 15.5.9 (App Router), React 19.0.0, TypeScript 5.6.3 |
+| Styling         | Tailwind CSS 3.4.17 |
+| Database / ORM  | Neon Postgres + [Drizzle ORM](https://orm.drizzle.team/) 0.45.1 |
+| Auth            | [Clerk](https://clerk.com/) (@clerk/nextjs 6.37.1) |
+| Storage         | Cloudflare R2 (S3-compatible via AWS SDK v3) |
+| Email           | [Resend](https://resend.com/) 6.1.2 |
+| File conversion | Make.com webhook (submission file to Google Doc) |
+| Testing         | Vitest 2.1.9, Playwright 1.55.0 |
+| Package manager | pnpm |
 
 ## Getting started
 
 ### Prerequisites
 - Node.js 20+
-- pnpm 8+
+- pnpm
 - A Neon Postgres database
 - A Clerk application
 - A Cloudflare R2 bucket
@@ -76,16 +76,24 @@ cp .env.example .env.local
 | `R2_ACCESS_KEY_ID`                   | Yes      | R2 access key                                                      |
 | `R2_SECRET_ACCESS_KEY`               | Yes      | R2 secret key                                                      |
 | `R2_BUCKET_NAME`                     | Yes      | R2 bucket name                                                     |
-| `R2_PUBLIC_URL`                      | Yes      | R2 public URL                                                      |
+| `R2_PUBLIC_URL`                      | Yes      | R2 public base URL (must be a valid URL)                           |
 | `R2_PUBLIC_HOSTNAME`                 | No       | R2 hostname for next/image remote patterns                         |
 | `ALLOWED_DOMAINS`                    | No       | Comma-separated signup domains (default: `udel.edu`)               |
 | `RESEND_API_KEY`                     | No       | Resend API key for email notifications                             |
 | `NEXT_PUBLIC_SITE_URL`               | No       | Public site URL for email links (default: `http://localhost:3000`) |
 | `MAKE_WEBHOOK_URL`                   | No       | Make.com webhook for file-to-Google Doc conversion                 |
-| `CONTACT_FORM_RECIPIENTS`            | No       | Comma-separated emails for the contact form                        |
+| `CONTACT_FORM_RECIPIENTS`            | No       | Comma-separated emails for the contact form (can also be set via site config) |
 | `CRON_SECRET`                        | No       | Protects `/api/cron/*` endpoints (Vercel Cron)                     |
+| `DISCORD_WEBHOOK_URL`                | No       | Discord webhook for officer notifications/digests (can also be set via site config) |
+| `EMERGENCY_ADMIN_EMAIL`              | No       | Email address that should always be treated as an admin            |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`      | No       | Clerk routes (matches `.env.example`; used by Clerk UI components) |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL`      | No       | Clerk routes (matches `.env.example`; used by Clerk UI components) |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL`| No       | Post-auth redirect (matches `.env.example`)                        |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL`| No       | Post-auth redirect (matches `.env.example`)                        |
 
 Without `RESEND_API_KEY`, emails are logged to the console instead of being sent.
+
+Note: some runtime settings can be configured either via env vars or via the database-backed site config (see `src/lib/site-config.ts`).
 
 ### Database setup
 Push the Drizzle schema to your database:
@@ -106,7 +114,36 @@ The dev server runs on [http://localhost:3000](http://localhost:3000).
 pnpm lint        # ESLint
 pnpm typecheck   # TypeScript --noEmit
 pnpm test        # Vitest
+pnpm verify:all  # typecheck + lint + route manifests + dev/prod crawls
 ```
+
+## Auth & public routes
+
+Authentication is enforced centrally in `src/middleware.ts` via Clerk.
+
+### Public routes (no auth required)
+
+These paths are allowlisted in the middleware and are accessible without signing in:
+
+- `/` (landing page)
+- `/login/*`, `/signup/*`
+- `/published/*` (public gallery)
+- `/issues/*` (zine issues)
+- `/about/*`, `/contact/*`, `/privacy/*`, `/terms/*`
+- `POST /api/contact/*` (contact form endpoint)
+- `POST /api/webhooks/clerk/*` (Clerk webhook receiver)
+
+### Protected routes (auth required)
+
+Everything else requires auth by default, including:
+
+- `/mine/*` (author dashboard)
+- `/committee/*`, `/editor/*`, `/officers/*`, `/admin/*`
+- Most API routes under `/api/*`
+
+### Special cases
+
+- **Cron:** `/api/cron/*` routes are still auth-protected by middleware, and additionally require `Authorization: Bearer <CRON_SECRET>` when `CRON_SECRET` is set.
 
 ## Project structure
 
@@ -119,6 +156,9 @@ src/
       officer/                # Officer tasks, meetings, announcements
       admin/                  # Admin endpoints (user roles, notification failures)
       cron/                   # Vercel Cron jobs (daily reminders)
+      exhibition/             # Exhibition / gallery workflows
+      zine-issues/            # Zine issue management
+      editor/                 # Editor tooling (e.g. exports)
       webhooks/clerk/         # Clerk user sync webhook
       contact/                # Contact form
     mine/                     # Author's submission dashboard
@@ -212,3 +252,10 @@ If uploads still fail with a preflight/CORS error, verify the request origin exa
 ## Deployment
 
 Deploy to [Vercel](https://vercel.com/) as a Next.js project. Set the environment variables listed above and push the schema to your production database with `npx drizzle-kit push`.
+
+If you use Vercel Cron, `vercel.json` schedules:
+- `GET /api/cron/reminders` daily (`0 14 * * *`)
+- `GET /api/cron/discord-digest` weekly on Mondays (`0 13 * * 1`)
+
+When `CRON_SECRET` is set, cron endpoints require `Authorization: Bearer <CRON_SECRET>`.
+
