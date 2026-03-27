@@ -91,6 +91,7 @@ export type PublishedSubmission = Omit<PublishedSubmissionRow, 'art_files' | 'im
   art_files: string[];
   coverSignedUrl: string | null;
   imageTransform: ImageTransform | null;
+  processedSignedUrl: string | null;
 };
 
 export type PublishedDetailRow = Pick<
@@ -109,7 +110,6 @@ export type PublishedDetailRow = Pick<
   | 'issue_number'
   | 'publish_date'
   | 'published_html'
-  | 'image_transform'
   | 'updated_at'
 >;
 
