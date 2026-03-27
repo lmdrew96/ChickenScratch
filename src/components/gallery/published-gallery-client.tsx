@@ -223,6 +223,16 @@ export function PublishedGalleryClient({ submissions, issueIdMap = {} }: Publish
                       </div>
                     )}
                   </>
+                ) : submission.type === 'writing' ? (
+                  <div className="flex h-full items-center justify-center p-6">
+                    <Image
+                      src="/logo.png"
+                      alt="Chicken Scratch"
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-contain opacity-60"
+                    />
+                  </div>
                 ) : (
                   <div className="flex h-full items-center justify-center">
                     <span className="text-sm font-semibold uppercase tracking-wide text-white/70">Chicken Scratch</span>
