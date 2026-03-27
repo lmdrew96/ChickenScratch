@@ -5,6 +5,7 @@ import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import { userRoles, meetingProposals, officerAvailability } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
+import { notifyDiscordMeetingFinalized } from '@/lib/discord';
 
 export async function DELETE(
   _request: NextRequest,
@@ -113,6 +114,12 @@ export async function PATCH(
       if (!proposal) {
         return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
       }
+
+      void notifyDiscordMeetingFinalized(
+        proposal.title,
+        new Date(finalized_date),
+        profile.name || profile.full_name || profile.email || 'An officer',
+      ).catch(() => {});
 
       return NextResponse.json({ proposal });
     }

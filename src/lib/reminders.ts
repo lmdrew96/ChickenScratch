@@ -5,6 +5,7 @@ import { submissions, officerTasks, meetingProposals, officerAvailability, userR
 import { OFFICER_POSITIONS } from '@/lib/auth/guards';
 import { escapeHtml } from '@/lib/utils';
 import { logNotificationFailure } from '@/lib/email';
+import { sendDiscordEmbed } from '@/lib/discord';
 
 const STALE_DAYS = 3;
 const BRAND_BLUE = '#00539f';
@@ -421,6 +422,56 @@ export async function checkMeetingResponses(): Promise<ReminderResult> {
   }
 
   return { sent };
+}
+
+// ---------------------------------------------------------------------------
+// 5. Stale meeting proposals — Discord ping
+// ---------------------------------------------------------------------------
+
+export async function checkStaleMeetingsDiscord(): Promise<ReminderResult> {
+  const database = db();
+  const cutoff = daysAgo(STALE_DAYS);
+
+  const staleProposals = await database
+    .select({ id: meetingProposals.id, title: meetingProposals.title, created_at: meetingProposals.created_at })
+    .from(meetingProposals)
+    .where(and(isNull(meetingProposals.finalized_date), lt(meetingProposals.created_at, cutoff)));
+
+  if (staleProposals.length === 0) return { sent: 0 };
+
+  const toNotify = [];
+  for (const proposal of staleProposals) {
+    const alreadySent = await wasRecentlyReminded(database, 'meeting', proposal.id, 'stale_meeting_discord', 'discord');
+    if (!alreadySent) toNotify.push(proposal);
+  }
+
+  if (toNotify.length === 0) return { sent: 0 };
+
+  const listValue = toNotify
+    .map((p) => {
+      const days = Math.floor((Date.now() - (p.created_at?.getTime() ?? Date.now())) / 86_400_000);
+      return `• ${p.title} (${days}d ago)`;
+    })
+    .join('\n')
+    .slice(0, 1024);
+
+  const ok = await sendDiscordEmbed({
+    title: `⏳ ${toNotify.length} Unfinalized Meeting${toNotify.length !== 1 ? 's' : ''}`,
+    description: 'These proposals have been open for 3+ days without a finalized date.',
+    color: 16765440, // ACCENT_GOLD
+    fields: [{ name: 'Proposals', value: listValue, inline: false }],
+    footer: { text: 'Finalize at chickenscratch.me/officers' },
+    url: 'https://chickenscratch.me/officers',
+  });
+
+  if (ok) {
+    for (const proposal of toNotify) {
+      await logReminder(database, 'meeting', proposal.id, 'stale_meeting_discord', 'discord');
+    }
+    return { sent: toNotify.length };
+  }
+
+  return { sent: 0 };
 }
 
 // ---------------------------------------------------------------------------

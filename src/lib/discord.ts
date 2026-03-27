@@ -124,6 +124,76 @@ export async function notifyDiscordAnnouncement(
   });
 }
 
+export async function notifyDiscordMeetingFinalized(
+  title: string,
+  finalizedDate: Date,
+  finalizerName: string,
+): Promise<boolean> {
+  return sendDiscordEmbed({
+    title: `Meeting Finalized: ${title}`.slice(0, 256),
+    color: ACCENT_GOLD,
+    fields: [
+      {
+        name: 'Date & time',
+        value: finalizedDate.toLocaleDateString('en-US', {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        }),
+        inline: false,
+      },
+      { name: 'Finalized by', value: finalizerName, inline: true },
+    ],
+    footer: { text: FOOTER_SUFFIX },
+    url: OFFICERS_URL,
+  });
+}
+
+export async function notifyDiscordTaskCompleted(
+  task: { title: string; priority: string | null; due_date: Date | null },
+  completedByName?: string,
+): Promise<boolean> {
+  return sendDiscordEmbed({
+    title: '✅ Task Completed',
+    color: 0x22c55e,
+    fields: [
+      { name: 'Task', value: task.title.slice(0, 1024), inline: false },
+      {
+        name: 'Priority',
+        value: `${priorityEmoji(task.priority ?? 'medium')} ${task.priority ?? 'medium'}`,
+        inline: true,
+      },
+      ...(completedByName ? [{ name: 'Completed by', value: completedByName, inline: true }] : []),
+    ],
+    footer: { text: FOOTER_SUFFIX },
+    url: OFFICERS_URL,
+  });
+}
+
+export async function notifyDiscordTaskReopened(
+  task: { title: string; priority: string | null },
+  reopenedByName?: string,
+): Promise<boolean> {
+  return sendDiscordEmbed({
+    title: '🔄 Task Reopened',
+    color: BRAND_BLUE,
+    fields: [
+      { name: 'Task', value: task.title.slice(0, 1024), inline: false },
+      {
+        name: 'Priority',
+        value: `${priorityEmoji(task.priority ?? 'medium')} ${task.priority ?? 'medium'}`,
+        inline: true,
+      },
+      ...(reopenedByName ? [{ name: 'Reopened by', value: reopenedByName, inline: true }] : []),
+    ],
+    footer: { text: FOOTER_SUFFIX },
+    url: OFFICERS_URL,
+  });
+}
+
 export async function notifyDiscordMeeting(
   title: string,
   description: string | null,

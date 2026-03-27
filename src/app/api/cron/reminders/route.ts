@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { checkStaleSubmissions, checkOverdueTasks, checkStaleTasks, checkMeetingResponses } from '@/lib/reminders';
+import { checkStaleSubmissions, checkOverdueTasks, checkStaleTasks, checkMeetingResponses, checkStaleMeetingsDiscord } from '@/lib/reminders';
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -15,10 +15,11 @@ export async function GET(request: NextRequest) {
     checkOverdueTasks(),
     checkStaleTasks(),
     checkMeetingResponses(),
+    checkStaleMeetingsDiscord(),
   ]);
 
   const summary = results.map((r, i) => {
-    const labels = ['staleSubmissions', 'overdueTasks', 'staleTasks', 'meetingResponses'];
+    const labels = ['staleSubmissions', 'overdueTasks', 'staleTasks', 'meetingResponses', 'staleMeetingsDiscord'];
     return {
       check: labels[i],
       ...(r.status === 'fulfilled' ? r.value : { error: String(r.reason) }),

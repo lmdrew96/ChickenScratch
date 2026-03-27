@@ -6,6 +6,7 @@ import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import { userRoles, officerTasks } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
+import { notifyDiscordTaskCompleted, notifyDiscordTaskReopened } from '@/lib/discord';
 
 const taskUpdateSchema = z.object({
   title: z.string().min(1).max(500).optional(),
@@ -48,6 +49,13 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const existing = await db()
+      .select({ status: officerTasks.status, title: officerTasks.title, priority: officerTasks.priority, due_date: officerTasks.due_date })
+      .from(officerTasks)
+      .where(eq(officerTasks.id, id))
+      .limit(1);
+    const oldStatus = existing[0]?.status ?? null;
+
     const body = await request.json().catch(() => null);
     const parsed = taskUpdateSchema.safeParse(body);
 
@@ -74,6 +82,15 @@ export async function PATCH(
     const task = result[0];
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    if (status !== undefined) {
+      const updaterName = profile.name || profile.full_name || profile.email || undefined;
+      if (status === 'completed') {
+        void notifyDiscordTaskCompleted(task, updaterName).catch(() => {});
+      } else if (oldStatus === 'completed' && (status === 'todo' || status === 'in_progress')) {
+        void notifyDiscordTaskReopened(task, updaterName).catch(() => {});
+      }
     }
 
     return NextResponse.json({ task });
