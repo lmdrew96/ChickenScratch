@@ -23,6 +23,9 @@ function getS3Client(): S3Client {
         accessKeyId: env.R2_ACCESS_KEY_ID,
         secretAccessKey: env.R2_SECRET_ACCESS_KEY,
       },
+      // Prevent the SDK from appending x-amz-checksum-mode=ENABLED to signed URLs —
+      // R2 does not support this parameter and drops CORS headers when it appears.
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
   return cachedS3Client;
