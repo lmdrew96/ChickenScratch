@@ -112,7 +112,7 @@ export default function CommitteeInbox({ userRole, submissions }: CommitteeInbox
 
     // Fetch signed URLs for all art files
     void Promise.all(
-      filePaths.map((path) => getSignedDownloadUrl(path).then((r) => ({ path, signedUrl: r.signedUrl })))
+      filePaths.map((path) => getSignedDownloadUrl(path).then((r) => ({ path, signedUrl: r.signedUrl ?? '' })))
     ).then(setArtSignedUrls);
 
     // For the image editor: show processed version of the first image if available
