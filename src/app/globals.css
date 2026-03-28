@@ -305,39 +305,47 @@ h1{margin:0 0 8px;font-size:28px}
 p{margin:0 0 12px}
 /* BRAND SHELL END */
 /* ACCOUNT BADGE START */
-.account-badge{
-  position:fixed;
-  top:16px;
-  right:16px;
-  z-index:150;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:40px;
-  height:40px;
-  border-radius:9999px;
-  background:var(--accent);
-  color:#003b72;
-  border:1px solid #cca800;
-  box-shadow:0 10px 20px rgba(0,0,0,.25);
+
+/* Wrapper holds fixed positioning so the dropdown can be absolutely positioned relative to it */
+.account-badge-wrapper {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 150;
+}
+
+.account-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: var(--accent);
+  color: #003b72;
+  border: 1px solid #cca800;
+  box-shadow: 0 10px 20px rgba(0,0,0,.25);
   transition: all 0.2s ease;
   text-decoration: none;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
 }
-.account-badge:hover{
-  filter:brightness(0.97);
+.account-badge:hover {
+  filter: brightness(0.97);
   transform: translateY(-1px);
-  box-shadow:0 12px 24px rgba(0,0,0,.3);
+  box-shadow: 0 12px 24px rgba(0,0,0,.3);
   text-decoration: none;
 }
-.account-badge svg{width:22px;height:22px}
+.account-badge svg { width: 22px; height: 22px; }
 
-/* Account badge avatar styles */
+/* Avatar fills the full circle */
 .account-badge img {
-  width: 32px;
-  height: 32px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--accent);
+  display: block;
 }
 
 .account-badge span {
@@ -346,20 +354,85 @@ p{margin:0 0 12px}
   line-height: 1;
 }
 
-/* Tablet breakpoint - adjust positioning */
+/* Dropdown menu */
+.account-badge-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 188px;
+  background: #0b1220;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  overflow: hidden;
+  animation: badgeDropdownFadeIn 0.12s ease;
+}
+@keyframes badgeDropdownFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.account-badge-dropdown-header {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.account-badge-dropdown-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  margin: 0;
+  line-height: 1.3;
+}
+.account-badge-dropdown-pronouns {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin: 2px 0 0;
+  line-height: 1.2;
+}
+
+.account-badge-dropdown-items {
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.account-badge-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+  text-decoration: none;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.account-badge-dropdown-item:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.95);
+  text-decoration: none;
+}
+.account-badge-dropdown-signout {
+  color: rgba(255, 120, 100, 0.8);
+}
+.account-badge-dropdown-signout:hover {
+  background: rgba(255, 80, 60, 0.1);
+  color: rgba(255, 120, 100, 1);
+}
+
+/* Tablet breakpoint */
 @media (max-width:1024px){
-  .account-badge{
-    top:12px;
-    right:12px;
-    width:38px;
-    height:38px;
+  .account-badge-wrapper {
+    top: 12px;
+    right: 12px;
   }
-
-  .account-badge img {
-    width: 30px;
-    height: 30px;
+  .account-badge {
+    width: 38px;
+    height: 38px;
   }
-
   .account-badge span {
     font-size: 13px;
   }
@@ -367,13 +440,13 @@ p{margin:0 0 12px}
 
 /* Inline account badge for sidebar (hidden by default, shown on mobile) */
 .account-badge-inline {
-  display: none; /* Hidden on desktop */
+  display: none;
 }
 
-/* Mobile breakpoint - hide fixed badge, show inline badge */
+/* Mobile breakpoint - hide fixed badge wrapper, show inline badge */
 @media (max-width:768px){
-  .account-badge {
-    display: none; /* Hide fixed badge on mobile */
+  .account-badge-wrapper {
+    display: none;
   }
 
   .account-badge-inline {
@@ -388,6 +461,7 @@ p{margin:0 0 12px}
     border: 1px solid #cca800;
     text-decoration: none;
     flex-shrink: 0;
+    overflow: hidden;
   }
 
   .account-badge-inline:hover {
@@ -395,12 +469,13 @@ p{margin:0 0 12px}
     text-decoration: none;
   }
 
+  /* Avatar fills the inline circle too */
   .account-badge-inline img {
-    width: 28px;
-    height: 28px;
+    width: 100%;
+    height: 100%;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid var(--accent);
+    display: block;
   }
 
   .account-badge-inline span {
@@ -422,12 +497,6 @@ p{margin:0 0 12px}
     width: 34px;
     height: 34px;
   }
-
-  .account-badge-inline img {
-    width: 26px;
-    height: 26px;
-  }
-
   .account-badge-inline span {
     font-size: 11px;
   }

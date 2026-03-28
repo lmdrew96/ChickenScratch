@@ -346,8 +346,8 @@ export default function Sidebar({ signedIn = false, userProfile, navAccess }: Si
                   <Image
                     src={userProfile.avatarUrl}
                     alt=""
-                    width={32}
-                    height={32}
+                    width={36}
+                    height={36}
                     className="rounded-full"
                     unoptimized
                   />
@@ -356,9 +356,12 @@ export default function Sidebar({ signedIn = false, userProfile, navAccess }: Si
                 )}
               </Link>
             )}
-            <SignOutButton redirectUrl="/login">
-              <button type="button" className="btn" aria-label="Sign out">Sign out</button>
-            </SignOutButton>
+            {/* Sign out only shown on mobile — desktop uses the account badge dropdown */}
+            <div className="md:hidden">
+              <SignOutButton redirectUrl="/login">
+                <button type="button" className="btn" aria-label="Sign out">Sign out</button>
+              </SignOutButton>
+            </div>
           </>
         ) : (
           <Link href="/login" className="btn btn-accent">
