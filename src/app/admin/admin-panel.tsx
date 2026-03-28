@@ -12,6 +12,7 @@ type UserWithRole = {
   display_name?: string | null
   created_at?: string | null
   is_member?: boolean
+  is_alumni?: boolean
   roles?: ('officer' | 'committee')[]
   positions?: Position[]
 }
@@ -48,7 +49,7 @@ export default function AdminPanel({
   
   // Filter and sort state
   const [searchQuery, setSearchQuery] = useState('')
-  const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'officer' | 'committee' | 'editor' | 'admin'>('all')
+  const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'member' | 'alumni' | 'officer' | 'committee' | 'editor' | 'admin'>('all')
   const [positionFilter, setPositionFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<SortOption>('name-asc')
 
@@ -74,6 +75,10 @@ export default function AdminPanel({
         switch (roleFilter) {
           case 'student':
             return userRoles.length === 0 && userPositions.length === 0
+          case 'member':
+            return !!user.is_member
+          case 'alumni':
+            return !!user.is_alumni
           case 'officer':
             return userRoles.includes('officer')
           case 'committee':
@@ -120,6 +125,7 @@ export default function AdminPanel({
     userId: string,
     updates: {
       is_member?: boolean;
+      is_alumni?: boolean;
       roles?: ('officer' | 'committee')[];
       positions?: string[];
     }
@@ -223,6 +229,8 @@ export default function AdminPanel({
             >
               <option value="all">All Roles</option>
               <option value="student">Student</option>
+              <option value="member">Member</option>
+              <option value="alumni">Alumni</option>
               <option value="officer">Officer</option>
               <option value="committee">Committee</option>
               <option value="editor">Editor-in-Chief</option>
@@ -302,17 +310,29 @@ export default function AdminPanel({
               </div>
               
               <div className="space-y-4">
-                {/* Member Status */}
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={user.is_member || false}
-                    onChange={(e) => handleRoleUpdate(user.id, { is_member: e.target.checked })}
-                    disabled={loading}
-                    className="w-4 h-4 rounded border-gray-300"
-                  />
-                  <span className="font-medium text-white">Is Member</span>
-                </label>
+                {/* Member / Alumni Status */}
+                <div className="flex flex-wrap gap-6">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={user.is_member || false}
+                      onChange={(e) => handleRoleUpdate(user.id, { is_member: e.target.checked })}
+                      disabled={loading}
+                      className="w-4 h-4 rounded border-gray-300"
+                    />
+                    <span className="font-medium text-white">Is Member</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={user.is_alumni || false}
+                      onChange={(e) => handleRoleUpdate(user.id, { is_alumni: e.target.checked })}
+                      disabled={loading}
+                      className="w-4 h-4 rounded border-gray-300"
+                    />
+                    <span className="font-medium text-white">Is Alumni</span>
+                  </label>
+                </div>
                 
                 {/* Roles */}
                 <div>

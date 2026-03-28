@@ -8,6 +8,7 @@ import { createSignedUrl, createSignedUrls } from '@/lib/storage';
 import { db } from '@/lib/db';
 import { submissions, zineIssues } from '@/lib/db/schema';
 import { parseImageTransform } from '@/types/image-transform';
+import { CommentsSection } from '@/components/comments/comments-section';
 
 export default async function PublishedDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -225,6 +226,8 @@ export default async function PublishedDetailPage({ params }: { params: Promise<
           ) : null}
         </section>
       )}
+
+      <CommentsSection targetType="submission" targetId={id} />
     </div>
   );
 }

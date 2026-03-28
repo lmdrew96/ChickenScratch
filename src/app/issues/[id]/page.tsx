@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm';
 
 import PageHeader from '@/components/shell/page-header';
 import { PdfFlipbook } from '@/components/issues/pdf-flipbook';
+import { CommentsSection } from '@/components/comments/comments-section';
 import { db } from '@/lib/db';
 import { zineIssues } from '@/lib/db/schema';
 
@@ -65,6 +66,8 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
           <p className="text-slate-400">No PDF available for this issue.</p>
         </div>
       )}
+
+      <CommentsSection targetType="issue" targetId={id} />
     </div>
   );
 }

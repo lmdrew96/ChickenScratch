@@ -13,7 +13,7 @@ const ADMIN_POSITIONS = ['Dictator-in-Chief', 'Scroll Gremlin'] as const
 
 type Position = 'BBEG' | 'Dictator-in-Chief' | 'Scroll Gremlin' | 'PR Nightmare' | 'Submissions Coordinator' | 'Proofreader' | 'Editor-in-Chief'
 
-export async function getUserRole(userId: string): Promise<UserRole | { is_member: false; roles: ('officer' | 'committee')[]; positions: Position[] }> {
+export async function getUserRole(userId: string): Promise<UserRole | { is_member: false; is_alumni: false; roles: ('officer' | 'committee')[]; positions: Position[] }> {
   const result = await db()
     .select()
     .from(userRoles)
@@ -21,13 +21,13 @@ export async function getUserRole(userId: string): Promise<UserRole | { is_membe
     .limit(1)
 
   if (!result[0]) {
-    return { is_member: false, roles: [], positions: [] }
+    return { is_member: false, is_alumni: false, roles: [], positions: [] }
   }
 
   return result[0] as UserRole
 }
 
-export async function getCurrentUserRole(): Promise<UserRole | { is_member: false; roles: ('officer' | 'committee')[]; positions: Position[] } | null> {
+export async function getCurrentUserRole(): Promise<UserRole | { is_member: false; is_alumni: false; roles: ('officer' | 'committee')[]; positions: Position[] } | null> {
   const { userId: clerkId } = await auth()
   if (!clerkId) return null
 
@@ -60,7 +60,7 @@ export async function isAdmin(): Promise<boolean> {
 
 export async function updateUserRole(
   userId: string,
-  updates: Partial<Pick<UserRole, 'is_member' | 'roles' | 'positions'>>
+  updates: Partial<Pick<UserRole, 'is_member' | 'is_alumni' | 'roles' | 'positions'>>
 ): Promise<{ data?: UserRole; error?: string | null }> {
   if (!await isAdmin()) {
     return { error: 'Unauthorized' }
@@ -144,6 +144,7 @@ type UserWithRole = {
   display_name?: string | null
   created_at?: string | null
   is_member?: boolean
+  is_alumni?: boolean
   roles?: ('officer' | 'committee')[]
   positions?: Position[]
 }
@@ -166,6 +167,7 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
         display_name: profile.full_name,
         created_at: profile.updated_at?.toISOString() ?? null,
         is_member: role?.is_member,
+        is_alumni: role?.is_alumni,
         roles: (role?.roles as ('officer' | 'committee')[]) || [],
         positions: (role?.positions as Position[]) || []
       }

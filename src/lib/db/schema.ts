@@ -78,6 +78,7 @@ export const userRoles = pgTable('user_roles', {
   id: uuid('id').primaryKey().defaultRandom(),
   user_id: uuid('user_id').notNull().references(() => profiles.id),
   is_member: boolean('is_member').default(false).notNull(),
+  is_alumni: boolean('is_alumni').default(false).notNull(),
   roles: text('roles').array().default([]),
   positions: text('positions').array().default([]),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -218,4 +219,17 @@ export const zineIssues = pgTable('zine_issues', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
   index('zine_issues_is_published_idx').on(table.is_published),
+]);
+
+export const comments = pgTable('comments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  author_id: uuid('author_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  target_type: text('target_type').notNull(), // 'submission' | 'issue'
+  target_id: text('target_id').notNull(),     // uuid of the submission or zine issue
+  body: text('body').notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('comments_target_idx').on(table.target_type, table.target_id),
+  index('comments_author_id_idx').on(table.author_id),
 ]);

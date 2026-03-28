@@ -57,6 +57,10 @@ export function hasCommitteeAccess(positions?: string[] | null, roles?: string[]
   return false;
 }
 
+export function hasMemberOrAlumniAccess(isMember?: boolean | null, isAlumni?: boolean | null): boolean {
+  return !!(isMember || isAlumni);
+}
+
 export function hasEditorAccess(positions?: string[] | null, roles?: string[] | null): boolean {
   if (positions && positions.includes('Editor-in-Chief')) {
     return true;
