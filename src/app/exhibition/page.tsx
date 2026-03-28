@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { PageHeader } from '@/components/navigation';
 import { db } from '@/lib/db';
 import { exhibitionConfig } from '@/lib/db/schema';
 import { parseConfigDate } from '@/lib/utils';
@@ -53,106 +52,256 @@ export default async function ExhibitionPage() {
   const accepting = submissionsOpen && !isPastDeadline;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-10 py-8">
-      <PageHeader
-        title="Exhibition"
-        description="Hen & Ink Society's End-of-Year Flock Party"
-      />
+    <>
+      <style>{`
+        @keyframes float-a {
+          0%, 100% { transform: translateY(0px) rotate(-3deg); }
+          50% { transform: translateY(-12px) rotate(3deg); }
+        }
+        @keyframes float-b {
+          0%, 100% { transform: translateY(0px) rotate(6deg); }
+          50% { transform: translateY(-8px) rotate(-4deg); }
+        }
+        @keyframes float-c {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          40% { transform: translateY(-10px) rotate(8deg); }
+          80% { transform: translateY(-4px) rotate(-5deg); }
+        }
+        @keyframes shimmer {
+          0% { background-position: -400% center; }
+          100% { background-position: 400% center; }
+        }
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(255,210,0,0); }
+          50% { box-shadow: 0 0 28px 6px rgba(255,210,0,0.35); }
+        }
+        @keyframes badge-pop {
+          0% { transform: scale(0.9); opacity: 0; }
+          60% { transform: scale(1.05); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes fade-up {
+          from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .float-a { animation: float-a 5s ease-in-out infinite; }
+        .float-b { animation: float-b 4s ease-in-out infinite 0.7s; }
+        .float-c { animation: float-c 6s ease-in-out infinite 1.3s; }
+        .float-d { animation: float-a 4.5s ease-in-out infinite 0.4s; }
+        .float-e { animation: float-b 5.5s ease-in-out infinite 2s; }
 
-      {/* Hero */}
-      <div className="space-y-4">
-        <div
-          className="inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-widest"
-          style={{ background: 'var(--accent)', color: '#003b72' }}
-        >
-          {accepting ? 'Now Accepting Submissions' : 'Submissions Closed'}
-        </div>
-        <p className="text-lg text-slate-300">
-          <strong style={{ color: 'var(--accent)' }}>{exhibitionDateFormatted}</strong>
-          <span className="ml-2 text-slate-400">5–8pm</span>
-        </p>
-        <p className="text-base leading-relaxed text-slate-400">
-          Join us for Hen &amp; Ink Society&rsquo;s first&#8209;ever end&#8209;of&#8209;year
-          celebration of student creativity across writing and visual art. Selected work will be
-          displayed at the party for the entire UD community to enjoy.
-        </p>
-      </div>
+        .shimmer-text {
+          background: linear-gradient(
+            90deg,
+            #ffd200 0%,
+            #fffbe6 30%,
+            #ffd200 50%,
+            #ffec6e 70%,
+            #ffd200 100%
+          );
+          background-size: 400% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: shimmer 4s linear infinite;
+        }
 
-      {/* What we accept */}
-      <section className="space-y-4 rounded-xl border border-white/10 bg-white/5 p-6">
-        <h2 className="text-xl font-semibold text-white">What we&rsquo;re looking for</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <h3 className="font-semibold" style={{ color: 'var(--accent)' }}>
-              ✍️ Writing
-            </h3>
-            <ul className="space-y-1 text-sm text-slate-400">
-              <li>Poetry</li>
-              <li>Prose &amp; Fiction</li>
-              <li>Creative Nonfiction</li>
-              <li>Other written forms</li>
-            </ul>
-          </div>
-          <div className="space-y-2">
-            <h3 className="font-semibold" style={{ color: 'var(--accent)' }}>
-              🎨 Visual Art
-            </h3>
-            <ul className="space-y-1 text-sm text-slate-400">
-              <li>Painting &amp; Drawing</li>
-              <li>Photography</li>
-              <li>Digital Art</li>
-              <li>Mixed Media</li>
-            </ul>
-          </div>
-        </div>
-      </section>
+        .btn-glow {
+          animation: pulse-glow 2.5s ease-in-out infinite;
+        }
 
-      {/* Deadline + CTA */}
-      <section className="space-y-4">
-        {formattedDeadline && (
-          <p className="text-sm text-slate-400">
-            <span className="font-semibold text-white">Submission deadline:</span>{' '}
-            {formattedDeadline}
-          </p>
-        )}
+        .badge-pop {
+          animation: badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
 
-        {accepting ? (
-          <div className="flex flex-wrap gap-4">
-            <Link
-              href="/exhibition/submit"
-              className="btn btn-accent"
-            >
-              Submit your work
-            </Link>
-            <Link href="/exhibition/mine" className="btn">
-              My submissions
-            </Link>
-          </div>
-        ) : (
-          <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-            <p className="text-slate-400">
-              {!submissionsOpen
-                ? 'Submissions are currently closed. Check back later or contact us for more information.'
-                : 'The submission deadline has passed. Thank you to everyone who submitted!'}
+        .fade-up-1 { animation: fade-up 0.6s ease both 0.05s; }
+        .fade-up-2 { animation: fade-up 0.6s ease both 0.15s; }
+        .fade-up-3 { animation: fade-up 0.6s ease both 0.25s; }
+        .fade-up-4 { animation: fade-up 0.6s ease both 0.4s; }
+
+        .party-card {
+          position: relative;
+          overflow: hidden;
+        }
+        .party-card::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, rgba(255,210,0,0.04) 0%, transparent 55%);
+          pointer-events: none;
+        }
+        .writing-card {
+          background: linear-gradient(135deg, rgba(255,210,0,0.10) 0%, rgba(255,210,0,0.04) 100%);
+          border: 1px solid rgba(255,210,0,0.20);
+        }
+        .art-card {
+          background: linear-gradient(135deg, rgba(0,83,159,0.18) 0%, rgba(0,83,159,0.06) 100%);
+          border: 1px solid rgba(0,120,255,0.20);
+        }
+        .deadline-banner {
+          background: linear-gradient(90deg, rgba(255,210,0,0.10) 0%, rgba(255,210,0,0.04) 100%);
+          border: 1px solid rgba(255,210,0,0.22);
+        }
+        .info-card {
+          background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+          border: 1px solid rgba(255,255,255,0.08);
+          transition: border-color 0.2s ease;
+        }
+        .info-card:hover {
+          border-color: rgba(255,210,0,0.25);
+        }
+      `}</style>
+
+      <div className="mx-auto max-w-75 py-8">
+
+        {/* ── Hero ─────────────────────────────────────────────── */}
+        <div className="relative mb-12">
+          {/* Floating confetti */}
+          <span aria-hidden className="float-a pointer-events-none select-none absolute -top-6 -left-10 text-3xl opacity-50">✨</span>
+          <span aria-hidden className="float-b pointer-events-none select-none absolute -top-2 right-0 text-2xl opacity-40">🎉</span>
+          <span aria-hidden className="float-c pointer-events-none select-none absolute top-14 -right-8 text-xl opacity-35">⭐</span>
+          <span aria-hidden className="float-d pointer-events-none select-none absolute top-20 -left-12 text-2xl opacity-30">🎊</span>
+          <span aria-hidden className="float-e pointer-events-none select-none absolute -top-8 left-40 text-lg opacity-25">✦</span>
+
+          <div className="space-y-5">
+            {/* Status badge */}
+            <div className="badge-pop inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest"
+              style={{ background: 'var(--accent)', color: '#003b72' }}>
+              🐔
+              <span>{accepting ? 'Now Accepting Submissions' : 'Submissions Closed'}</span>
+              🐔
+            </div>
+
+            {/* Title */}
+            <div className="fade-up-1">
+              <h1 className="shimmer-text text-5xl font-black leading-none tracking-tight sm:text-6xl">
+                Flock Party
+              </h1>
+              <p className="mt-2 text-lg font-semibold text-slate-300">
+                Hen &amp; Ink Society&rsquo;s End&#8209;of&#8209;Year Celebration
+              </p>
+            </div>
+
+            {/* Date card */}
+            <div className="fade-up-2 inline-flex items-center gap-4 rounded-2xl px-5 py-4"
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,210,0,0.12) 0%, rgba(255,210,0,0.05) 100%)',
+                border: '1px solid rgba(255,210,0,0.28)',
+              }}>
+              <span className="text-3xl" aria-hidden>🗓️</span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Save the date</p>
+                <p className="font-bold text-white">{exhibitionDateFormatted}</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>5–8pm</p>
+              </div>
+            </div>
+
+            {/* Description */}
+            <p className="fade-up-3 max-w-lg text-base leading-relaxed text-slate-400">
+              Come celebrate the creativity that&rsquo;s been brewing all year! Selected writing and
+              visual art will be on display for the entire UD community — and we&rsquo;ll have a
+              seriously good time doing it.
             </p>
           </div>
-        )}
-      </section>
+        </div>
 
-      {/* Info */}
-      <section className="space-y-3 text-sm text-slate-400">
-        <h2 className="text-base font-semibold text-white">Who can submit?</h2>
-        <p>
-          The Flock Party is open to all UD students. You&rsquo;ll need a Chicken Scratch account
-          to submit — it only takes a moment to sign up.
-        </p>
-        <h2 className="mt-4 text-base font-semibold text-white">What happens next?</h2>
-        <p>
-          After submitting, our officers will review your work and reach out by email with their
-          decision. Accepted pieces will be displayed at the Flock Party on{' '}
-          {exhibitionDateFormatted}.
-        </p>
-      </section>
-    </div>
+        {/* ── What we accept ───────────────────────────────────── */}
+        <section className="party-card mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+          <h2 className="mb-5 text-xl font-bold text-white">What we&rsquo;re looking for 🎨</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="writing-card space-y-3 rounded-xl p-4">
+              <h3 className="flex items-center gap-2 text-base font-bold" style={{ color: 'var(--accent)' }}>
+                <span className="text-xl">✍️</span> Writing
+              </h3>
+              <ul className="space-y-2 text-sm text-slate-300">
+                {['Poetry', 'Prose & Fiction', 'Creative Nonfiction', 'Other written forms'].map((item) => (
+                  <li key={item} className="flex items-center gap-2">
+                    <span className="text-[10px]" style={{ color: 'var(--accent)' }}>◆</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="art-card space-y-3 rounded-xl p-4">
+              <h3 className="flex items-center gap-2 text-base font-bold text-blue-300">
+                <span className="text-xl">🖼️</span> Visual Art
+              </h3>
+              <ul className="space-y-2 text-sm text-slate-300">
+                {['Painting & Drawing', 'Photography', 'Digital Art', 'Mixed Media'].map((item) => (
+                  <li key={item} className="flex items-center gap-2">
+                    <span className="text-[10px] text-blue-400">◆</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Deadline + CTA ───────────────────────────────────── */}
+        <section className="mb-8 space-y-5">
+          {formattedDeadline && (
+            <div className="deadline-banner flex items-center gap-4 rounded-xl px-5 py-4">
+              <span className="text-2xl" aria-hidden>⏰</span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Submission Deadline</p>
+                <p className="font-semibold text-white">{formattedDeadline}</p>
+              </div>
+            </div>
+          )}
+
+          {accepting ? (
+            <div className="fade-up-4 flex flex-wrap gap-4">
+              <Link
+                href="/exhibition/submit"
+                className="btn-glow inline-flex items-center gap-2 rounded-xl px-7 py-3 text-[0.95rem] font-bold transition-opacity hover:opacity-90"
+                style={{ background: 'var(--accent)', color: '#003b72' }}
+              >
+                Submit your work <span aria-hidden>🚀</span>
+              </Link>
+              <Link
+                href="/exhibition/mine"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-[0.95rem] font-semibold text-slate-200 transition-colors hover:border-white/25 hover:bg-white/10"
+              >
+                My submissions
+              </Link>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <p className="text-slate-400">
+                {!submissionsOpen
+                  ? 'Submissions are currently closed. Check back later or contact us for more information.'
+                  : '🎊 The submission deadline has passed. Thank you to everyone who submitted — we can\'t wait to celebrate your work at the Flock Party!'}
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* ── Info cards ───────────────────────────────────────── */}
+        <section className="grid gap-4 sm:grid-cols-2 text-sm">
+          <div className="info-card space-y-2 rounded-2xl p-5">
+            <h2 className="flex items-center gap-2 font-bold text-white">
+              <span>🐣</span> Who can submit?
+            </h2>
+            <p className="leading-relaxed text-slate-400">
+              The Flock Party is open to all UD students. You&rsquo;ll need a Chicken Scratch
+              account to submit — it only takes a moment to sign up.
+            </p>
+          </div>
+
+          <div className="info-card space-y-2 rounded-2xl p-5">
+            <h2 className="flex items-center gap-2 font-bold text-white">
+              <span>📬</span> What happens next?
+            </h2>
+            <p className="leading-relaxed text-slate-400">
+              Officers will review your work and email you their decision. Accepted pieces will be
+              displayed at the Flock Party on {exhibitionDateFormatted}.
+            </p>
+          </div>
+        </section>
+
+      </div>
+    </>
   );
 }
