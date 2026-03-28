@@ -29,30 +29,30 @@ export default async function HomePage() {
         {/* Decorative background quote mark */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-4 -right-2 select-none font-fraunces text-[16rem] leading-none text-white/[0.03]"
+          className="pointer-events-none absolute -top-4 -right-2 select-none font-guavine text-[16rem] leading-none text-white/[0.03]"
         >
           &ldquo;
         </div>
 
         {/* Org label */}
         <p className="mb-4 text-xs tracking-[0.2em] uppercase font-semibold text-[var(--accent)]">
-          Hen &amp; Ink Society — AAP Georgetown
+          Hen &amp; Ink Society — Est. 2025
         </p>
 
         {/* Gold rule above headline */}
-        <div className="mb-5 h-px bg-gradient-to-r from-[var(--accent)] via-[var(--accent)]/50 to-transparent" />
+        <div className="mb-5 h-px" style={{ backgroundImage: 'linear-gradient(to right, var(--accent), transparent)' }} />
 
         {/* Main headline */}
-        <h1 className="font-fraunces text-6xl sm:text-7xl font-black text-white tracking-tight leading-none mb-5">
+        <h1 className="font-guavine text-6xl sm:text-7xl font-black text-white tracking-tight leading-none mb-5">
           Chicken Scratch
         </h1>
 
         {/* Gold rule below headline */}
-        <div className="mb-6 h-px bg-gradient-to-r from-[var(--accent)] via-[var(--accent)]/50 to-transparent" />
+        <div className="mb-6 h-px" style={{ backgroundImage: 'linear-gradient(to right, var(--accent), transparent)' }} />
 
-        {/* Italic Fraunces subhead */}
-        <p className="font-fraunces text-xl sm:text-2xl italic text-gray-300 mb-5 max-w-2xl">
-          UD&apos;s student-run literary &amp; arts zine — and the portal where it all happens.
+        {/* Italic subhead */}
+        <p className="text-xl sm:text-2xl italic text-gray-300 mb-5 max-w-2xl">
+          UD&apos;s student-run literary &amp; visual arts zine — and the hub where it all happens.
         </p>
 
         {/* Body copy */}

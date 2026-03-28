@@ -38,7 +38,7 @@ export function PageHeader({
               <BackButton href={backButtonHref} label={backButtonLabel} />
             </div>
           )}
-          <h1 className="font-fraunces text-4xl font-bold tracking-tight text-[var(--text)]">{title}</h1>
+          <h1 className="font-guavine text-4xl font-bold tracking-tight text-[var(--text)]">{title}</h1>
           {description && <p className="text-sm text-slate-300">{description}</p>}
         </div>
         {(ctaHref && ctaLabel) ? (

@@ -201,7 +201,7 @@ export default function StorageCleanup() {
                               className="w-4 h-4 rounded border-gray-300"
                             />
                           </td>
-                          <td className="px-4 py-2 text-gray-300 font-mono text-xs truncate max-w-[300px]">
+                          <td className="px-4 py-2 text-gray-300 font-geist-mono text-xs truncate max-w-[300px]">
                             {f.key}
                           </td>
                           <td className="px-4 py-2 text-gray-400">{f.bucket}</td>

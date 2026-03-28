@@ -15,7 +15,7 @@ export default function AboutPage() {
         {/* Decorative background quote mark */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-4 -right-2 select-none font-fraunces text-[16rem] leading-none text-white/[0.03]"
+          className="pointer-events-none absolute -top-4 -right-2 select-none font-guavine text-[16rem] leading-none text-white/[0.03]"
         >
           &ldquo;
         </div>
@@ -26,18 +26,18 @@ export default function AboutPage() {
         </p>
 
         {/* Gold rule */}
-        <div className="mb-5 h-px bg-gradient-to-r from-[var(--accent)] via-[var(--accent)]/50 to-transparent" />
+        <div className="mb-5 h-px" style={{ backgroundImage: 'linear-gradient(to right, var(--accent), transparent)' }} />
 
         {/* Headline */}
-        <h1 className="font-fraunces text-6xl sm:text-7xl font-black text-white tracking-tight leading-none mb-5">
+        <h1 className="font-guavine text-6xl sm:text-7xl font-black text-white tracking-tight leading-none mb-5">
           Our Story
         </h1>
 
         {/* Gold rule */}
-        <div className="mb-6 h-px bg-gradient-to-r from-[var(--accent)] via-[var(--accent)]/50 to-transparent" />
+        <div className="mb-6 h-px" style={{ backgroundImage: 'linear-gradient(to right, var(--accent), transparent)' }} />
 
         {/* Italic subhead */}
-        <p className="font-fraunces text-xl sm:text-2xl italic text-gray-300 max-w-2xl">
+        <p className="text-xl sm:text-2xl italic text-gray-300 max-w-2xl">
           The first RSO to emerge from any of UD&apos;s AAP satellite campuses — built by students who just needed somewhere to create.
         </p>
       </section>
@@ -101,7 +101,7 @@ export default function AboutPage() {
             className="block w-full h-auto"
             style={{ borderRadius: '2px' }}
           />
-          <p className="mt-3 text-center font-fraunces italic text-sm text-gray-500">
+          <p className="mt-3 text-center italic text-sm text-gray-500">
             the flock, fall 2025
           </p>
         </div>
@@ -129,7 +129,7 @@ export default function AboutPage() {
             className="block w-full h-auto"
             style={{ borderRadius: '2px' }}
           />
-          <p className="mt-3 text-center font-fraunces italic text-sm text-gray-500">
+          <p className="mt-3 text-center italic text-sm text-gray-500">
             geocaching adventure, 2025
           </p>
         </div>

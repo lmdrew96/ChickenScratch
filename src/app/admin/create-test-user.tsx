@@ -150,7 +150,7 @@ export default function CreateTestUser({ onUserCreated }: { onUserCreated?: () =
             <div>
               <label className="block text-sm font-semibold text-green-300 mb-1">Temporary Password:</label>
               <div className="flex gap-2">
-                <code className="flex-1 bg-black/30 px-3 py-2 rounded border border-green-500/30 text-sm font-mono text-white">
+                <code className="flex-1 bg-black/30 px-3 py-2 rounded border border-green-500/30 text-sm font-geist-mono text-white">
                   {createdUser.password}
                 </code>
                 <button

@@ -100,7 +100,7 @@ export default function NotificationFailures({ initialFailures }: { initialFailu
                 </div>
                 <p className="text-sm font-medium text-white truncate">{f.subject}</p>
                 <p className="text-xs text-gray-400 mt-0.5">To: {f.recipient}</p>
-                <p className="text-xs text-red-400 mt-1 font-mono break-all">{f.error_message}</p>
+                <p className="text-xs text-red-400 mt-1 font-geist-mono break-all">{f.error_message}</p>
               </div>
               <button
                 onClick={() => dismiss(f.id)}

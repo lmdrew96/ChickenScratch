@@ -9,8 +9,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        fraunces: ['var(--font-fraunces)', 'serif'],
+        guavine: ['var(--font-guavine)', 'serif'],
         sans: ['var(--font-geist)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        'geist-mono': ['var(--font-geist-mono)', 'ui-monospace', 'monospace'],
       },
       colors: {
         background: '#030712',

@@ -1,9 +1,11 @@
 import './globals.css'
-import { Fraunces, DM_Sans } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
+import localFont from 'next/font/local'
 import { ClerkProvider } from '@clerk/nextjs'
 
-const fraunces = Fraunces({ subsets: ['latin'], variable: '--font-fraunces' })
-const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans' })
+const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
+const guavine = localFont({ src: '../../public/Guavine.otf', variable: '--font-guavine' })
 import { auth } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
 import AccountBadge from '@/components/account-badge';
@@ -18,8 +20,8 @@ import { userRoles } from '@/lib/db/schema'
 import { hasOfficerAccess, hasCommitteeAccess, hasEditorAccess } from '@/lib/auth/guards'
 
 export const metadata = {
-  title: 'Hen & Ink Portal',
-  description: 'Submission portal',
+  title: 'Hen & Ink Society Member Hub',
+  description: 'A central hub for members of the Hen & Ink Society to manage publication submissions, organize officer business, and stay connected with the community.',
 }
 
 export const viewport = {
@@ -74,7 +76,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={`${fraunces.variable} ${dmSans.variable}`}>
+        <body className={`${geist.variable} ${geistMono.variable} ${guavine.variable}`}>
           <ToastProvider>
             <ErrorBoundary>
               <SkipLinks />

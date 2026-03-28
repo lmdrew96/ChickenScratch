@@ -19,7 +19,7 @@ export function SiteFooter() {
           rel="noopener noreferrer"
           className="flex items-center gap-2 text-sm transition-opacity hover:opacity-80"
         >
-          Built by <span className="font-fraunces font-bold text-base leading-none">
+          Built by <span className="font-guavine font-bold text-base leading-none">
             <span style={{ color: '#244952' }}>A</span>
             <span style={{ color: '#97D181' }}>D</span>
             <span style={{ color: '#DFA649' }}>H</span>

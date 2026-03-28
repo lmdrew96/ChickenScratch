@@ -87,7 +87,7 @@ export default function Sidebar({ signedIn = false, userProfile, navAccess }: Si
     <aside className="sidebar">
       <div className="brand">
         <Image src="/logo.png" alt="Hen & Ink logo" width={40} height={40} className="brand-badge" />
-        <div className="font-semibold">Hen &amp; Ink</div>
+        <div className="font-guavine font-semibold">Hen &amp; Ink</div>
       </div>
 
       {/* Hamburger menu button - only visible on mobile */}
