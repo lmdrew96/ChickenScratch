@@ -3,10 +3,11 @@ import { auth } from '@clerk/nextjs/server';
 import { and, asc, eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
-import { comments, profiles } from '@/lib/db/schema';
+import { comments, profiles, submissions } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { getUserRole } from '@/lib/actions/roles';
 import { hasMemberOrAlumniAccess } from '@/lib/auth/guards';
+import { insertNotification } from '@/lib/actions/notifications';
 
 const MAX_BODY_LENGTH = 1000;
 
@@ -76,6 +77,25 @@ export async function POST(req: NextRequest) {
       .insert(comments)
       .values({ author_id: profile.id, target_type: targetType, target_id: targetId, body: trimmed })
       .returning();
+
+    // Notify submission owner when someone comments on their work (not self, not issues)
+    if (targetType === 'submission') {
+      const subRow = await db()
+        .select({ owner_id: submissions.owner_id, title: submissions.title })
+        .from(submissions)
+        .where(eq(submissions.id, targetId))
+        .limit(1);
+      const sub = subRow[0];
+      if (sub && sub.owner_id !== profile.id) {
+        void insertNotification(
+          sub.owner_id,
+          'comment',
+          `New comment on "${sub.title}"`,
+          trimmed.length > 80 ? trimmed.slice(0, 80) + '…' : trimmed,
+          `/published/${targetId}`,
+        ).catch(() => {});
+      }
+    }
 
     return NextResponse.json({
       comment: {

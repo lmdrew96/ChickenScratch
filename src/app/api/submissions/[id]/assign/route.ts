@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { submissions, auditLog } from '@/lib/db/schema';
 import { requireProfile } from '@/lib/auth';
 import { getCurrentUserRole } from '@/lib/actions/roles';
+import { insertNotification } from '@/lib/actions/notifications';
 
 const assignSchema = z.object({
   editorId: z.string().uuid().nullable(),
@@ -35,6 +36,13 @@ export async function POST(
 
   const database = db();
 
+  const submissionRow = await database
+    .select({ title: submissions.title })
+    .from(submissions)
+    .where(eq(submissions.id, id))
+    .limit(1);
+  const submissionTitle = submissionRow[0]?.title ?? 'a submission';
+
   try {
     await database
       .update(submissions)
@@ -50,6 +58,17 @@ export async function POST(
     action: 'assign',
     details: { assigned_editor: parsed.data.editorId ?? null },
   });
+
+  // Notify the assigned editor (if assigning someone other than self)
+  if (parsed.data.editorId && parsed.data.editorId !== profile.id) {
+    void insertNotification(
+      parsed.data.editorId,
+      'assignment',
+      `You have been assigned as editor`,
+      `"${submissionTitle}"`,
+      '/editor',
+    ).catch(() => {});
+  }
 
   revalidatePath('/editor');
   revalidatePath('/mine');

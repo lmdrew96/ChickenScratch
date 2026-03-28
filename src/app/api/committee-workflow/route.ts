@@ -10,6 +10,7 @@ import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess } from '@/lib/auth/guards';
 import { sendSubmissionNotification } from '@/lib/notifications';
 import { sendSubmissionEmail, logNotificationFailure } from '@/lib/email';
+import { insertNotification } from '@/lib/actions/notifications';
 import { importTextForProofread } from '@/lib/import-text-for-proofread';
 import { createSignedUrl, getBucketName } from '@/lib/storage';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
@@ -318,6 +319,21 @@ export async function POST(request: NextRequest) {
           errorMessage: err instanceof Error ? err.message : String(err),
           context: { submissionId, submissionTitle: submission.title, action: 'request_changes' },
         }).catch(() => {});
+      }
+    }
+
+    // In-app notification for committee actions affecting the submission owner
+    if (newStatus && submission.owner_id !== profile.id) {
+      let notifTitle: string | null = null;
+      if (newStatus === 'changes_requested') {
+        notifTitle = `Revision requested on "${submission.title}"`;
+      } else if (newStatus === 'editor_approved') {
+        notifTitle = `"${submission.title}" approved by editor`;
+      } else if (newStatus === 'editor_declined' || newStatus === 'coordinator_declined') {
+        notifTitle = `"${submission.title}" was not selected`;
+      }
+      if (notifTitle) {
+        void insertNotification(submission.owner_id, 'committee_action', notifTitle, null, '/mine').catch(() => {});
       }
     }
 

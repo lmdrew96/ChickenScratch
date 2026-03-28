@@ -7,6 +7,7 @@ import { officerAnnouncements, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { notifyOfficersOfAnnouncement } from '@/lib/officer-notifications';
 import { notifyDiscordAnnouncement } from '@/lib/discord';
+import { insertNotificationsForOfficers } from '@/lib/actions/notifications';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 
 export async function GET() {
@@ -132,6 +133,15 @@ export async function POST(request: NextRequest) {
     notifyOfficersOfAnnouncement(message, authorName, profile.id).catch((err) =>
       console.error('[officer-email] Failed to send announcement notification:', err)
     );
+
+    // In-app: notify all officers except author
+    void insertNotificationsForOfficers(
+      profile.id,
+      'announcement',
+      `New announcement: ${message.slice(0, 160)}`,
+      null,
+      '/officer',
+    ).catch(() => {});
 
     return NextResponse.json({ announcement }, { status: 201 });
   } catch (error) {

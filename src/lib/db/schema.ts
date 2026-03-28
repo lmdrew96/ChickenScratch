@@ -221,6 +221,27 @@ export const zineIssues = pgTable('zine_issues', {
   index('zine_issues_is_published_idx').on(table.is_published),
 ]);
 
+export type NotificationType =
+  | 'status_changed'
+  | 'assignment'
+  | 'comment'
+  | 'announcement'
+  | 'task_assigned'
+  | 'committee_action';
+
+export const notifications = pgTable('notifications', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  recipient_id: uuid('recipient_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  type:         text('type').notNull(),
+  title:        text('title').notNull(),
+  body:         text('body'),
+  link:         text('link'),
+  read_at:      timestamp('read_at', { withTimezone: true }),
+  created_at:   timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('notifications_recipient_id_idx').on(table.recipient_id),
+]);
+
 export const comments = pgTable('comments', {
   id: uuid('id').primaryKey().defaultRandom(),
   author_id: uuid('author_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),

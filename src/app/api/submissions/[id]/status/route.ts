@@ -9,6 +9,7 @@ import { submissions, auditLog, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { hasCommitteeAccess, hasOfficerAccess, hasEditorAccess } from '@/lib/auth/guards';
 import { sendSubmissionEmail } from '@/lib/email';
+import { insertNotification } from '@/lib/actions/notifications';
 import type { NewSubmission } from '@/types/database';
 
 const statusSchema = z.object({
@@ -132,6 +133,18 @@ export async function POST(
         editorNotes: parsed.data.editorNotes,
       });
     }
+  }
+
+  // In-app notification for the submission owner
+  if (['accepted', 'declined', 'needs_revision'].includes(parsed.data.status) &&
+      submission.owner_id !== profile.id) {
+    const notifTitle =
+      parsed.data.status === 'accepted'
+        ? `"${submission.title}" was accepted`
+        : parsed.data.status === 'declined'
+          ? `"${submission.title}" was declined`
+          : `"${submission.title}" needs revision`;
+    void insertNotification(submission.owner_id, 'status_changed', notifTitle, null, '/mine').catch(() => {});
   }
 
   revalidatePath('/editor');

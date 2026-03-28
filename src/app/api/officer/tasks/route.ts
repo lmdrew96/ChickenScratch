@@ -7,6 +7,7 @@ import { officerTasks, profiles, userRoles } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 import { notifyDiscordTaskCreated } from '@/lib/discord';
+import { insertNotification } from '@/lib/actions/notifications';
 
 export async function GET() {
   try {
@@ -150,6 +151,17 @@ export async function POST(request: NextRequest) {
         profile.name || profile.full_name || profile.email || undefined,
       );
     })().catch(() => {});
+
+    // In-app: notify assignee (if assigned to someone other than self)
+    if (task?.assigned_to && task.assigned_to !== profile.id) {
+      void insertNotification(
+        task.assigned_to,
+        'task_assigned',
+        `You've been assigned: "${task.title}"`,
+        null,
+        '/officer',
+      ).catch(() => {});
+    }
 
     return NextResponse.json({ task }, { status: 201 });
   } catch (error) {

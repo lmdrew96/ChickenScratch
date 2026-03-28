@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { userRoles, officerTasks } from '@/lib/db/schema';
 import { ensureProfile } from '@/lib/auth/clerk';
 import { notifyDiscordTaskCompleted, notifyDiscordTaskReopened } from '@/lib/discord';
+import { insertNotification } from '@/lib/actions/notifications';
 
 const taskUpdateSchema = z.object({
   title: z.string().min(1).max(500).optional(),
@@ -50,11 +51,12 @@ export async function PATCH(
     }
 
     const existing = await db()
-      .select({ status: officerTasks.status, title: officerTasks.title, priority: officerTasks.priority, due_date: officerTasks.due_date })
+      .select({ status: officerTasks.status, title: officerTasks.title, priority: officerTasks.priority, due_date: officerTasks.due_date, assigned_to: officerTasks.assigned_to })
       .from(officerTasks)
       .where(eq(officerTasks.id, id))
       .limit(1);
     const oldStatus = existing[0]?.status ?? null;
+    const oldAssignedTo = existing[0]?.assigned_to ?? null;
 
     const body = await request.json().catch(() => null);
     const parsed = taskUpdateSchema.safeParse(body);
@@ -91,6 +93,18 @@ export async function PATCH(
       } else if (oldStatus === 'completed' && (status === 'todo' || status === 'in_progress')) {
         void notifyDiscordTaskReopened(task, updaterName).catch(() => {});
       }
+    }
+
+    // Notify new assignee when assignment changes (and new assignee ≠ self)
+    if (assigned_to !== undefined && assigned_to !== null &&
+        assigned_to !== oldAssignedTo && assigned_to !== profile.id) {
+      void insertNotification(
+        assigned_to,
+        'task_assigned',
+        `You've been assigned: "${task.title}"`,
+        null,
+        '/officer',
+      ).catch(() => {});
     }
 
     return NextResponse.json({ task });
