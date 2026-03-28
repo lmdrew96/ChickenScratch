@@ -60,6 +60,8 @@ export function EditorDashboard({
   rosterLoadIssue = false,
 }: EditorDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | Submission['status']>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'written' | 'visual'>('all');
+  const [sortBy, setSortBy] = useState<'urgent' | 'newest' | 'oldest' | 'alpha' | 'stale'>('urgent');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('details');
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,6 +93,7 @@ export function EditorDashboard({
     let list = optimisticSubmissions.filter(
       (s) => statusFilter === 'all' || s.status === statusFilter
     );
+    if (typeFilter !== 'all') list = list.filter((s) => s.type === typeFilter);
     if (needsYouOnly) list = list.filter((s) => s.committee_status === 'with_editor_in_chief');
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -102,13 +105,25 @@ export function EditorDashboard({
       );
     }
     return [...list].sort((a, b) => {
-      const aUrgent =
-        a.committee_status === 'with_editor_in_chief' || (a.daysSinceUpdate ?? 0) > 7 ? 1 : 0;
-      const bUrgent =
-        b.committee_status === 'with_editor_in_chief' || (b.daysSinceUpdate ?? 0) > 7 ? 1 : 0;
-      return bUrgent - aUrgent;
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+        case 'oldest':
+          return new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime();
+        case 'alpha':
+          return a.title.localeCompare(b.title);
+        case 'stale':
+          return new Date(a.updated_at ?? 0).getTime() - new Date(b.updated_at ?? 0).getTime();
+        default: { // urgent
+          const aUrgent =
+            a.committee_status === 'with_editor_in_chief' || (a.daysSinceUpdate ?? 0) > 7 ? 1 : 0;
+          const bUrgent =
+            b.committee_status === 'with_editor_in_chief' || (b.daysSinceUpdate ?? 0) > 7 ? 1 : 0;
+          return bUrgent - aUrgent;
+        }
+      }
     });
-  }, [optimisticSubmissions, statusFilter, needsYouOnly, searchQuery]);
+  }, [optimisticSubmissions, statusFilter, typeFilter, sortBy, needsYouOnly, searchQuery]);
 
   // Collapse if the selected item is filtered out
   useEffect(() => {
@@ -438,6 +453,24 @@ export function EditorDashboard({
                 {formatStatus(s)}
               </option>
             ))}
+          </Select>
+          <Select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+          >
+            <option value="all">All types</option>
+            <option value="written">Written</option>
+            <option value="visual">Visual</option>
+          </Select>
+          <Select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+          >
+            <option value="urgent">Sort: Urgent first</option>
+            <option value="newest">Sort: Newest</option>
+            <option value="oldest">Sort: Oldest</option>
+            <option value="alpha">Sort: A–Z</option>
+            <option value="stale">Sort: Most stale</option>
           </Select>
           {needsYouCount > 0 && (
             <button
