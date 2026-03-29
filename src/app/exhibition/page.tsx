@@ -201,7 +201,7 @@ export default async function ExhibitionPage() {
             <p className="fade-up-3 max-w-lg text-base leading-relaxed text-slate-400">
               Come celebrate the community we&rsquo;ve been building all year! Member writing and
               visual art will be on display for the entire UD community. Live poetry readings, storytelling,
-              and one-act plays will be happening throughout the evening. We're gonna have a blast!
+              and one-act plays will be happening throughout the evening. We&rsquo;re gonna have a blast!
             </p>
           </div>
         </div>
@@ -289,7 +289,7 @@ export default async function ExhibitionPage() {
               The Flock Party is open to all <b>Hen & Ink Society Members</b>. You&rsquo;ll need a Chicken Scratch
               account to submit — it only takes a moment to sign up.
             </p>
-            <p className="leading-relaxed text-slate-400 text-[11px] italic" >If you're a Hen & Ink Society Member and you cannot
+            <p className="leading-relaxed text-slate-400 text-[11px] italic" >If you&rsquo;re a Hen & Ink Society Member and you cannot
               access the Flock Party submission page, please <a href="mailto:lmdrew@udel.edu">contact Nae</a>. </p>
           </div>
 
