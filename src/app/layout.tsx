@@ -1,9 +1,9 @@
 import './globals.css'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
 import { ClerkProvider } from '@clerk/nextjs'
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
+const raela = localFont({ src: '../../public/RaelaGrotesqueFont/RaelaGrotesqueExtraLight-4nYxx.ttf', variable: '--font-raela' })
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 const guavine = localFont({ src: '../../public/Guavine.otf', variable: '--font-guavine' })
 import { auth } from '@clerk/nextjs/server'
@@ -76,7 +76,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={`${geist.variable} ${geistMono.variable} ${guavine.variable}`}>
+        <body className={`${raela.variable} ${geistMono.variable} ${guavine.variable}`}>
           <ToastProvider>
             <ErrorBoundary>
               <SkipLinks />

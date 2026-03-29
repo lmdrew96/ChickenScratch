@@ -17,7 +17,7 @@ body {
   min-height: 100vh;
   background: #030712;
   color: #f8fafc;
-  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-raela), ui-sans-serif, system-ui, sans-serif;
   line-height: 1.5;
 }
 
@@ -33,7 +33,7 @@ a {
 :root{--brand:#00539f;--accent:#ffd200;--bg:#0b1220;--text:#e5e7eb}
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-raela),ui-sans-serif,system-ui,sans-serif}
 a{color:#cbd5e1;text-decoration:none}
 a:hover{text-decoration:underline}
 .app-shell{display:grid;grid-template-columns:185px 1fr;min-height:100vh}

@@ -10,7 +10,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         guavine: ['var(--font-guavine)', 'serif'],
-        sans: ['var(--font-geist)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-raela)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         'geist-mono': ['var(--font-geist-mono)', 'ui-monospace', 'monospace'],
       },
       colors: {

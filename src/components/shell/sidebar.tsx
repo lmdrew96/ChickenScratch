@@ -87,7 +87,7 @@ export default function Sidebar({ signedIn = false, userProfile, navAccess }: Si
     <aside className="sidebar">
       <div className="brand">
         <Image src="/logo.png" alt="Hen & Ink logo" width={40} height={40} className="brand-badge" />
-        <div className="font-guavine font-semibold">Hen &amp; Ink</div>
+        <div className="font-guavine font-semibold text-2xl">Hen &amp; Ink</div>
       </div>
 
       {/* Hamburger menu button - only visible on mobile */}
@@ -109,6 +109,45 @@ export default function Sidebar({ signedIn = false, userProfile, navAccess }: Si
           </svg>
         )}
       </button>
+
+      <div className="sidebar-auth mb-2">
+        {signedIn ? (
+          <>
+            {/* Inline account badge for mobile - hidden on desktop via CSS */}
+            {userProfile && (
+              <Link
+                href="/account"
+                aria-label="Your account"
+                className="account-badge-inline"
+                prefetch={false}
+              >
+                {userProfile.avatarUrl ? (
+                  <Image
+                    src={userProfile.avatarUrl}
+                    alt=""
+                    width={36}
+                    height={36}
+                    className="rounded-full"
+                    unoptimized
+                  />
+                ) : (
+                  <span>{userProfile.initials}</span>
+                )}
+              </Link>
+            )}
+            {/* Sign out only shown on mobile — desktop uses the account badge dropdown */}
+            <div className="md:hidden">
+              <SignOutButton redirectUrl="/login">
+                <button type="button" className="btn" aria-label="Sign out">Sign out</button>
+              </SignOutButton>
+            </div>
+          </>
+        ) : (
+          <Link href="/login" className="btn btn-accent w-full justify-center">
+            Login
+          </Link>
+        )}
+      </div>
 
       <nav
         id="navigation"
@@ -330,45 +369,6 @@ export default function Sidebar({ signedIn = false, userProfile, navAccess }: Si
           </div>
         )}
       </nav>
-
-      <div className="sidebar-auth">
-        {signedIn ? (
-          <>
-            {/* Inline account badge for mobile - hidden on desktop via CSS */}
-            {userProfile && (
-              <Link
-                href="/account"
-                aria-label="Your account"
-                className="account-badge-inline"
-                prefetch={false}
-              >
-                {userProfile.avatarUrl ? (
-                  <Image
-                    src={userProfile.avatarUrl}
-                    alt=""
-                    width={36}
-                    height={36}
-                    className="rounded-full"
-                    unoptimized
-                  />
-                ) : (
-                  <span>{userProfile.initials}</span>
-                )}
-              </Link>
-            )}
-            {/* Sign out only shown on mobile — desktop uses the account badge dropdown */}
-            <div className="md:hidden">
-              <SignOutButton redirectUrl="/login">
-                <button type="button" className="btn" aria-label="Sign out">Sign out</button>
-              </SignOutButton>
-            </div>
-          </>
-        ) : (
-          <Link href="/login" className="btn btn-accent">
-            Login
-          </Link>
-        )}
-      </div>
 
       <style jsx>{`
         @media (max-width: 768px) {

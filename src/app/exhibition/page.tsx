@@ -152,7 +152,7 @@ export default async function ExhibitionPage() {
         }
       `}</style>
 
-      <div className="mx-auto max-w-75 py-8">
+      <div className="mx-auto max-w-[70vw] px-4 py-8">
 
         {/* ── Hero ─────────────────────────────────────────────── */}
         <div className="relative mb-12">
@@ -165,7 +165,7 @@ export default async function ExhibitionPage() {
 
           <div className="space-y-5">
             {/* Status badge */}
-            <div className="badge-pop inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest"
+            <div className="badge-pop inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-widest"
               style={{ background: 'var(--accent)', color: '#003b72' }}>
               🐔
               <span>{accepting ? 'Now Accepting Submissions' : 'Submissions Closed'}</span>
@@ -174,7 +174,7 @@ export default async function ExhibitionPage() {
 
             {/* Title */}
             <div className="fade-up-1">
-              <h1 className="shimmer-text text-5xl font-black leading-none tracking-tight sm:text-6xl">
+              <h1 className="shimmer-text text-6xl font-black leading-none py-2.5 sm:text-6xl">
                 Flock Party
               </h1>
               <p className="mt-2 text-lg font-semibold text-slate-300">
@@ -183,15 +183,16 @@ export default async function ExhibitionPage() {
             </div>
 
             {/* Date card */}
-            <div className="fade-up-2 inline-flex items-center gap-4 rounded-2xl px-5 py-4"
+            <div className="fade-up-2 inline-flex items-center gap-4 rounded-2xl px-5 py-4 w-[25vw]"
               style={{
                 background: 'linear-gradient(135deg, rgba(255,210,0,0.12) 0%, rgba(255,210,0,0.05) 100%)',
                 border: '1px solid rgba(255,210,0,0.28)',
               }}>
               <span className="text-3xl" aria-hidden>🗓️</span>
-              <div>
+              <div className="space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Save the date</p>
                 <p className="font-bold text-white">{exhibitionDateFormatted}</p>
+                <p className="text-sm font-medium text-slate-400">Lewes Public Library</p>
                 <p className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>5–8pm</p>
               </div>
             </div>
