@@ -22,6 +22,21 @@ const guavine = localFont({ src: '../../public/Guavine.otf', variable: '--font-g
 export const metadata = {
   title: 'Hen & Ink Society Member Hub',
   description: 'A central hub for members of the Hen & Ink Society to manage publication submissions, organize officer business, and stay connected with the community.',
+  openGraph: {
+    title: 'Chicken Scratch: Hen & Ink Society Member Hub',
+    description: 'A central hub for members of the Hen & Ink Society to manage publication submissions, organize officer business, and stay connected with the community.',
+    url: 'https://chickenscratch.me',
+    siteName: 'Chicken Scratch',
+    images: [
+      {
+        url: 'https://chickenscratch.me/homepage.png',
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: 'en-US',
+    type: 'website',
+  }
 }
 
 export const viewport = {
