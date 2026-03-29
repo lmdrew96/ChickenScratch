@@ -199,20 +199,20 @@ export default async function ExhibitionPage() {
 
             {/* Description */}
             <p className="fade-up-3 max-w-lg text-base leading-relaxed text-slate-400">
-              Come celebrate the creativity that&rsquo;s been brewing all year! Selected writing and
-              visual art will be on display for the entire UD community — and we&rsquo;ll have a
-              seriously good time doing it.
+              Come celebrate the community we&rsquo;ve been building all year! Member writing and
+              visual art will be on display for the entire UD community. Live poetry readings, storytelling,
+              and one-act plays will be happening throughout the evening. We're gonna have a blast!
             </p>
           </div>
         </div>
 
         {/* ── What we accept ───────────────────────────────────── */}
         <section className="party-card mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h2 className="mb-5 text-xl font-bold text-white">What we&rsquo;re looking for 🎨</h2>
+          <h2 className="mb-5 text-xl font-bold text-white">What we&rsquo;re looking for 🔍</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="writing-card space-y-3 rounded-xl p-4">
               <h3 className="flex items-center gap-2 text-base font-bold" style={{ color: 'var(--accent)' }}>
-                <span className="text-xl">✍️</span> Writing
+                <span className="text-xl">✍️</span> Short-form Writing
               </h3>
               <ul className="space-y-2 text-sm text-slate-300">
                 {['Poetry', 'Prose & Fiction', 'Creative Nonfiction', 'Other written forms'].map((item) => (
@@ -226,7 +226,7 @@ export default async function ExhibitionPage() {
 
             <div className="art-card space-y-3 rounded-xl p-4">
               <h3 className="flex items-center gap-2 text-base font-bold text-blue-300">
-                <span className="text-xl">🖼️</span> Visual Art
+                <span className="text-xl">🎨</span> Visual Art
               </h3>
               <ul className="space-y-2 text-sm text-slate-300">
                 {['Painting & Drawing', 'Photography', 'Digital Art', 'Mixed Media'].map((item) => (
@@ -286,9 +286,11 @@ export default async function ExhibitionPage() {
               <span>🐣</span> Who can submit?
             </h2>
             <p className="leading-relaxed text-slate-400">
-              The Flock Party is open to all UD students. You&rsquo;ll need a Chicken Scratch
+              The Flock Party is open to all <b>Hen & Ink Society Members</b>. You&rsquo;ll need a Chicken Scratch
               account to submit — it only takes a moment to sign up.
             </p>
+            <p className="leading-relaxed text-slate-400 text-[11px] italic" >If you're a Hen & Ink Society Member and you cannot
+              access the Flock Party submission page, please <a href="mailto:lmdrew@udel.edu">contact Nae</a>. </p>
           </div>
 
           <div className="info-card space-y-2 rounded-2xl p-5">
