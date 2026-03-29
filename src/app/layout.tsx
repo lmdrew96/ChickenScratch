@@ -2,10 +2,6 @@ import './globals.css'
 import { Geist_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
 import { ClerkProvider } from '@clerk/nextjs'
-
-const raela = localFont({ src: '../../public/RaelaGrotesqueFont/RaelaGrotesqueExtraLight-4nYxx.ttf', variable: '--font-raela' })
-const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
-const guavine = localFont({ src: '../../public/Guavine.otf', variable: '--font-guavine' })
 import { auth } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
 import AccountBadge from '@/components/account-badge';
@@ -18,6 +14,10 @@ import { ensureProfile } from '@/lib/auth/clerk'
 import { db } from '@/lib/db'
 import { userRoles } from '@/lib/db/schema'
 import { hasOfficerAccess, hasCommitteeAccess, hasEditorAccess } from '@/lib/auth/guards'
+
+const raela = localFont({ src: '../../public/RaelaGrotesqueFont/RaelaGrotesqueExtraLight-4nYxx.ttf', variable: '--font-raela' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
+const guavine = localFont({ src: '../../public/Guavine.otf', variable: '--font-guavine' })
 
 export const metadata = {
   title: 'Hen & Ink Society Member Hub',
