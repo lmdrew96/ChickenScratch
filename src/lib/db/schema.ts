@@ -92,6 +92,7 @@ export const meetingProposals = pgTable('meeting_proposals', {
   description: text('description'),
   proposed_dates: jsonb('proposed_dates').default([]),
   finalized_date: timestamp('finalized_date', { withTimezone: true }),
+  archived_at: timestamp('archived_at', { withTimezone: true }),
   created_by: uuid('created_by').notNull().references(() => profiles.id),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });

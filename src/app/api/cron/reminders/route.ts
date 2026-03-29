@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { checkStaleSubmissions, checkOverdueTasks, checkStaleTasks, checkMeetingResponses, checkStaleMeetingsDiscord, checkUpcomingMeetingsDiscord } from '@/lib/reminders';
+import { checkStaleSubmissions, checkOverdueTasks, checkStaleTasks, checkMeetingResponses, checkStaleMeetingsDiscord, checkUpcomingMeetingsDiscord, archivePastFinalizedMeetings } from '@/lib/reminders';
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -17,10 +17,11 @@ export async function GET(request: NextRequest) {
     checkMeetingResponses(),
     checkStaleMeetingsDiscord(),
     checkUpcomingMeetingsDiscord(),
+    archivePastFinalizedMeetings(),
   ]);
 
   const summary = results.map((r, i) => {
-    const labels = ['staleSubmissions', 'overdueTasks', 'staleTasks', 'meetingResponses', 'staleMeetingsDiscord', 'upcomingMeetingsDiscord'];
+    const labels = ['staleSubmissions', 'overdueTasks', 'staleTasks', 'meetingResponses', 'staleMeetingsDiscord', 'upcomingMeetingsDiscord', 'archivePastFinalizedMeetings'];
     return {
       check: labels[i],
       ...(r.status === 'fulfilled' ? r.value : { error: String(r.reason) }),

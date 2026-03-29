@@ -53,7 +53,7 @@ export function MeetingScheduler({ userId }: { userId: string }) {
 
   const handleCreateProposal = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const validDates = formData.proposed_dates.filter(d => d.date && d.time);
     if (validDates.length < 2) {
       alert('Please provide at least 2 date/time options');
@@ -121,8 +121,12 @@ export function MeetingScheduler({ userId }: { userId: string }) {
     }
   };
 
-  const handleWithdrawProposal = async (proposalId: string) => {
-    if (!confirm('Withdraw this meeting proposal? This cannot be undone.')) return;
+  const handleWithdrawProposal = async (proposalId: string, isFinalized: boolean) => {
+    const message = isFinalized
+      ? 'Delete this finalized meeting? This cannot be undone (finalized time + all availability records will be removed).'
+      : 'Withdraw this meeting proposal? This cannot be undone.';
+
+    if (!confirm(message)) return;
 
     try {
       const response = await fetch(`/api/officer/meetings/${proposalId}`, {
@@ -242,7 +246,7 @@ export function MeetingScheduler({ userId }: { userId: string }) {
               userId={userId}
               onMarkAvailability={handleMarkAvailability}
               onFinalize={handleFinalizeMeeting}
-              onWithdraw={handleWithdrawProposal}
+              onWithdraw={(proposalId) => handleWithdrawProposal(proposalId, Boolean(proposal.finalized_date))}
             />
           ))
         )}
@@ -309,12 +313,12 @@ function MeetingProposalCard({
             <p className="text-sm text-slate-300 mt-1">{proposal.description}</p>
           )}
         </div>
-        {proposal.created_by === userId && !proposal.finalized_date && (
+        {proposal.created_by === userId && (
           <button
             onClick={() => onWithdraw(proposal.id)}
             className="shrink-0 rounded-lg border border-red-500/30 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors"
           >
-            Withdraw
+            Delete
           </button>
         )}
       </div>

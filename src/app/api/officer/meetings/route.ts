@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { eq, desc, inArray } from 'drizzle-orm';
+import { eq, desc, inArray, isNull } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { meetingProposals, officerAvailability, profiles, userRoles } from '@/lib/db/schema';
@@ -35,10 +35,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Fetch all meeting proposals
+    // Fetch all meeting proposals (exclude archived)
     const proposalRows = await database
       .select()
       .from(meetingProposals)
+      .where(isNull(meetingProposals.archived_at))
       .orderBy(desc(meetingProposals.created_at));
 
     if (proposalRows.length === 0) {

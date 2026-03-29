@@ -49,7 +49,7 @@ export async function DELETE(
     }
 
     if (proposal[0].created_by !== profile.id) {
-      return NextResponse.json({ error: 'Only the creator can withdraw a proposal' }, { status: 403 });
+      return NextResponse.json({ error: 'Only the creator can delete a meeting proposal' }, { status: 403 });
     }
 
     // Delete related availability rows first (FK constraint)

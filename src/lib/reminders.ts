@@ -14,6 +14,36 @@ const CTA_TEXT = '#003b72';
 
 type ReminderResult = { sent: number };
 
+// ---------------------------------------------------------------------------
+// Cleanup: archive finalized meetings after 24 hours
+// ---------------------------------------------------------------------------
+
+export async function archivePastFinalizedMeetings(): Promise<{ archived: number }> {
+  const database = db();
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const now = new Date();
+
+  const toArchive = await database
+    .select({ id: meetingProposals.id })
+    .from(meetingProposals)
+    .where(
+      and(
+        isNotNull(meetingProposals.finalized_date),
+        isNull(meetingProposals.archived_at),
+        lt(meetingProposals.finalized_date, cutoff),
+      ),
+    );
+
+  if (toArchive.length === 0) return { archived: 0 };
+
+  await database
+    .update(meetingProposals)
+    .set({ archived_at: now })
+    .where(inArray(meetingProposals.id, toArchive.map((r) => r.id)));
+
+  return { archived: toArchive.length };
+}
+
 function daysAgo(days: number): Date {
   const d = new Date();
   d.setDate(d.getDate() - days);
