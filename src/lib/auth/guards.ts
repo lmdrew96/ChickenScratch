@@ -126,3 +126,15 @@ export async function requireCommitteeRole(nextUrl?: string) {
 
   redirect('/mine');
 }
+
+export async function requireMemberRole(nextUrl?: string) {
+  const { userId, profile } = await requireUser(nextUrl);
+
+  const userRole = await getCurrentUserRole();
+
+  if (userRole && userRole.is_member) {
+    return { userId, profile };
+  }
+
+  redirect('/mine');
+}

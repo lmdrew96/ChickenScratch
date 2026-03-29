@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { PageHeader } from '@/components/navigation';
-import { requireUser } from '@/lib/auth/guards';
+import { requireMemberRole } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { exhibitionConfig } from '@/lib/db/schema';
 import ExhibitionSubmissionForm from '@/components/exhibition/exhibition-form';
@@ -29,7 +29,7 @@ async function checkSubmissionsOpen(): Promise<{ open: boolean; reason?: string 
 }
 
 export default async function ExhibitionSubmitPage() {
-  await requireUser('/exhibition/submit');
+  await requireMemberRole('/exhibition/submit');
 
   const { open, reason } = await checkSubmissionsOpen();
 

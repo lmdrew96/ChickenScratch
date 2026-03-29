@@ -11,6 +11,7 @@ import {
   notifyOfficersOfExhibitionSubmission,
 } from '@/lib/exhibition-email';
 import type { NewExhibitionSubmission } from '@/types/database';
+import { getCurrentUserRole } from '@/lib/actions/roles';
 
 const ALLOWED_ART_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'image/gif'];
 const ALLOWED_WRITING_TYPES = [
@@ -27,6 +28,11 @@ export async function POST(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const userRole = await getCurrentUserRole();
+  if (!userRole?.is_member) {
+    return NextResponse.json({ error: 'Only members can submit to the exhibition.' }, { status: 403 });
+  }
 
   const limit = rateLimit(`exhibition-submit:${profile.id}`, apiMutationLimiter);
   if (!limit.success) {
@@ -168,6 +174,11 @@ export async function GET(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const userRole = await getCurrentUserRole();
+  if (!userRole?.is_member) {
+    return NextResponse.json({ error: 'Only members can upload exhibition files.' }, { status: 403 });
+  }
 
   const limit = rateLimit(`exhibition-upload:${profile.id}`, apiMutationLimiter);
   if (!limit.success) {

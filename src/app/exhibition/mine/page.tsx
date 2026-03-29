@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { eq, desc } from 'drizzle-orm';
 import { PageHeader } from '@/components/navigation';
-import { requireUser } from '@/lib/auth/guards';
+import { requireMemberRole } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { exhibitionSubmissions } from '@/lib/db/schema';
 import type { ExhibitionSubmission } from '@/types/database';
@@ -72,7 +72,7 @@ function SubmissionCard({ s }: { s: ExhibitionSubmission }) {
 }
 
 export default async function ExhibitionMinePage() {
-  const { profile } = await requireUser('/exhibition/mine');
+  const { profile } = await requireMemberRole('/exhibition/mine');
 
   let submissions: ExhibitionSubmission[] = [];
   let loadError = false;
