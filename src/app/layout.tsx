@@ -2,6 +2,7 @@ import './globals.css'
 import { Geist_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
 import { ClerkProvider } from '@clerk/nextjs'
+import { Metadata } from 'next'
 
 const raela = localFont({ src: '../../public/RaelaGrotesqueFont/RaelaGrotesqueExtraLight-4nYxx.ttf', variable: '--font-raela' })
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
@@ -19,9 +20,31 @@ import { db } from '@/lib/db'
 import { userRoles } from '@/lib/db/schema'
 import { hasOfficerAccess, hasCommitteeAccess, hasEditorAccess } from '@/lib/auth/guards'
 
-export const metadata = {
+export const metadata: Metadata = {
+  metadataBase: new URL('https://chickenscratch.me'),
   title: 'Hen & Ink Society Member Hub',
   description: 'A central hub for members of the Hen & Ink Society to manage publication submissions, organize officer business, and stay connected with the community.',
+  openGraph: {
+    title: 'Hen & Ink Society Member Hub',
+    description: 'A central hub for members of the Hen & Ink Society to manage publication submissions, organize officer business, and stay connected with the community.',
+    url: 'https://chickenscratch.me',
+    siteName: 'Hen & Ink Society Member Hub',
+    type: 'website',
+    images: [
+      {
+        url: '/homepage.png',
+        width: 1200,
+        height: 630,
+        alt: 'Hen & Ink Society Member Hub',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Hen & Ink Society Member Hub',
+    description: 'A central hub for members of the Hen & Ink Society to manage publication submissions, organize officer business, and stay connected with the community.',
+    images: ['/homepage.png'],
+  },
 }
 
 export const viewport = {
