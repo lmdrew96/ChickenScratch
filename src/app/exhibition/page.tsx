@@ -183,7 +183,7 @@ export default async function ExhibitionPage() {
             </div>
 
             {/* Date card */}
-            <div className="fade-up-2 inline-flex items-center gap-4 rounded-2xl px-5 py-4 w-[25vw]"
+            <div className="fade-up-2 inline-flex items-center gap-4 rounded-2xl px-5 py-4 max-w-content"
               style={{
                 background: 'linear-gradient(135deg, rgba(255,210,0,0.12) 0%, rgba(255,210,0,0.05) 100%)',
                 border: '1px solid rgba(255,210,0,0.28)',
