@@ -1,10 +1,11 @@
 'use client';
 
+import { type ReactNode } from 'react';
 import Link from 'next/link';
 import { BookOpen, Crown, Coins, Scroll, Megaphone } from 'lucide-react';
 import { officerToolkits } from '@/lib/data/toolkits';
 
-const iconMap: Record<string, JSX.Element> = {
+const iconMap: Record<string, ReactNode> = {
   'president': <Crown className="h-5 w-5 text-[var(--accent)]" />,
   'treasurer': <Coins className="h-5 w-5 text-[var(--accent)]" />,
   'secretary': <Scroll className="h-5 w-5 text-[var(--accent)]" />,
