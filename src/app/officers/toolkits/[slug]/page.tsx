@@ -6,10 +6,11 @@ import PageHeader from '@/components/shell/page-header';
 import { BookOpen, CheckSquare, Clock, ExternalLink, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
-export default async function ToolkitPage({ params }: { params: { slug: string } }) {
-  await requireOfficerRole(`/officers/toolkits/${params.slug}`);
+export default async function ToolkitPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  await requireOfficerRole(`/officers/toolkits/${slug}`);
 
-  const toolkit = officerToolkits.find((t) => t.slug === params.slug);
+  const toolkit = officerToolkits.find((t) => t.slug === slug);
   if (!toolkit) {
     notFound();
   }
