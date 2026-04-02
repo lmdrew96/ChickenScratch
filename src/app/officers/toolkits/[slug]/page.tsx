@@ -3,8 +3,7 @@ import { officerToolkits } from '@/lib/data/toolkits';
 import { requireOfficerRole } from '@/lib/auth/guards';
 import { getSiteConfigValue } from '@/lib/site-config';
 import PageHeader from '@/components/shell/page-header';
-import { BookOpen, CheckSquare, Clock, ExternalLink, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+import { BookOpen, CheckSquare, Clock, ExternalLink } from 'lucide-react';
 
 export default async function ToolkitPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -25,13 +24,13 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
 
   return (
     <div className="space-y-8">
-      <div>
-        <Link href="/officers" className="inline-flex items-center gap-2 text-sm text-[var(--accent)] hover:underline mb-4">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Officers
-        </Link>
-        <PageHeader title={`${toolkit.title} Toolkit`} subtitle={toolkit.roleName} />
-      </div>
+      <PageHeader
+        title={`${toolkit.title} Toolkit`}
+        description={toolkit.roleName}
+        showBackButton
+        backButtonHref="/officers"
+        backButtonLabel="Back to Officers"
+      />
 
       {/* Overview */}
       <div className="rounded-2xl border border-white/10 bg-[var(--accent)]/10 p-6">

@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { BookOpen, Crown, Coins, Scroll, Megaphone } from 'lucide-react';
 import { officerToolkits } from '@/lib/data/toolkits';
 
-export function OfficerToolkits() {
-  const iconMap: Record<string, React.ReactNode> = {
-    'president': <Crown className="h-5 w-5 text-[var(--accent)]" />,
-    'treasurer': <Coins className="h-5 w-5 text-[var(--accent)]" />,
-    'secretary': <Scroll className="h-5 w-5 text-[var(--accent)]" />,
-    'pr-chair': <Megaphone className="h-5 w-5 text-[var(--accent)]" />,
-  };
+const iconMap: Record<string, JSX.Element> = {
+  'president': <Crown className="h-5 w-5 text-[var(--accent)]" />,
+  'treasurer': <Coins className="h-5 w-5 text-[var(--accent)]" />,
+  'secretary': <Scroll className="h-5 w-5 text-[var(--accent)]" />,
+  'pr-chair': <Megaphone className="h-5 w-5 text-[var(--accent)]" />,
+};
 
+export function OfficerToolkits() {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-semibold text-[var(--text)] flex items-center gap-2">
