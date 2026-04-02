@@ -10,7 +10,7 @@ const FALLBACK_COMMITTEE_POSITIONS = ['Editor-in-Chief', 'Submissions Coordinato
 const cache = new Map<string, { value: string | null; expiresAt: number }>();
 const CACHE_TTL_MS = 60_000; // 60 seconds
 
-async function getSiteConfigValue(key: string): Promise<string | null> {
+export async function getSiteConfigValue(key: string): Promise<string | null> {
   const now = Date.now();
   const cached = cache.get(key);
   if (cached && cached.expiresAt > now) return cached.value;

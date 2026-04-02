@@ -9,6 +9,7 @@ import AdminPanel from './admin-panel'
 import CreateTestUser from './create-test-user'
 import NotificationFailures from './notification-failures'
 import SiteConfigEditor from './site-config-editor'
+import ToolkitLinksEditor from './toolkit-links-editor'
 import StorageCleanup from './storage-cleanup'
 
 export const dynamic = 'force-dynamic'
@@ -110,8 +111,9 @@ export default async function AdminPage() {
           <NotificationFailures initialFailures={failures} />
         </div>
       )}
-      <div className="mt-8">
+      <div className="space-y-6 mt-8">
         <SiteConfigEditor initialConfig={siteConfigData} />
+        <ToolkitLinksEditor initialConfig={siteConfigData} />
       </div>
       <div className="mt-8">
         <StorageCleanup />

@@ -14,6 +14,18 @@ const ALLOWED_KEYS = [
   'committee_positions',
   'discord_webhook_url',
   'contact_form_recipients',
+  'toolkit_president_rso',
+  'toolkit_president_policies',
+  'toolkit_president_discord',
+  'toolkit_treasurer_sio',
+  'toolkit_treasurer_reimbursement',
+  'toolkit_secretary_attendance',
+  'toolkit_secretary_membership_db',
+  'toolkit_secretary_drive',
+  'toolkit_pr_canva',
+  'toolkit_pr_instagram',
+  'toolkit_pr_flyering',
+  'toolkit_pr_linktree',
 ] as const;
 
 export async function GET() {

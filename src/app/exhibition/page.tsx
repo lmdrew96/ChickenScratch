@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import { exhibitionConfig } from '@/lib/db/schema';
 import { parseConfigDate } from '@/lib/utils';
+import { getCurrentUserRole } from '@/lib/actions/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,8 @@ async function getExhibitionConfig(): Promise<Record<string, string>> {
 
 export default async function ExhibitionPage() {
   const config = await getExhibitionConfig();
+  const userRole = await getCurrentUserRole();
+  const isMember = userRole?.is_member ?? false;
 
   const submissionsOpen = config.submissions_open !== 'false';
   const deadlineStr = config.submission_deadline ?? null;
@@ -253,21 +256,29 @@ export default async function ExhibitionPage() {
           )}
 
           {accepting ? (
-            <div className="fade-up-4 flex flex-wrap gap-4">
-              <Link
-                href="/exhibition/submit"
-                className="btn-glow inline-flex items-center gap-2 rounded-xl px-7 py-3 text-[0.95rem] font-bold transition-opacity hover:opacity-90"
-                style={{ background: 'var(--accent)', color: '#003b72' }}
-              >
-                Submit your work <span aria-hidden>🚀</span>
-              </Link>
-              <Link
-                href="/exhibition/mine"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-[0.95rem] font-semibold text-slate-200 transition-colors hover:border-white/25 hover:bg-white/10"
-              >
-                My submissions
-              </Link>
-            </div>
+            isMember ? (
+              <div className="fade-up-4 flex flex-wrap gap-4">
+                <Link
+                  href="/exhibition/submit"
+                  className="btn-glow inline-flex items-center gap-2 rounded-xl px-7 py-3 text-[0.95rem] font-bold transition-opacity hover:opacity-90"
+                  style={{ background: 'var(--accent)', color: '#003b72' }}
+                >
+                  Submit your work <span aria-hidden>🚀</span>
+                </Link>
+                <Link
+                  href="/exhibition/mine"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-[0.95rem] font-semibold text-slate-200 transition-colors hover:border-white/25 hover:bg-white/10"
+                >
+                  My submissions
+                </Link>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                <p className="text-slate-400">
+                  🔒 You must be a Hen & Ink Society member to submit work.
+                </p>
+              </div>
+            )
           ) : (
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
               <p className="text-slate-400">

@@ -28,9 +28,9 @@ export async function archivePastFinalizedMeetings(): Promise<{ archived: number
     .from(meetingProposals)
     .where(
       and(
-        isNotNull(meetingProposals.finalized_date),
+        isNotNull(meetingProposals.finalized_at),
         isNull(meetingProposals.archived_at),
-        lt(meetingProposals.finalized_date, cutoff),
+        lt(meetingProposals.finalized_at, cutoff),
       ),
     );
 

@@ -98,10 +98,13 @@ export function MeetingScheduler({ userId }: { userId: string }) {
       });
 
       if (response.ok) {
-        fetchProposals();
+        await fetchProposals();
+        return true;
       }
+      return false;
     } catch (error) {
       console.error('Error marking availability:', error);
+      return false;
     }
   };
 
@@ -264,11 +267,12 @@ function MeetingProposalCard({
 }: {
   proposal: MeetingProposal;
   userId: string;
-  onMarkAvailability: (proposalId: string, slots: number[]) => void;
+  onMarkAvailability: (proposalId: string, slots: number[]) => Promise<boolean>;
   onFinalize: (proposalId: string, dateTime: string) => void;
   onWithdraw: (proposalId: string) => void;
 }) {
   const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
+  const [isSaved, setIsSaved] = useState(false);
   const userAvailability = proposal.officer_availability.find(a => a.user_id === userId);
 
   useEffect(() => {
@@ -284,8 +288,12 @@ function MeetingProposalCard({
     setSelectedSlots(newSlots);
   };
 
-  const saveAvailability = () => {
-    onMarkAvailability(proposal.id, selectedSlots);
+  const saveAvailability = async () => {
+    const success = await onMarkAvailability(proposal.id, selectedSlots);
+    if (success) {
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+    }
   };
 
   const getSlotAvailability = (index: number) => {
@@ -397,9 +405,16 @@ function MeetingProposalCard({
           <div className="flex gap-2">
             <button
               onClick={saveAvailability}
-              className="flex-1 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors"
+              className="flex-1 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
             >
-              Save My Availability
+              {isSaved ? (
+                <>
+                  <Check className="h-4 w-4 text-green-400" />
+                  <span className="text-green-400">Saved!</span>
+                </>
+              ) : (
+                'Save My Availability'
+              )}
             </button>
             {mostPopular.count > 0 && (
               <button

@@ -9,6 +9,7 @@ import { TaskManager } from '@/components/officers/task-manager';
 import { Announcements } from '@/components/officers/announcements';
 import { AdminTools } from '@/components/officers/admin-tools';
 import { StatsDashboard } from '@/components/officers/stats-dashboard';
+import { OfficerToolkits } from '@/components/officers/officer-toolkits';
 
 export default async function OfficersPage() {
   const { profile } = await requireOfficerRole('/officers');
@@ -149,6 +150,11 @@ export default async function OfficersPage() {
 
         {/* Right Column */}
         <div className="space-y-8">
+          {/* Officer Toolkits */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
+            <OfficerToolkits />
+          </div>
+
           {/* Admin Tools */}
           {hasAdminAccess && (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
