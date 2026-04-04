@@ -10,14 +10,34 @@ import { notifyDiscordMeeting } from '@/lib/discord';
 import { rateLimit, apiMutationLimiter } from '@/lib/rate-limit';
 
 export async function GET() {
+  console.log('[meetings:GET] Handler started');
   try {
-    const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    let userId: string | null = null;
+    try {
+      console.log('[meetings:GET] Authenticating...');
+      const authResult = await auth();
+      userId = authResult.userId;
+    } catch (authError) {
+      console.error('[meetings:GET] Auth error:', authError);
+      return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
+    }
+
+    if (!userId) {
+      console.log('[meetings:GET] Not authorized');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    console.log('[meetings:GET] Fetching profile...');
     const profile = await ensureProfile(userId);
-    if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!profile) {
+      console.log('[meetings:GET] Profile not found');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const database = db();
 
     // Check if user has officer access
+    console.log('[meetings:GET] Checking officer roles...');
     const userRoleRows = await database
       .select({ roles: userRoles.roles, positions: userRoles.positions })
       .from(userRoles)
@@ -32,18 +52,28 @@ export async function GET() {
       );
 
     if (!hasOfficerAccess) {
+      console.log('[meetings:GET] Forbidden');
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Fetch all meeting proposals (exclude archived)
-    console.log('[meetings:GET] Fetching proposals...');
-    const proposalRows = await database
-      .select()
-      .from(meetingProposals)
-      .where(isNull(meetingProposals.archived_at))
-      .orderBy(desc(meetingProposals.created_at));
-
-    console.log(`[meetings:GET] Found ${proposalRows.length} proposals`);
+    console.log('[meetings:GET] Fetching proposals query start...');
+    let proposalRows;
+    try {
+      proposalRows = await database
+        .select()
+        .from(meetingProposals)
+        .where(isNull(meetingProposals.archived_at))
+        .orderBy(desc(meetingProposals.created_at));
+    } catch (dbError) {
+      console.error('[meetings:GET] Database query failed (likely archived_at column issue):', dbError);
+      // Fallback: try without archived_at filter to confirm
+      console.log('[meetings:GET] Attempting fallback query without archived_at...');
+      proposalRows = await database
+        .select()
+        .from(meetingProposals)
+        .orderBy(desc(meetingProposals.created_at));
+    }
 
     if (proposalRows.length === 0) {
       return NextResponse.json({ proposals: [] });
