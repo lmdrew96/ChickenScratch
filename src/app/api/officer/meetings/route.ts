@@ -59,11 +59,13 @@ export async function GET() {
       : [];
     const creatorMap = new Map(creatorProfiles.map((p) => [p.id, { display_name: p.name || p.full_name || p.email, email: p.email }]));
 
-    // Fetch all availability for these proposals
-    const availabilityRows = await database
-      .select()
-      .from(officerAvailability)
-      .where(inArray(officerAvailability.meeting_proposal_id, proposalIds));
+    // Fetch all availability for these proposals (only if we have proposals)
+    const availabilityRows = proposalIds.length > 0
+      ? await database
+          .select()
+          .from(officerAvailability)
+          .where(inArray(officerAvailability.meeting_proposal_id, proposalIds))
+      : [];
 
     // Fetch profiles for availability users
     const availUserIds = [...new Set(availabilityRows.map((a) => a.user_id))];
