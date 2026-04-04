@@ -36,11 +36,14 @@ export async function GET() {
     }
 
     // Fetch all meeting proposals (exclude archived)
+    console.log('[meetings:GET] Fetching proposals...');
     const proposalRows = await database
       .select()
       .from(meetingProposals)
       .where(isNull(meetingProposals.archived_at))
       .orderBy(desc(meetingProposals.created_at));
+
+    console.log(`[meetings:GET] Found ${proposalRows.length} proposals`);
 
     if (proposalRows.length === 0) {
       return NextResponse.json({ proposals: [] });
@@ -107,7 +110,7 @@ export async function GET() {
 
     return NextResponse.json({ proposals });
   } catch (error) {
-    console.error('Error in GET /api/officer/meetings:', error);
+    console.error('Error in GET /api/officer/meetings:', error instanceof Error ? error.message : error, error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -141,16 +144,20 @@ export async function POST(request: NextRequest) {
       );
 
     if (!hasOfficerAccess) {
+      console.log('[meetings:POST] Forbidden - current user is not an officer');
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    console.log('[meetings:POST] Validating body...');
     const body = await request.json();
     const { title, description, proposed_dates } = body;
 
     if (!title || !proposed_dates || !Array.isArray(proposed_dates) || proposed_dates.length === 0) {
+      console.log('[meetings:POST] Validation failed: missing title or dates');
       return NextResponse.json({ error: 'Title and proposed dates are required' }, { status: 400 });
     }
 
+    console.log('[meetings:POST] Inserting into database...', { title, proposed_dates_count: proposed_dates.length });
     const result = await database
       .insert(meetingProposals)
       .values({
@@ -158,9 +165,11 @@ export async function POST(request: NextRequest) {
         description,
         proposed_dates,
         created_by: profile.id,
+        archived_at: null,
       })
       .returning();
 
+    console.log('[meetings:POST] Insert successful');
     const proposal = result[0];
 
     const authorName = profile.name || profile.full_name || profile.email || 'An officer';
