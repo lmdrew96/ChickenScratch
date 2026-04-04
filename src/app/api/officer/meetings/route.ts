@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
     void notifyDiscordMeeting(title, description || null, proposed_dates, authorName).catch(() => {});
 
     // Email: fire-and-forget
-    notifyOfficersOfMeeting(title, description || null, proposed_dates, authorName, profile.id).catch((err) =>
+    void notifyOfficersOfMeeting(title, description || null, proposed_dates, authorName, profile.id).catch((err) =>
       console.error('[officer-email] Failed to send meeting notification:', err)
     );
 
