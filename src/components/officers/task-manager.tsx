@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CheckSquare, Plus, X, Edit2, Trash2, AlertCircle } from 'lucide-react';
+import { CheckSquare, Plus, X, Edit2, Trash2, AlertCircle, Bell } from 'lucide-react';
 
 interface OfficerTask {
   id: string;
@@ -357,6 +357,23 @@ function TaskCard({
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: string) => void;
 }) {
+  const [nudging, setNudging] = useState(false);
+  const [nudgeResult, setNudgeResult] = useState<'sent' | 'error' | null>(null);
+
+  const handleNudge = async () => {
+    setNudging(true);
+    setNudgeResult(null);
+    try {
+      const res = await fetch(`/api/officer/tasks/${task.id}/nudge`, { method: 'POST' });
+      setNudgeResult(res.ok ? 'sent' : 'error');
+    } catch {
+      setNudgeResult('error');
+    } finally {
+      setNudging(false);
+      setTimeout(() => setNudgeResult(null), 3000);
+    }
+  };
+
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
 
   return (
@@ -364,6 +381,14 @@ function TaskCard({
       <div className="flex items-start justify-between gap-2">
         <h4 className="font-medium text-white flex-1">{task.title}</h4>
         <div className="flex gap-1">
+          <button
+            onClick={handleNudge}
+            disabled={nudging || task.status === 'completed'}
+            title={task.assigned_to ? 'Nudge assigned officer via email' : 'Ping Discord — no one assigned'}
+            className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-yellow-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Bell className="h-4 w-4" />
+          </button>
           <button
             onClick={() => onEdit(task)}
             className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
@@ -378,6 +403,13 @@ function TaskCard({
           </button>
         </div>
       </div>
+      {nudgeResult && (
+        <p className={`text-xs ${nudgeResult === 'sent' ? 'text-green-400' : 'text-red-400'}`}>
+          {nudgeResult === 'sent'
+            ? task.assigned_to ? '✓ Email sent' : '✓ Discord pinged'
+            : '✗ Nudge failed'}
+        </p>
+      )}
 
       {task.description && (
         <p className="text-sm text-slate-300 line-clamp-2">{task.description}</p>

@@ -194,6 +194,32 @@ export async function notifyDiscordTaskReopened(
   });
 }
 
+export async function notifyDiscordTaskNudge(
+  task: { title: string; priority: string | null; due_date: Date | null },
+  nudgerName: string,
+): Promise<boolean> {
+  return sendDiscordEmbed({
+    title: '👋 Task Needs an Owner',
+    description: `**${task.title.slice(0, 256)}** has no one assigned — can someone pick this up?`,
+    color: ACCENT_GOLD,
+    fields: [
+      {
+        name: 'Priority',
+        value: `${priorityEmoji(task.priority ?? 'medium')} ${task.priority ?? 'medium'}`,
+        inline: true,
+      },
+      {
+        name: 'Due',
+        value: formatDueDate(task.due_date),
+        inline: true,
+      },
+      { name: 'Nudged by', value: nudgerName, inline: true },
+    ],
+    footer: { text: FOOTER_SUFFIX },
+    url: OFFICERS_URL,
+  });
+}
+
 export async function notifyDiscordMeeting(
   title: string,
   description: string | null,
