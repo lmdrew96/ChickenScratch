@@ -288,6 +288,7 @@ function generateMeetingEmail(
         year: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
+        timeZone: 'America/New_York',
       });
       return `<li style="padding: 6px 0; font-size: 15px; color: #333;">${escapeHtml(formatted)}</li>`;
     })
@@ -397,7 +398,7 @@ function generateTaskNudgeEmail(
   const priority = task.priority ?? 'medium';
   const priorityLabel = priority === 'high' ? '🔴 high' : priority === 'low' ? '🟢 low' : '🟡 medium';
   const dueDateStr = task.due_date
-    ? new Date(task.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+    ? new Date(task.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' })
     : null;
 
   return `<!DOCTYPE html>

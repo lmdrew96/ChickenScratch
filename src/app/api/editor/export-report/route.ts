@@ -106,7 +106,7 @@ export async function GET() {
     const csvData: (string | number)[][] = [];
 
     csvData.push(['CHICKEN SCRATCH SUBMISSIONS REPORT']);
-    csvData.push(['Generated:', new Date().toLocaleString()]);
+    csvData.push(['Generated:', new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })]);
     csvData.push([]);
     csvData.push(['SUMMARY STATISTICS']);
     csvData.push(['Total Submissions:', totalSubmissions]);
@@ -172,10 +172,10 @@ export async function GET() {
         submission.status || '',
         formatCommitteeStatus(submission.committee_status),
         submission.word_count || '',
-        createdAt ? createdAt.toLocaleDateString() : '',
-        updatedAt ? updatedAt.toLocaleDateString() : '',
+        createdAt ? createdAt.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : '',
+        updatedAt ? updatedAt.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : '',
         getDaysSince(submission.updated_at),
-        decisionDate ? decisionDate.toLocaleDateString() : '',
+        decisionDate ? decisionDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : '',
         submission.published ? 'Yes' : 'No',
         submission.published_url || '',
         submission.issue || '',

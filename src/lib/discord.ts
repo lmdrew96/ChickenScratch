@@ -71,6 +71,7 @@ function formatDueDate(dueDate: Date | null | undefined): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'America/New_York',
   });
 }
 
@@ -142,6 +143,7 @@ export async function notifyDiscordMeetingFinalized(
           year: 'numeric',
           hour: 'numeric',
           minute: '2-digit',
+          timeZone: 'America/New_York',
         }),
         inline: false,
       },
@@ -236,6 +238,7 @@ export async function notifyDiscordMeeting(
         year: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
+        timeZone: 'America/New_York',
       });
     })
     .map((d) => `• ${d}`)

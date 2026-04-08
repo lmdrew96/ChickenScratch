@@ -293,7 +293,7 @@ function generateEmailHtml(
             ${submissionDate ? `
             <tr>
               <td style="padding: 8px 0; font-weight: bold; color: #555;">Submitted:</td>
-              <td style="padding: 8px 0;">${new Date(submissionDate).toLocaleDateString()}</td>
+              <td style="padding: 8px 0;">${new Date(submissionDate).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</td>
             </tr>
             ` : ''}
             <tr>

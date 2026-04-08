@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
           <p><strong>Message:</strong></p>
           <p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>
           <hr>
-          <p><em>Submitted: ${new Date(timestamp).toLocaleString()}</em></p>
+          <p><em>Submitted: ${new Date(timestamp).toLocaleString('en-US', { timeZone: 'America/New_York' })}</em></p>
         `,
       });
     } catch (emailError) {
