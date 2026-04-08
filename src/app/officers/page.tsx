@@ -152,7 +152,7 @@ export default async function OfficersPage() {
         <div className="space-y-8">
           {/* Officer Toolkits */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
-            <OfficerToolkits />
+            <OfficerToolkits userPositions={userRole?.positions ?? undefined} />
           </div>
 
           {/* Admin Tools */}

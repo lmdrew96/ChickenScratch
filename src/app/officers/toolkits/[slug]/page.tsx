@@ -1,20 +1,53 @@
 import { notFound } from 'next/navigation';
+import { eq } from 'drizzle-orm';
 import { officerToolkits } from '@/lib/data/toolkits';
 import { requireOfficerRole } from '@/lib/auth/guards';
 import { getSiteConfigValue } from '@/lib/site-config';
+import { db } from '@/lib/db';
+import { userRoles } from '@/lib/db/schema';
+import {
+  getMyTasks,
+  getPendingSubmissions,
+  getNextMeeting,
+  getRoleStats,
+  getRecentAnnouncements,
+} from '@/lib/data/toolkit-queries';
 import PageHeader from '@/components/shell/page-header';
-import { BookOpen, CheckSquare, Clock, ExternalLink } from 'lucide-react';
+import { ToolkitDashboard } from '@/components/officers/toolkit/toolkit-dashboard';
+import { QuickActions } from '@/components/officers/toolkit/quick-actions';
+import { RecurringTimeline } from '@/components/officers/toolkit/recurring-timeline';
+import { RoleReference } from '@/components/officers/toolkit/role-reference';
 
 export default async function ToolkitPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  await requireOfficerRole(`/officers/toolkits/${slug}`);
+  const { profile } = await requireOfficerRole(`/officers/toolkits/${slug}`);
 
   const toolkit = officerToolkits.find((t) => t.slug === slug);
   if (!toolkit) {
     notFound();
   }
 
-  // Fetch all link URLs from site config
+  const database = db();
+
+  // Get the user's position from user_roles
+  const userRoleResult = await database
+    .select({ positions: userRoles.positions })
+    .from(userRoles)
+    .where(eq(userRoles.user_id, profile.id))
+    .limit(1);
+
+  const isMyRole = userRoleResult[0]?.positions?.includes(toolkit.position) ?? false;
+
+  // Fetch live data in parallel
+  const [myTasks, submissions, nextMeeting, stats, announcements] = await Promise.all([
+    getMyTasks(profile.id),
+    getPendingSubmissions(),
+    getNextMeeting(),
+    getRoleStats(slug),
+    getRecentAnnouncements(3),
+  ]);
+
+  // Resolve quick link URLs from site_config
   const linksWithUrls = await Promise.all(
     toolkit.quickLinks.map(async (link) => {
       const url = await getSiteConfigValue(link.configKey);
@@ -32,99 +65,32 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
         backButtonLabel="Back to Officers"
       />
 
-      {/* Overview */}
-      <div className="rounded-2xl border border-white/10 bg-[var(--accent)]/10 p-6">
-        <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-[var(--accent)]" />
-          Role Overview
-        </h2>
-        <p className="text-slate-300 leading-relaxed">{toolkit.overview}</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Core Responsibilities */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <CheckSquare className="h-5 w-5 text-emerald-400" />
-            Core Responsibilities
-          </h2>
-          <ul className="space-y-3">
-            {toolkit.responsibilities.map((task, i) => (
-              <li key={i} className="flex gap-3 text-slate-300">
-                <span className="text-emerald-400 mt-1">•</span>
-                <span>{task}</span>
-              </li>
-            ))}
-          </ul>
+      {isMyRole && (
+        <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-4 py-3 flex items-center gap-2">
+          <span className="text-[var(--accent)] text-sm font-semibold">&#x2726; This is your role</span>
+          <span className="text-sm text-slate-300">&mdash; your personal command center</span>
         </div>
+      )}
 
-        {/* Recurring Tasks */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-amber-400" />
-            Recurring Tasks
-          </h2>
-          <div className="space-y-4">
-            {toolkit.recurringTasks.map((recurring, i) => (
-              <div key={i} className="border-l-2 border-[var(--accent)]/30 pl-4 py-1">
-                <h3 className="font-semibold text-white text-sm uppercase tracking-wider mb-1">{recurring.cadence}</h3>
-                <p className="text-slate-300 text-sm">{recurring.tasks}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <ToolkitDashboard
+        tasks={myTasks}
+        submissions={submissions}
+        nextMeeting={nextMeeting}
+        stats={stats}
+        announcements={announcements}
+        slug={slug}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Handoff Checklist */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
-          <h2 className="text-lg font-bold text-white mb-4">Handoff Checklist</h2>
-          <p className="text-sm text-slate-400 mb-4 pb-4 border-b border-white/10">
-            For outgoing officers: ensure these items are completed before your successor takes over!
-          </p>
-          <ul className="space-y-3">
-            {toolkit.handoffChecklist.map((item, i) => (
-              <li key={i} className="flex gap-3 text-slate-300 items-start">
-                <input type="checkbox" className="mt-1 bg-white/10 border-white/20 rounded" disabled />
-                <span className="text-sm">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <QuickActions actions={toolkit.quickActions} />
 
-        {/* Quick Links */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <ExternalLink className="h-5 w-5 text-blue-400" />
-            Quick Links
-          </h2>
-          <div className="space-y-3">
-            {linksWithUrls.map((link, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
-                <span className="text-sm font-medium text-white">{link.label}</span>
-                {link.url ? (
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-semibold px-3 py-1 rounded bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
-                  >
-                    Open
-                  </a>
-                ) : (
-                  <span className="text-xs text-slate-500 italic px-3 py-1">Not configured</span>
-                )}
-              </div>
-            ))}
-            {linksWithUrls.length === 0 && (
-              <p className="text-sm text-slate-400 italic">No quick links needed for this role.</p>
-            )}
-          </div>
-          <p className="text-xs text-slate-500 mt-4 pt-4 border-t border-white/10 text-center">
-            Admins can configure these links in the Admin panel.
-          </p>
-        </div>
-      </div>
+      <RecurringTimeline tasks={toolkit.recurringTasks} />
+
+      <RoleReference
+        overview={toolkit.overview}
+        responsibilities={toolkit.responsibilities}
+        handoffChecklist={toolkit.handoffChecklist}
+        quickLinks={linksWithUrls}
+      />
     </div>
   );
 }

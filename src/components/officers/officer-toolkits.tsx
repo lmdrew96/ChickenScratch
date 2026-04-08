@@ -12,7 +12,7 @@ const iconMap: Record<string, ReactNode> = {
   'pr-chair': <Megaphone className="h-5 w-5 text-[var(--accent)]" />,
 };
 
-export function OfficerToolkits() {
+export function OfficerToolkits({ userPositions }: { userPositions?: string[] }) {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-semibold text-[var(--text)] flex items-center gap-2">
@@ -35,7 +35,14 @@ export function OfficerToolkits() {
                 {iconMap[toolkit.slug] || <BookOpen className="h-5 w-5 text-white" />}
               </div>
               <div>
-                <h3 className="font-semibold text-white">{toolkit.roleName}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-white">{toolkit.roleName}</h3>
+                  {userPositions?.includes(toolkit.position) && (
+                    <span className="text-xs font-semibold text-[var(--accent)] bg-[var(--accent)]/10 px-2 py-0.5 rounded-full">
+                      Your role
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-[var(--accent)] uppercase font-semibold">{toolkit.title}</p>
               </div>
             </div>
