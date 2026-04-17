@@ -1,5 +1,6 @@
 import { logNotificationFailure } from '@/lib/email';
 import { getDiscordWebhookUrl } from '@/lib/site-config';
+import { easternWallClockToDate } from '@/lib/utils';
 
 interface DiscordEmbed {
   title?: string;
@@ -230,7 +231,7 @@ export async function notifyDiscordMeeting(
 ): Promise<boolean> {
   const formattedDates = proposedDates
     .map((slot) => {
-      const date = new Date(`${slot.date}T${slot.time}`);
+      const date = easternWallClockToDate(slot.date, slot.time);
       return date.toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',

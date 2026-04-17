@@ -39,6 +39,32 @@ export function parseConfigDate(value: string): Date {
 }
 
 /**
+ * Interpret a naive `YYYY-MM-DD` + `HH:mm` pair as a wall-clock time in
+ * America/New_York and return the equivalent UTC Date (DST-aware).
+ *
+ * Use this on the server when you have separate date/time strings that
+ * were picked in ET and need to become a real instant. `new Date(dateStr
+ * + 'T' + timeStr)` without this helper parses as UTC on Vercel, which
+ * renders 4 hours (EDT) or 5 hours (EST) behind the intended time.
+ */
+export function easternWallClockToDate(dateStr: string, timeStr: string): Date {
+  const asIfUtc = new Date(`${dateStr}T${timeStr}:00Z`);
+  const offsetLabel = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    timeZoneName: 'shortOffset',
+  })
+    .formatToParts(asIfUtc)
+    .find((p) => p.type === 'timeZoneName')?.value ?? 'GMT-5';
+  const match = offsetLabel.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+  if (!match) return asIfUtc;
+  const sign = match[1] === '+' ? 1 : -1;
+  const hours = parseInt(match[2] ?? '0', 10);
+  const minutes = parseInt(match[3] ?? '0', 10);
+  const offsetMinutes = sign * (hours * 60 + minutes);
+  return new Date(asIfUtc.getTime() - offsetMinutes * 60_000);
+}
+
+/**
  * Format a date as `YYYY-MM-DD` in America/New_York.
  *
  * Use this instead of `date.toISOString().split('T')[0]`, which returns the
