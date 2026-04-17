@@ -16,6 +16,7 @@ import { ConfirmModal } from '@/components/ui/modal';
 import { LoadingSpinner } from '@/components/shared/loading-states';
 import { useConfirmation } from '@/hooks/use-confirmation';
 import { EDITABLE_STATUSES, SUBMISSION_STATUSES, formatStatus } from '@/lib/constants';
+import { toEasternDateString } from '@/lib/utils';
 import { getSignedDownloadUrl } from '@/lib/actions/storage';
 import type { Submission } from '@/types/database';
 import { parseImageTransform } from '@/types/image-transform';
@@ -141,7 +142,7 @@ export function EditorDashboard({
   const [assignedEditor, setAssignedEditor] = useState('');
   const [volume, setVolume] = useState<number | ''>('');
   const [issueNumber, setIssueNumber] = useState<number | ''>('');
-  const [publishDate, setPublishDate] = useState(new Date().toISOString().split('T')[0]);
+  const [publishDate, setPublishDate] = useState(toEasternDateString());
   const [publishedText, setPublishedText] = useState('');
   const [artSignedUrls, setArtSignedUrls] = useState<string[]>([]);
   const [originalArtUrl, setOriginalArtUrl] = useState<string | null>(null);
@@ -166,8 +167,8 @@ export function EditorDashboard({
     setIssueNumber(selectedSubmission.issue_number ?? '');
     setPublishDate(
       selectedSubmission.publish_date
-        ? new Date(selectedSubmission.publish_date).toISOString().split('T')[0]
-        : new Date().toISOString().split('T')[0]
+        ? toEasternDateString(selectedSubmission.publish_date)
+        : toEasternDateString()
     );
     setPublishedText('');
     setArtSignedUrls([]);

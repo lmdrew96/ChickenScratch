@@ -37,3 +37,22 @@ export function parseConfigDate(value: string): Date {
     ? new Date(`${value}T12:00:00Z`)
     : new Date(value);
 }
+
+/**
+ * Format a date as `YYYY-MM-DD` in America/New_York.
+ *
+ * Use this instead of `date.toISOString().split('T')[0]`, which returns the
+ * UTC day and is off-by-one for ET users in the evening. Accepts any value
+ * `new Date()` accepts; defaults to the current instant.
+ *
+ * `en-CA` is chosen because its short-date format is already `YYYY-MM-DD`.
+ */
+export function toEasternDateString(date: Date | string | number = new Date()): string {
+  const d = date instanceof Date ? date : new Date(date);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}

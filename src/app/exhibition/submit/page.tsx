@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/navigation';
 import { requireMemberRole } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { exhibitionConfig } from '@/lib/db/schema';
+import { parseConfigDate } from '@/lib/utils';
 import ExhibitionSubmissionForm from '@/components/exhibition/exhibition-form';
 
 async function checkSubmissionsOpen(): Promise<{ open: boolean; reason?: string }> {
@@ -17,7 +18,7 @@ async function checkSubmissionsOpen(): Promise<{ open: boolean; reason?: string 
       return { open: false, reason: 'Submissions are currently closed.' };
     }
     if (config.submission_deadline) {
-      const deadline = new Date(config.submission_deadline);
+      const deadline = parseConfigDate(config.submission_deadline);
       if (!isNaN(deadline.getTime()) && new Date() > deadline) {
         return { open: false, reason: 'The submission deadline has passed.' };
       }

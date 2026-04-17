@@ -5,6 +5,7 @@ import { desc, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { submissions, profiles } from '@/lib/db/schema';
 import { getCurrentUserRole } from '@/lib/actions/roles';
+import { toEasternDateString } from '@/lib/utils';
 import type { Submission } from '@/types/database';
 
 interface SubmissionWithAuthor extends Submission {
@@ -185,8 +186,7 @@ export async function GET() {
     // Generate CSV
     const csv = Papa.unparse(csvData);
 
-    const date = new Date().toISOString().split('T')[0];
-    const filename = `chicken-scratch-report-${date}.csv`;
+    const filename = `chicken-scratch-report-${toEasternDateString()}.csv`;
 
     return new NextResponse(csv, {
       status: 200,

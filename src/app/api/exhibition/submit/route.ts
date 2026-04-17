@@ -12,6 +12,7 @@ import {
 } from '@/lib/exhibition-email';
 import type { NewExhibitionSubmission } from '@/types/database';
 import { getCurrentUserRole } from '@/lib/actions/roles';
+import { parseConfigDate } from '@/lib/utils';
 
 const ALLOWED_ART_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'image/gif'];
 const ALLOWED_WRITING_TYPES = [
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Exhibition submissions are currently closed.' }, { status: 403 });
     }
     if (config.submission_deadline) {
-      const deadline = new Date(config.submission_deadline);
+      const deadline = parseConfigDate(config.submission_deadline);
       if (!isNaN(deadline.getTime()) && new Date() > deadline) {
         return NextResponse.json({ error: 'The submission deadline has passed.' }, { status: 403 });
       }

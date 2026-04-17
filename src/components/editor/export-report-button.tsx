@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Download } from 'lucide-react';
+import { toEasternDateString } from '@/lib/utils';
 
 export function ExportReportButton() {
   const [isExporting, setIsExporting] = useState(false);
@@ -31,7 +32,7 @@ export function ExportReportButton() {
       const contentDisposition = response.headers.get('Content-Disposition');
       const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
       const filename = filenameMatch?.[1]
-        ?? `chicken-scratch-report-${new Date().toISOString().split('T')[0]}.csv`;
+        ?? `chicken-scratch-report-${toEasternDateString()}.csv`;
 
       a.download = filename;
       document.body.appendChild(a);
