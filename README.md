@@ -13,8 +13,7 @@ Chicken Scratch is the submissions portal for the **Hen & Ink Society** — a st
 ### For the committee
 - **Submissions Coordinator** — review incoming work, approve/decline, or request changes from the author
 - **Proofreader** — edit writing submissions via linked Google Docs
-- **Lead Design** — lay out approved pieces in Canva
-- **Editor-in-Chief** — final approve/decline after design is complete; can also request changes
+- **Editor-in-Chief** — final approve/decline; can also request changes
 - Kanban-style workflow board with role-specific columns and actions
 - Automatic email notifications route submissions to the next person in the pipeline
 - New submissions notify both the Submissions Coordinator and the Editor-in-Chief
@@ -228,9 +227,9 @@ pending_coordinator → with_coordinator → coordinator_approved
                                        ↘ changes_requested (→ author revises → resubmitted)
 
 coordinator_approved → proofreader_committed (writing)
-                     → lead_design_committed (visual)
+                     → editor_approved (visual)
 
-lead_design_committed → editor_approved
+proofreader_committed → editor_approved
                       → editor_declined
                       → changes_requested
 ```

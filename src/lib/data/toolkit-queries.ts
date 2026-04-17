@@ -87,7 +87,6 @@ export async function getPendingSubmissions(): Promise<SubmissionSummary[]> {
           eq(submissions.committee_status, 'coordinator_approved'),
           eq(submissions.committee_status, 'changes_requested'),
           eq(submissions.committee_status, 'proofreader_committed'),
-          eq(submissions.committee_status, 'lead_design_committed'),
         )
       )
     )
@@ -152,7 +151,6 @@ export async function getRoleStats(slug: string): Promise<RoleStats> {
           eq(submissions.committee_status, 'coordinator_approved'),
           eq(submissions.committee_status, 'changes_requested'),
           eq(submissions.committee_status, 'proofreader_committed'),
-          eq(submissions.committee_status, 'lead_design_committed'),
         )
       )
     ),

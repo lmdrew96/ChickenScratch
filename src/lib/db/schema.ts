@@ -50,12 +50,10 @@ export const submissions = pgTable('submissions', {
   // Committee workflow fields
   committee_status: text('committee_status'),
   google_docs_link: text('google_docs_link'),
-  lead_design_commit_link: text('lead_design_commit_link'),
   committee_comments: jsonb('committee_comments').default([]),
   decline_reason: text('decline_reason'),
   coordinator_reviewed_at: timestamp('coordinator_reviewed_at', { withTimezone: true }),
   proofreader_committed_at: timestamp('proofreader_committed_at', { withTimezone: true }),
-  lead_design_committed_at: timestamp('lead_design_committed_at', { withTimezone: true }),
   editor_reviewed_at: timestamp('editor_reviewed_at', { withTimezone: true }),
 }, (table) => [
   index('submissions_owner_id_idx').on(table.owner_id),

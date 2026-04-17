@@ -89,7 +89,6 @@ export default async function OfficersPage() {
             'coordinator_approved',
             'changes_requested',
             'proofreader_committed',
-            'lead_design_committed',
           ])
         )
       )

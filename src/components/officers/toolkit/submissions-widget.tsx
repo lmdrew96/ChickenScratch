@@ -16,7 +16,6 @@ const statusLabels: Record<string, string> = {
   coordinator_approved: 'Approved',
   changes_requested: 'Changes requested',
   proofreader_committed: 'In proofreading',
-  lead_design_committed: 'In design',
 };
 
 function timeAgo(date: Date | null): string {

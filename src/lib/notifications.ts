@@ -135,7 +135,6 @@ export async function sendSubmissionNotification(
     'coordinator_approved': 'Approved by Coordinator',
     'coordinator_declined': 'Declined by Coordinator',
     'proofreader_committed': 'Proofreader Committed',
-    'lead_design_committed': 'Design Committed',
     'editor_approved': 'Approved by Editor-in-Chief',
     'editor_declined': 'Declined by Editor-in-Chief',
   };
@@ -204,10 +203,6 @@ const STATUS_LABELS: Record<string, { header: string; body: string }> = {
   'proofreader_committed': {
     header: 'Proofreader Has Committed',
     body: 'The proofreader has committed their work on a submission.',
-  },
-  'lead_design_committed': {
-    header: 'Design Has Been Committed',
-    body: 'The lead designer has committed their work on a submission.',
   },
   'editor_approved': {
     header: 'Submission Approved by Editor-in-Chief',

@@ -12,7 +12,7 @@ function isDoneForRole(role: CommitteeRole, s: Submission): boolean {
 
   switch (role) {
     case 'submissions_coordinator':
-      return cs === 'coordinator_approved' || cs === 'coordinator_declined' || cs === 'proofreader_committed' || cs === 'lead_design_committed' || cs === 'editor_approved' || cs === 'editor_declined';
+      return cs === 'coordinator_approved' || cs === 'coordinator_declined' || cs === 'proofreader_committed' || cs === 'editor_approved' || cs === 'editor_declined';
     case 'proofreader':
       return cs === 'proofreader_committed' || cs === 'editor_approved' || cs === 'editor_declined';
     case 'editor_in_chief':
@@ -139,7 +139,7 @@ function getActionsForRole(role: CommitteeRole, s: Submission): {
     }
 
     // Final decision stage
-    if (cs === 'lead_design_committed' || cs === 'proofreader_committed' || (cs === 'coordinator_approved' && s.type === 'visual')) {
+    if (cs === 'proofreader_committed' || (cs === 'coordinator_approved' && s.type === 'visual')) {
       const approve: InboxAction = { id: 'final_approve', label: 'Final approve', variant: 'success', workflowAction: 'final_approve' };
       const requestChanges: InboxAction = { id: 'request_changes', label: 'Request changes', variant: 'warning', workflowAction: 'request_changes', requiresComment: true };
       const decline: InboxAction = { id: 'final_decline', label: 'Final decline', variant: 'danger', workflowAction: 'final_decline', requiresComment: true };

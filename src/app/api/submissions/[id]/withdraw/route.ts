@@ -49,12 +49,10 @@ export async function POST(
       // Remove from committee workflow
       committee_status: null,
       google_docs_link: null,
-      lead_design_commit_link: null,
       committee_comments: [],
       decline_reason: null,
       coordinator_reviewed_at: null,
       proofreader_committed_at: null,
-      lead_design_committed_at: null,
       editor_reviewed_at: null,
     })
     .where(eq(submissions.id, id));

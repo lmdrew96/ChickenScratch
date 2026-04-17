@@ -75,8 +75,6 @@ export function SubmissionsListWithDelete({
       coordinator_declined: 'bg-rose-900/60 text-rose-100 border-rose-500/70',
       with_proofreader: 'bg-purple-900/60 text-purple-100 border-purple-500/70',
       proofreader_committed: 'bg-indigo-900/60 text-indigo-100 border-indigo-500/70',
-      with_lead_design: 'bg-pink-900/60 text-pink-100 border-pink-500/70',
-      lead_design_committed: 'bg-cyan-900/60 text-cyan-100 border-cyan-500/70',
       with_editor_in_chief: 'bg-amber-900/60 text-amber-100 border-amber-500/70',
       published: 'bg-green-900/60 text-green-100 border-green-500/70',
     };

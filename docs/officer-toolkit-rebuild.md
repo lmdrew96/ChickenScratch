@@ -84,7 +84,6 @@ Query `submissions` where `status != 'withdrawn'` and `committee_status` is in t
 - `'coordinator_approved'`
 - `'changes_requested'`
 - `'proofreader_committed'`
-- `'lead_design_committed'`
 - `NULL` (newly submitted, not yet in committee flow)
 
 Return the first 10, ordered by `created_at DESC`.
