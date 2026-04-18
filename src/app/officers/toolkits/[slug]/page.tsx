@@ -18,8 +18,10 @@ import { QuickActions } from '@/components/officers/toolkit/quick-actions';
 import { StatefulRecurringTasks } from '@/components/officers/toolkit/stateful-recurring-tasks';
 import { RoleReference } from '@/components/officers/toolkit/role-reference';
 import { CycleHeader } from '@/components/officers/toolkit/cycle-header';
+import { ReimbursementPipeline } from '@/components/officers/toolkit/treasurer/reimbursement-pipeline';
 import { getCompletedTaskIds } from '@/lib/actions/recurring-tasks';
 import { getIssueCycleState } from '@/lib/data/issue-cycle';
+import { getOpenReimbursements } from '@/lib/data/reimbursement-queries';
 
 export default async function ToolkitPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -66,6 +68,9 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
   const completedSet = await getCompletedTaskIds(profile.id, allTaskIds);
   const completedIds = Array.from(completedSet);
 
+  // Treasurer-specific: reimbursement pipeline data
+  const reimbursements = slug === 'treasurer' ? await getOpenReimbursements() : [];
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -95,6 +100,8 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
       />
 
       <QuickActions actions={toolkit.quickActions} />
+
+      {slug === 'treasurer' && <ReimbursementPipeline initial={reimbursements} />}
 
       <StatefulRecurringTasks groups={toolkit.recurringTasks} completedIds={completedIds} />
 

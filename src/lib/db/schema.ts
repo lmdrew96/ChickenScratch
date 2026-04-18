@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, integer, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, boolean, integer, numeric, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
 
 export const profiles = pgTable('profiles', {
   id: uuid('id').primaryKey(),
@@ -241,6 +241,22 @@ export const notifications = pgTable('notifications', {
 }, (table) => [
   index('notifications_recipient_id_idx').on(table.recipient_id),
 ]);
+
+export const reimbursements = pgTable('reimbursements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  description: text('description').notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  receipt_date: timestamp('receipt_date', { withTimezone: true }),
+  submitted_at: timestamp('submitted_at', { withTimezone: true }).defaultNow().notNull(),
+  approved_at: timestamp('approved_at', { withTimezone: true }),
+  check_received_at: timestamp('check_received_at', { withTimezone: true }),
+  check_number: text('check_number'),
+  ledgered_at: timestamp('ledgered_at', { withTimezone: true }),
+  ledger_entry_id: uuid('ledger_entry_id'),
+  notes: text('notes'),
+  created_by: uuid('created_by').notNull().references(() => profiles.id),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const recurringTaskCompletions = pgTable('recurring_task_completions', {
   id: uuid('id').primaryKey().defaultRandom(),
