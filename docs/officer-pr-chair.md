@@ -1,6 +1,8 @@
 # Hen & Ink Society — Public Relations Chair (PR Nightmare)
 
 > **Purpose of this doc:** Reference guide for the PR Chair role, combining constitutional duties, brand standards, and the existing content playbook. For Cody (Claude Code) to use when helping with PR-related work.
+>
+> **Canonical copy for officers:** split across two SOPs in the app — `/officers/toolkits/pr-chair/sops/role-reference` and `/sops/brand-standards`. The DB copy is seeded from this file via `drizzle/0027_reseed_sop_articles.sql`; updates here don't auto-sync — re-apply the migration or edit the SOPs in-app.
 
 ---
 

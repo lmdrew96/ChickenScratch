@@ -1,6 +1,8 @@
 # Hen & Ink Society — President (BBEG)
 
 > **Purpose of this doc:** Reference guide for the President role, combining constitutional duties with operational realities. For Cody (Claude Code) to use when helping with President-related work.
+>
+> **Canonical copy for officers:** `/officers/toolkits/president/sops/role-reference` in the app. The DB copy is seeded from this file via `drizzle/0027_reseed_sop_articles.sql`; updates here don't auto-sync — re-apply the migration or edit the SOP in-app.
 
 ---
 

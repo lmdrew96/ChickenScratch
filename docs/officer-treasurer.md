@@ -1,6 +1,8 @@
 # Hen & Ink Society — Treasurer (Dictator-in-Chief)
 
 > **Purpose of this doc:** Reference guide for the Treasurer role, combining constitutional duties with operational realities, UD contacts, and financial workflows. For Cody (Claude Code) to use when helping with Treasurer-related work.
+>
+> **Canonical copy for officers:** split across three SOPs in the app — `/officers/toolkits/treasurer/sops/role-reference`, `/sops/ud-contacts`, `/sops/financial-workflows`. The DB copy is seeded from this file via `drizzle/0027_reseed_sop_articles.sql`; updates here don't auto-sync — re-apply the migration or edit the SOPs in-app.
 
 ---
 
