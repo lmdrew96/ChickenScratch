@@ -21,10 +21,12 @@ import { CycleHeader } from '@/components/officers/toolkit/cycle-header';
 import { ReimbursementPipeline } from '@/components/officers/toolkit/treasurer/reimbursement-pipeline';
 import { LedgerEntryForm } from '@/components/officers/toolkit/treasurer/ledger-entry-form';
 import { GobTracker } from '@/components/officers/toolkit/treasurer/gob-tracker';
+import { ComplianceAlerts } from '@/components/officers/toolkit/treasurer/compliance-alerts';
 import { getCompletedTaskIds } from '@/lib/actions/recurring-tasks';
 import { getIssueCycleState } from '@/lib/data/issue-cycle';
 import { getOpenReimbursements } from '@/lib/data/reimbursement-queries';
 import { getRecentLedgerEntries, getGobSummary, getUpcomingExpenses } from '@/lib/data/ledger-queries';
+import { getReceiptAgingAlerts, getCashDepositAlerts } from '@/lib/data/compliance';
 
 export default async function ToolkitPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -73,14 +75,16 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
 
   // Treasurer-specific widgets
   const isTreasurer = slug === 'treasurer';
-  const [reimbursements, recentLedger, gobSummary, upcoming] = isTreasurer
+  const [reimbursements, recentLedger, gobSummary, upcoming, receiptAlerts, cashAlerts] = isTreasurer
     ? await Promise.all([
         getOpenReimbursements(),
         getRecentLedgerEntries(20),
         getGobSummary(),
         getUpcomingExpenses(),
+        getReceiptAgingAlerts(),
+        getCashDepositAlerts(),
       ])
-    : [[], [], null, []];
+    : [[], [], null, [], [], []];
 
   return (
     <div className="space-y-8">
@@ -114,6 +118,7 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
 
       {isTreasurer && gobSummary && (
         <>
+          <ComplianceAlerts receiptAlerts={receiptAlerts} cashAlerts={cashAlerts} />
           <GobTracker summary={gobSummary} upcoming={upcoming} />
           <ReimbursementPipeline initial={reimbursements} />
           <LedgerEntryForm recent={recentLedger} />
