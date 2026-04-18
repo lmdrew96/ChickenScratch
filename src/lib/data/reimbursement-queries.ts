@@ -1,33 +1,10 @@
 import { desc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { reimbursements } from '@/lib/db/schema';
+import type { ReimbursementRow } from './reimbursement-types';
 
-export type ReimbursementRow = {
-  id: string;
-  description: string;
-  amount: string;
-  receipt_date: Date | null;
-  submitted_at: Date;
-  approved_at: Date | null;
-  check_received_at: Date | null;
-  check_number: string | null;
-  ledgered_at: Date | null;
-  notes: string | null;
-  created_at: Date;
-};
-
-export type ReimbursementStage = 'submitted' | 'approved' | 'check_received' | 'ledgered';
-
-export function currentStage(r: ReimbursementRow): ReimbursementStage {
-  if (r.ledgered_at) return 'ledgered';
-  if (r.check_received_at) return 'check_received';
-  if (r.approved_at) return 'approved';
-  return 'submitted';
-}
-
-export function stageTransitionDate(r: ReimbursementRow): Date {
-  return r.ledgered_at ?? r.check_received_at ?? r.approved_at ?? r.submitted_at;
-}
+export type { ReimbursementRow, ReimbursementStage } from './reimbursement-types';
+export { currentStage, stageTransitionDate } from './reimbursement-types';
 
 export async function getOpenReimbursements(): Promise<ReimbursementRow[]> {
   const rows = await db()

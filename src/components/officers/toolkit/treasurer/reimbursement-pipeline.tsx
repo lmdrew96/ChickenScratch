@@ -6,10 +6,9 @@ import {
   createReimbursement,
   advanceReimbursementStage,
   deleteReimbursement,
-  type ReimbursementStage,
 } from '@/lib/actions/reimbursements';
-import type { ReimbursementRow } from '@/lib/data/reimbursement-queries';
-import { currentStage, stageTransitionDate } from '@/lib/data/reimbursement-queries';
+import type { ReimbursementRow, ReimbursementStage } from '@/lib/data/reimbursement-types';
+import { currentStage, stageTransitionDate } from '@/lib/data/reimbursement-types';
 
 const STAGES: { key: ReimbursementStage; label: string }[] = [
   { key: 'submitted', label: 'Submitted' },
