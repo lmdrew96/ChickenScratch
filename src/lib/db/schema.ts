@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, integer, numeric, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, boolean, integer, numeric, timestamp, jsonb, index, unique } from 'drizzle-orm/pg-core';
 
 export const profiles = pgTable('profiles', {
   id: uuid('id').primaryKey(),
@@ -304,6 +304,7 @@ export const meetingAttendance = pgTable('meeting_attendance', {
 }, (table) => [
   index('meeting_attendance_meeting_id_idx').on(table.meeting_id),
   index('meeting_attendance_member_id_idx').on(table.member_id),
+  unique('meeting_attendance_meeting_member_key').on(table.meeting_id, table.member_id),
 ]);
 
 export const sopArticles = pgTable('sop_articles', {
@@ -319,6 +320,7 @@ export const sopArticles = pgTable('sop_articles', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index('sop_articles_role_slug_idx').on(table.role_slug),
+  unique('sop_articles_role_slug_slug_key').on(table.role_slug, table.slug),
 ]);
 
 export const upcomingExpenses = pgTable('upcoming_expenses', {
@@ -362,6 +364,7 @@ export const recurringTaskCompletions = pgTable('recurring_task_completions', {
   completed_at: timestamp('completed_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index('recurring_task_completions_user_cycle_idx').on(table.user_id, table.cycle_key),
+  unique('recurring_task_completions_user_task_cycle_key').on(table.user_id, table.task_id, table.cycle_key),
 ]);
 
 export const comments = pgTable('comments', {
