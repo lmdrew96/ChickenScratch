@@ -72,6 +72,50 @@ export async function createLedgerEntry(input: {
   }
 }
 
+export async function updateLedgerEntry(input: {
+  id: string;
+  entry_type: LedgerEntryType;
+  amount: number;
+  description?: string;
+  category?: string;
+  entry_date?: string;
+  payment_method?: PaymentMethod;
+  purpose_code?: string;
+  is_out_of_pocket?: boolean;
+  counts_toward_gob?: boolean;
+  notes?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const guard = await ensureTreasurerOrAdmin();
+    if ('error' in guard) return { ok: false, error: guard.error };
+    if (!Number.isFinite(input.amount) || input.amount <= 0) {
+      return { ok: false, error: 'Amount must be > 0' };
+    }
+    if (!['expense', 'income', 'donation'].includes(input.entry_type)) {
+      return { ok: false, error: 'Invalid entry type' };
+    }
+    await db()
+      .update(ledgerEntries)
+      .set({
+        entry_type: input.entry_type,
+        amount: input.amount.toFixed(2),
+        description: input.description?.trim() || null,
+        category: input.category?.trim() || null,
+        entry_date: input.entry_date ? new Date(input.entry_date) : undefined,
+        payment_method: input.payment_method ?? null,
+        purpose_code: input.purpose_code?.trim() || null,
+        is_out_of_pocket: input.is_out_of_pocket ?? false,
+        counts_toward_gob: input.counts_toward_gob ?? true,
+        notes: input.notes?.trim() || null,
+      })
+      .where(eq(ledgerEntries.id, input.id));
+    revalidateTreasurer();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Update failed' };
+  }
+}
+
 export async function markCashDonationDeposited(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const guard = await ensureTreasurerOrAdmin();
