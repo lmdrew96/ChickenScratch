@@ -258,6 +258,18 @@ export const reimbursements = pgTable('reimbursements', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const upcomingExpenses = pgTable('upcoming_expenses', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  description: text('description').notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  expected_date: timestamp('expected_date', { withTimezone: true }),
+  counts_toward_gob: boolean('counts_toward_gob').default(true).notNull(),
+  notes: text('notes'),
+  resolved_at: timestamp('resolved_at', { withTimezone: true }),
+  created_by: uuid('created_by').notNull().references(() => profiles.id),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const ledgerEntries = pgTable('ledger_entries', {
   id: uuid('id').primaryKey().defaultRandom(),
   entry_type: text('entry_type').notNull(),

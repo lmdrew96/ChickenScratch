@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { ledgerEntries } from '@/lib/db/schema';
+import { ledgerEntries, upcomingExpenses } from '@/lib/db/schema';
+import { getSiteConfigValue } from '@/lib/site-config';
 
 export type LedgerEntryRow = {
   id: string;
@@ -37,7 +38,15 @@ export type GobSummary = {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-export async function getGobSummary(budgetDollars = 400, now: Date = new Date()): Promise<GobSummary> {
+export async function getConfiguredGobBudget(defaultDollars = 400): Promise<number> {
+  const raw = await getSiteConfigValue('gob_budget_dollars');
+  if (!raw) return defaultDollars;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultDollars;
+}
+
+export async function getGobSummary(budgetDollars?: number, now: Date = new Date()): Promise<GobSummary> {
+  if (budgetDollars == null) budgetDollars = await getConfiguredGobBudget();
   const month = now.getMonth();
   const year = now.getFullYear();
   // Fiscal year: Hen & Ink operates on the academic year. Start Aug 1 of the current or previous calendar year.
@@ -57,6 +66,33 @@ export async function getGobSummary(budgetDollars = 400, now: Date = new Date())
   const remainingCents = budgetCents - spentCents;
   const pct = budgetCents > 0 ? Math.min(100, Math.max(0, (spentCents / budgetCents) * 100)) : 0;
   return { budgetCents, spentCents, remainingCents, pct };
+}
+
+export type UpcomingExpenseRow = {
+  id: string;
+  description: string;
+  amount: string;
+  expected_date: Date | null;
+  counts_toward_gob: boolean;
+  notes: string | null;
+  created_at: Date;
+};
+
+export async function getUpcomingExpenses(): Promise<UpcomingExpenseRow[]> {
+  const rows = await db()
+    .select()
+    .from(upcomingExpenses)
+    .where(isNull(upcomingExpenses.resolved_at))
+    .orderBy(sql`${upcomingExpenses.expected_date} ASC NULLS LAST`);
+  return rows.map((r) => ({
+    id: r.id,
+    description: r.description,
+    amount: r.amount,
+    expected_date: r.expected_date,
+    counts_toward_gob: r.counts_toward_gob,
+    notes: r.notes,
+    created_at: r.created_at,
+  }));
 }
 
 export type OpenCashDonation = {

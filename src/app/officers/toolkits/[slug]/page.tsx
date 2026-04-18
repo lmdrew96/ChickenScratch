@@ -20,10 +20,11 @@ import { RoleReference } from '@/components/officers/toolkit/role-reference';
 import { CycleHeader } from '@/components/officers/toolkit/cycle-header';
 import { ReimbursementPipeline } from '@/components/officers/toolkit/treasurer/reimbursement-pipeline';
 import { LedgerEntryForm } from '@/components/officers/toolkit/treasurer/ledger-entry-form';
+import { GobTracker } from '@/components/officers/toolkit/treasurer/gob-tracker';
 import { getCompletedTaskIds } from '@/lib/actions/recurring-tasks';
 import { getIssueCycleState } from '@/lib/data/issue-cycle';
 import { getOpenReimbursements } from '@/lib/data/reimbursement-queries';
-import { getRecentLedgerEntries } from '@/lib/data/ledger-queries';
+import { getRecentLedgerEntries, getGobSummary, getUpcomingExpenses } from '@/lib/data/ledger-queries';
 
 export default async function ToolkitPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -71,10 +72,15 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
   const completedIds = Array.from(completedSet);
 
   // Treasurer-specific widgets
-  const [reimbursements, recentLedger] =
-    slug === 'treasurer'
-      ? await Promise.all([getOpenReimbursements(), getRecentLedgerEntries(20)])
-      : [[], []];
+  const isTreasurer = slug === 'treasurer';
+  const [reimbursements, recentLedger, gobSummary, upcoming] = isTreasurer
+    ? await Promise.all([
+        getOpenReimbursements(),
+        getRecentLedgerEntries(20),
+        getGobSummary(),
+        getUpcomingExpenses(),
+      ])
+    : [[], [], null, []];
 
   return (
     <div className="space-y-8">
@@ -106,8 +112,9 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
 
       <QuickActions actions={toolkit.quickActions} />
 
-      {slug === 'treasurer' && (
+      {isTreasurer && gobSummary && (
         <>
+          <GobTracker summary={gobSummary} upcoming={upcoming} />
           <ReimbursementPipeline initial={reimbursements} />
           <LedgerEntryForm recent={recentLedger} />
         </>
