@@ -19,9 +19,11 @@ import { StatefulRecurringTasks } from '@/components/officers/toolkit/stateful-r
 import { RoleReference } from '@/components/officers/toolkit/role-reference';
 import { CycleHeader } from '@/components/officers/toolkit/cycle-header';
 import { ReimbursementPipeline } from '@/components/officers/toolkit/treasurer/reimbursement-pipeline';
+import { LedgerEntryForm } from '@/components/officers/toolkit/treasurer/ledger-entry-form';
 import { getCompletedTaskIds } from '@/lib/actions/recurring-tasks';
 import { getIssueCycleState } from '@/lib/data/issue-cycle';
 import { getOpenReimbursements } from '@/lib/data/reimbursement-queries';
+import { getRecentLedgerEntries } from '@/lib/data/ledger-queries';
 
 export default async function ToolkitPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -68,8 +70,11 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
   const completedSet = await getCompletedTaskIds(profile.id, allTaskIds);
   const completedIds = Array.from(completedSet);
 
-  // Treasurer-specific: reimbursement pipeline data
-  const reimbursements = slug === 'treasurer' ? await getOpenReimbursements() : [];
+  // Treasurer-specific widgets
+  const [reimbursements, recentLedger] =
+    slug === 'treasurer'
+      ? await Promise.all([getOpenReimbursements(), getRecentLedgerEntries(20)])
+      : [[], []];
 
   return (
     <div className="space-y-8">
@@ -101,7 +106,12 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
 
       <QuickActions actions={toolkit.quickActions} />
 
-      {slug === 'treasurer' && <ReimbursementPipeline initial={reimbursements} />}
+      {slug === 'treasurer' && (
+        <>
+          <ReimbursementPipeline initial={reimbursements} />
+          <LedgerEntryForm recent={recentLedger} />
+        </>
+      )}
 
       <StatefulRecurringTasks groups={toolkit.recurringTasks} completedIds={completedIds} />
 

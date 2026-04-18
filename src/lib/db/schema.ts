@@ -258,6 +258,27 @@ export const reimbursements = pgTable('reimbursements', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const ledgerEntries = pgTable('ledger_entries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  entry_type: text('entry_type').notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  category: text('category'),
+  description: text('description'),
+  entry_date: timestamp('entry_date', { withTimezone: true }).defaultNow().notNull(),
+  payment_method: text('payment_method'),
+  purpose_code: text('purpose_code'),
+  is_out_of_pocket: boolean('is_out_of_pocket').default(false).notNull(),
+  counts_toward_gob: boolean('counts_toward_gob').default(true).notNull(),
+  deposited_at: timestamp('deposited_at', { withTimezone: true }),
+  reimbursement_id: uuid('reimbursement_id').references(() => reimbursements.id, { onDelete: 'set null' }),
+  notes: text('notes'),
+  created_by: uuid('created_by').notNull().references(() => profiles.id),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('ledger_entries_entry_date_idx').on(table.entry_date),
+  index('ledger_entries_type_idx').on(table.entry_type),
+]);
+
 export const recurringTaskCompletions = pgTable('recurring_task_completions', {
   id: uuid('id').primaryKey().defaultRandom(),
   user_id: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
