@@ -25,8 +25,8 @@ export function SopTeaser({ roleSlug, recent }: Props) {
       </div>
       {recent.length === 0 ? (
         <p className="text-sm text-slate-400">
-          This library is empty. Capture institutional knowledge here so your successor doesn't
-          have to email the advisor at midnight.
+          This library is empty. Capture institutional knowledge here so your successor
+          doesn&apos;t have to email the advisor at midnight.
         </p>
       ) : (
         <ul className="space-y-1.5">

@@ -25,7 +25,7 @@ function Accordion({
       className="group rounded-xl border border-white/10 bg-white/5 overflow-hidden"
       open={defaultOpen}
     >
-      <summary className="px-4 py-3 cursor-pointer font-semibold text-white hover:bg-white/10 transition-colors flex items-center justify-between list-none">
+      <summary className="px-4 py-3 cursor-pointer font-semibold text-white hover:bg-white/10 transition-colors flex items-center justify-between list-none min-h-[44px]">
         <span>{title}</span>
         <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180 text-slate-400" />
       </summary>
@@ -36,7 +36,7 @@ function Accordion({
 
 export function RoleReference({ overview, responsibilities, handoffChecklist, quickLinks, isAdmin }: RoleReferenceProps) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 shadow-lg">
       <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
         <BookOpen className="h-5 w-5 text-[var(--accent)]" />
         Role Reference

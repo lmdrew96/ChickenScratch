@@ -2,12 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Megaphone, Plus, Trash2 } from 'lucide-react';
-import {
-  upsertPrPost,
-  transitionPrPostStatus,
-  deletePrPost,
-} from '@/lib/actions/pr-posts';
+import { Megaphone, Trash2 } from 'lucide-react';
+import { upsertPrPost, deletePrPost } from '@/lib/actions/pr-posts';
 import type { PrPostRow, PrPostStatus } from '@/lib/data/pr-post-queries';
 
 const TEMPLATES = [
@@ -149,13 +145,6 @@ export function ContentCalendar({ slots, posts }: Props) {
       }
       setEditingSlot(null);
       setEditingId(null);
-      router.refresh();
-    });
-  };
-
-  const transition = (id: string, status: PrPostStatus) => {
-    startTransition(async () => {
-      await transitionPrPostStatus({ id, status });
       router.refresh();
     });
   };

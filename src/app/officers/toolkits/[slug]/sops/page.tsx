@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { BookOpen, FileText, Plus } from 'lucide-react';
+import { BookOpen, FileText } from 'lucide-react';
 
 import PageHeader from '@/components/shell/page-header';
 import { officerToolkits } from '@/lib/data/toolkits';

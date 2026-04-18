@@ -114,7 +114,7 @@ export function GobTracker({ summary, upcoming }: Props) {
       </div>
 
       <p className="mt-3 text-xs text-slate-400">
-        Academic year-to-date, expense entries marked "counts toward $400 GOB."
+        Academic year-to-date, expense entries marked &quot;counts toward $400 GOB.&quot;
       </p>
 
       {upcoming.length > 0 && (
