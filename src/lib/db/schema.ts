@@ -258,6 +258,25 @@ export const reimbursements = pgTable('reimbursements', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const meetingAgendas = pgTable('meeting_agendas', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meeting_id: uuid('meeting_id').notNull().unique().references(() => meetingProposals.id, { onDelete: 'cascade' }),
+  draft_md: text('draft_md').default('').notNull(),
+  finalized_at: timestamp('finalized_at', { withTimezone: true }),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_by: uuid('updated_by').references(() => profiles.id),
+});
+
+export const creativePrompts = pgTable('creative_prompts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  text: text('text').notNull(),
+  tags: text('tags').array().default([]),
+  first_used_at: timestamp('first_used_at', { withTimezone: true }),
+  last_used_at: timestamp('last_used_at', { withTimezone: true }),
+  created_by: uuid('created_by').notNull().references(() => profiles.id),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const prPosts = pgTable('pr_posts', {
   id: uuid('id').primaryKey().defaultRandom(),
   scheduled_for: timestamp('scheduled_for', { withTimezone: true }).notNull(),

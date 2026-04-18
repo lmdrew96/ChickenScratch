@@ -15,6 +15,9 @@ import { SopTeaser } from '@/components/officers/toolkit/sops/sop-teaser';
 import { AttendanceTaker } from '@/components/officers/toolkit/secretary/attendance-taker';
 import { ContentCalendar } from '@/components/officers/toolkit/pr/content-calendar';
 import { buildCalendarSlots, getPrPostsForRange } from '@/lib/data/pr-post-queries';
+import { AgendaBuilder } from '@/components/officers/toolkit/president/agenda-builder';
+import { PromptArchive } from '@/components/officers/toolkit/president/prompt-archive';
+import { getNextMeetingAgenda, listCreativePrompts } from '@/lib/data/agenda-queries';
 import {
   getMeetingsInAttendanceWindow,
   getActiveMembers,
@@ -93,6 +96,12 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
     for (const [id, records] of pairs) initialAttendance[id] = records;
   }
 
+  // President-specific widgets
+  const isPresident = slug === 'president';
+  const [nextAgenda, prompts] = isPresident
+    ? await Promise.all([getNextMeetingAgenda(), listCreativePrompts()])
+    : [null, []];
+
   // PR-specific widgets
   const isPr = slug === 'pr-chair';
   let prSlots: string[] = [];
@@ -151,6 +160,13 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
       )}
 
       {isPr && <ContentCalendar slots={prSlots} posts={prPostsRows} />}
+
+      {isPresident && (
+        <>
+          {nextAgenda && <AgendaBuilder meeting={nextAgenda} />}
+          <PromptArchive prompts={prompts} />
+        </>
+      )}
 
       {isTreasurer && gobSummary && (
         <>
