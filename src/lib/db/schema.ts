@@ -258,6 +258,21 @@ export const reimbursements = pgTable('reimbursements', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const sopArticles = pgTable('sop_articles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  role_slug: text('role_slug').notNull(),
+  slug: text('slug').notNull(),
+  title: text('title').notNull(),
+  body_md: text('body_md').default('').notNull(),
+  tags: text('tags').array().default([]),
+  is_draft: boolean('is_draft').default(false).notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_by: uuid('updated_by').references(() => profiles.id),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('sop_articles_role_slug_idx').on(table.role_slug),
+]);
+
 export const upcomingExpenses = pgTable('upcoming_expenses', {
   id: uuid('id').primaryKey().defaultRandom(),
   description: text('description').notNull(),

@@ -11,7 +11,9 @@ import { StatefulRecurringTasks } from '@/components/officers/toolkit/stateful-r
 import { RoleReference } from '@/components/officers/toolkit/role-reference';
 import { CycleHeader } from '@/components/officers/toolkit/cycle-header';
 import { ThisWeekCard } from '@/components/officers/toolkit/this-week-card';
+import { SopTeaser } from '@/components/officers/toolkit/sops/sop-teaser';
 import { getThisWeek } from '@/lib/data/this-week';
+import { listSopsForRole } from '@/lib/data/sop-queries';
 import { ReimbursementPipeline } from '@/components/officers/toolkit/treasurer/reimbursement-pipeline';
 import { LedgerEntryForm } from '@/components/officers/toolkit/treasurer/ledger-entry-form';
 import { GobTracker } from '@/components/officers/toolkit/treasurer/gob-tracker';
@@ -45,9 +47,10 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
   const isAdmin = userRoleResult[0]?.positions?.some((p: string) => adminPositions.includes(p)) ?? false;
 
   // Fetch live data in parallel
-  const [cycleState, thisWeek] = await Promise.all([
+  const [cycleState, thisWeek, sopArticles] = await Promise.all([
     getIssueCycleState(),
     getThisWeek(profile.id, slug),
+    listSopsForRole(slug),
   ]);
 
   // Resolve quick link URLs from site_config
@@ -109,6 +112,8 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
       )}
 
       <StatefulRecurringTasks groups={toolkit.recurringTasks} completedIds={completedIds} />
+
+      <SopTeaser roleSlug={slug} recent={sopArticles} />
 
       <RoleReference
         overview={toolkit.overview}
