@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { ledgerEntries, upcomingExpenses } from '@/lib/db/schema';
 import { getSiteConfigValue } from '@/lib/site-config';
@@ -30,10 +30,12 @@ export async function getRecentLedgerEntries(limit = 20): Promise<LedgerEntryRow
 }
 
 export type GobSummary = {
-  budgetCents: number;
+  budgetCents: number;        // base allocation from allocation board
+  donationsCents: number;     // donations + income that landed in the GOB account
+  availableCents: number;     // budget + donations — effective ceiling
   spentCents: number;
-  remainingCents: number;
-  pct: number;
+  remainingCents: number;     // available - spent
+  pct: number;                // spent / available
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -51,21 +53,39 @@ export async function getGobSummary(budgetDollars?: number, now: Date = new Date
   const year = now.getFullYear();
   // Fiscal year: Hen & Ink operates on the academic year. Start Aug 1 of the current or previous calendar year.
   const fyStart = month >= 7 ? new Date(year, 7, 1) : new Date(year - 1, 7, 1);
-  const rows = await db()
-    .select({ total: sql<string>`COALESCE(SUM(${ledgerEntries.amount}), '0')::text` })
-    .from(ledgerEntries)
-    .where(
-      and(
-        eq(ledgerEntries.entry_type, 'expense'),
-        eq(ledgerEntries.counts_toward_gob, true),
-        gte(ledgerEntries.entry_date, fyStart),
+
+  // Donations and other income land in the same UD account as the GOB, so they
+  // extend the effective ceiling. Expense entries draw from the combined pot.
+  const [spentRows, addedRows] = await Promise.all([
+    db()
+      .select({ total: sql<string>`COALESCE(SUM(${ledgerEntries.amount}), '0')::text` })
+      .from(ledgerEntries)
+      .where(
+        and(
+          eq(ledgerEntries.entry_type, 'expense'),
+          eq(ledgerEntries.counts_toward_gob, true),
+          gte(ledgerEntries.entry_date, fyStart),
+        ),
       ),
-    );
-  const spentCents = Math.round(Number(rows[0]?.total ?? 0) * 100);
+    db()
+      .select({ total: sql<string>`COALESCE(SUM(${ledgerEntries.amount}), '0')::text` })
+      .from(ledgerEntries)
+      .where(
+        and(
+          inArray(ledgerEntries.entry_type, ['donation', 'income']),
+          eq(ledgerEntries.counts_toward_gob, true),
+          gte(ledgerEntries.entry_date, fyStart),
+        ),
+      ),
+  ]);
+
+  const spentCents = Math.round(Number(spentRows[0]?.total ?? 0) * 100);
+  const donationsCents = Math.round(Number(addedRows[0]?.total ?? 0) * 100);
   const budgetCents = Math.round(budgetDollars * 100);
-  const remainingCents = budgetCents - spentCents;
-  const pct = budgetCents > 0 ? Math.min(100, Math.max(0, (spentCents / budgetCents) * 100)) : 0;
-  return { budgetCents, spentCents, remainingCents, pct };
+  const availableCents = budgetCents + donationsCents;
+  const remainingCents = availableCents - spentCents;
+  const pct = availableCents > 0 ? Math.min(100, Math.max(0, (spentCents / availableCents) * 100)) : 0;
+  return { budgetCents, donationsCents, availableCents, spentCents, remainingCents, pct };
 }
 
 export type UpcomingExpenseRow = {

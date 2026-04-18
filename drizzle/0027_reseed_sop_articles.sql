@@ -506,6 +506,8 @@ Applies to any out-of-pocket expense where you paid and need reimbursement — n
 
 > **24-hour deposit rule:** Any cash donations received must be deposited within 24 hours. No exceptions.
 
+> **Account:** Cash donations deposit into **the same UD account as the GOB.** In the GOB tracker this means donations extend the effective ceiling — a $400 GOB with $60 in donations reads as $460 available.
+
 Workflow:
 
 1. At the meeting, record the cash donation in the Ledger Entry form with **payment method = Cash**.

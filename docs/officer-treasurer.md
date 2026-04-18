@@ -114,6 +114,8 @@ The Treasurer is the primary financial liaison between Hen & Ink and the Univers
 
 > **24-hour deposit rule:** Any cash donations received must be deposited within 24 hours. No exceptions.
 
+> **Account:** Cash donations deposit into **the same UD account as the GOB**, so they extend the effective GOB ceiling (the treasurer toolkit's GOB tracker accounts for this automatically).
+
 ### 5. Travel Expenses
 
 - Routine travel: standard reimbursement flow

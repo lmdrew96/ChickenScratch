@@ -104,7 +104,7 @@ export function GobTracker({ summary, upcoming }: Props) {
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 text-sm">
         <span className="text-slate-200 font-semibold">
           {dollars(summary.spentCents)} <span className="text-slate-500">of</span>{' '}
-          {dollars(summary.budgetCents)}
+          {dollars(summary.availableCents)}
         </span>
         <span className="text-slate-400 text-xs">
           {dollars(summary.remainingCents)} remaining
@@ -115,7 +115,14 @@ export function GobTracker({ summary, upcoming }: Props) {
       </div>
 
       <p className="mt-3 text-xs text-slate-400">
-        Academic year-to-date, expense entries marked &quot;counts toward $400 GOB.&quot;
+        Base allocation {dollars(summary.budgetCents)}
+        {summary.donationsCents > 0 && (
+          <>
+            {' '}
+            <span className="text-emerald-300">+ {dollars(summary.donationsCents)} in donations/income</span>
+          </>
+        )}{' '}
+        · academic year-to-date. Cash donations deposit into the same UD account, so they extend the effective ceiling.
       </p>
 
       {upcoming.length > 0 && (

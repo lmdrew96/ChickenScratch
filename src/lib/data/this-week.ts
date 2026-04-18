@@ -182,7 +182,7 @@ async function getTreasurerItems(userId: string): Promise<ThisWeekItem[]> {
     items.push({
       id: 'gob-budget',
       icon: '💰',
-      title: `$${(gob.remainingCents / 100).toFixed(2)} of $${(gob.budgetCents / 100).toFixed(0)} GOB remaining`,
+      title: `$${(gob.remainingCents / 100).toFixed(2)} of $${(gob.availableCents / 100).toFixed(0)} GOB remaining`,
       tone: gob.pct >= 90 ? 'danger' : 'warn',
     });
   }
