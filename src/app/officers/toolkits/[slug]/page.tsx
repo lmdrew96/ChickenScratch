@@ -17,7 +17,9 @@ import { ToolkitDashboard } from '@/components/officers/toolkit/toolkit-dashboar
 import { QuickActions } from '@/components/officers/toolkit/quick-actions';
 import { StatefulRecurringTasks } from '@/components/officers/toolkit/stateful-recurring-tasks';
 import { RoleReference } from '@/components/officers/toolkit/role-reference';
+import { CycleHeader } from '@/components/officers/toolkit/cycle-header';
 import { getCompletedTaskIds } from '@/lib/actions/recurring-tasks';
+import { getIssueCycleState } from '@/lib/data/issue-cycle';
 
 export default async function ToolkitPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -40,12 +42,13 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
   const isMyRole = userRoleResult[0]?.positions?.includes(toolkit.position) ?? false;
 
   // Fetch live data in parallel
-  const [myTasks, submissions, nextMeeting, stats, announcements] = await Promise.all([
+  const [myTasks, submissions, nextMeeting, stats, announcements, cycleState] = await Promise.all([
     getMyTasks(profile.id),
     getPendingSubmissions(),
     getNextMeeting(),
     getRoleStats(slug),
     getRecentAnnouncements(3),
+    getIssueCycleState(),
   ]);
 
   // Resolve quick link URLs from site_config
@@ -70,6 +73,8 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
         backButtonHref="/officers"
         backButtonLabel="Back to Officers"
       />
+
+      <CycleHeader state={cycleState} />
 
       {isMyRole && (
         <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-4 py-3 flex items-center gap-2">
