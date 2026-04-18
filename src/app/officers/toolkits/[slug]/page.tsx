@@ -5,19 +5,13 @@ import { requireOfficerRole } from '@/lib/auth/guards';
 import { getSiteConfigValue } from '@/lib/site-config';
 import { db } from '@/lib/db';
 import { userRoles } from '@/lib/db/schema';
-import {
-  getMyTasks,
-  getPendingSubmissions,
-  getNextMeeting,
-  getRoleStats,
-  getRecentAnnouncements,
-} from '@/lib/data/toolkit-queries';
 import PageHeader from '@/components/shell/page-header';
-import { ToolkitDashboard } from '@/components/officers/toolkit/toolkit-dashboard';
 import { QuickActions } from '@/components/officers/toolkit/quick-actions';
 import { StatefulRecurringTasks } from '@/components/officers/toolkit/stateful-recurring-tasks';
 import { RoleReference } from '@/components/officers/toolkit/role-reference';
 import { CycleHeader } from '@/components/officers/toolkit/cycle-header';
+import { ThisWeekCard } from '@/components/officers/toolkit/this-week-card';
+import { getThisWeek } from '@/lib/data/this-week';
 import { ReimbursementPipeline } from '@/components/officers/toolkit/treasurer/reimbursement-pipeline';
 import { LedgerEntryForm } from '@/components/officers/toolkit/treasurer/ledger-entry-form';
 import { GobTracker } from '@/components/officers/toolkit/treasurer/gob-tracker';
@@ -51,13 +45,9 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
   const isAdmin = userRoleResult[0]?.positions?.some((p: string) => adminPositions.includes(p)) ?? false;
 
   // Fetch live data in parallel
-  const [myTasks, submissions, nextMeeting, stats, announcements, cycleState] = await Promise.all([
-    getMyTasks(profile.id),
-    getPendingSubmissions(),
-    getNextMeeting(),
-    getRoleStats(slug),
-    getRecentAnnouncements(3),
+  const [cycleState, thisWeek] = await Promise.all([
     getIssueCycleState(),
+    getThisWeek(profile.id, slug),
   ]);
 
   // Resolve quick link URLs from site_config
@@ -105,14 +95,7 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
         </div>
       )}
 
-      <ToolkitDashboard
-        tasks={myTasks}
-        submissions={submissions}
-        nextMeeting={nextMeeting}
-        stats={stats}
-        announcements={announcements}
-        slug={slug}
-      />
+      <ThisWeekCard roleLabel={toolkit.title} items={thisWeek} />
 
       <QuickActions actions={toolkit.quickActions} />
 
