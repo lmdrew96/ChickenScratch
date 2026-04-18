@@ -209,6 +209,37 @@ export default async function ExhibitionPage() {
           </div>
         </div>
 
+        {/* ── Potluck signup CTA ───────────────────────────────── */}
+        <section
+          className="fade-up-3 mb-12 flex flex-wrap items-center justify-between gap-4 rounded-2xl px-6 py-5"
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(255,210,0,0.14) 0%, rgba(0,83,159,0.10) 100%)',
+            border: '1px solid rgba(255,210,0,0.30)',
+          }}
+        >
+          <div className="flex items-start gap-4">
+            <span className="text-3xl" aria-hidden>🍕</span>
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
+                There&rsquo;s a potluck!
+              </p>
+              <p className="font-bold text-white">Sign up to bring something to the Flock Party</p>
+              <p className="text-sm text-slate-300">
+                Food, drinks, utensils, or anything else — claim your spot so we don&rsquo;t end up with
+                fifteen bowls of hummus. Open to anyone with a <code className="rounded bg-white/10 px-1 py-0.5 text-xs">@udel.edu</code> email.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/events/flock-party-2026-05"
+            className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-opacity hover:opacity-90 whitespace-nowrap"
+            style={{ background: 'var(--accent)', color: '#003b72' }}
+          >
+            Potluck signup <span aria-hidden>→</span>
+          </Link>
+        </section>
+
         {/* ── What we accept ───────────────────────────────────── */}
         <section className="party-card mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
           <h2 className="mb-5 text-xl font-bold text-white">What we&rsquo;re looking for 🔍</h2>
