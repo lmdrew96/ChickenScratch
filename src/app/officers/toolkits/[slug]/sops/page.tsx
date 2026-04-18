@@ -24,6 +24,11 @@ export default async function SopListPage({ params }: { params: Promise<{ slug: 
         showBackButton
         backButtonHref={`/officers/toolkits/${slug}`}
         backButtonLabel="Back to Toolkit"
+        breadcrumbItems={[
+          { label: 'Officers', href: '/officers' },
+          { label: `${toolkit.title} Toolkit`, href: `/officers/toolkits/${slug}` },
+          { label: 'SOPs', href: `/officers/toolkits/${slug}/sops` },
+        ]}
       />
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 shadow-lg">

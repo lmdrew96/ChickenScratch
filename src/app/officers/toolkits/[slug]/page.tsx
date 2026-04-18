@@ -135,6 +135,10 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
         showBackButton
         backButtonHref="/officers"
         backButtonLabel="Back to Officers"
+        breadcrumbItems={[
+          { label: 'Officers', href: '/officers' },
+          { label: `${toolkit.title} Toolkit`, href: `/officers/toolkits/${slug}` },
+        ]}
       />
 
       <CycleHeader state={cycleState} />

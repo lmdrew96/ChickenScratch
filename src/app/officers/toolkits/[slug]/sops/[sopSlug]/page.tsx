@@ -31,6 +31,12 @@ export default async function SopArticlePage({
         showBackButton
         backButtonHref={`/officers/toolkits/${slug}/sops`}
         backButtonLabel="Back to SOP Library"
+        breadcrumbItems={[
+          { label: 'Officers', href: '/officers' },
+          { label: `${toolkit.title} Toolkit`, href: `/officers/toolkits/${slug}` },
+          { label: 'SOPs', href: `/officers/toolkits/${slug}/sops` },
+          { label: article.title, href: `/officers/toolkits/${slug}/sops/${sopSlug}` },
+        ]}
       />
       <SopEditor
         id={article.id}
