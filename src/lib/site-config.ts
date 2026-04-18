@@ -43,6 +43,12 @@ export async function getDiscordWebhookUrl(): Promise<string | null> {
   return env.DISCORD_WEBHOOK_URL ?? null;
 }
 
+export async function getEventSignupDiscordWebhookUrl(): Promise<string | null> {
+  const dbValue = await getSiteConfigValue('event_signup_discord_webhook_url');
+  if (dbValue && dbValue.length > 0) return dbValue;
+  return env.EVENT_SIGNUP_DISCORD_WEBHOOK_URL ?? null;
+}
+
 export async function getContactFormRecipients(): Promise<string[]> {
   const dbValue = await getSiteConfigValue('contact_form_recipients');
   const raw = (dbValue && dbValue.length > 0) ? dbValue : (env.CONTACT_FORM_RECIPIENTS ?? '');

@@ -33,6 +33,16 @@ Chicken Scratch is the submissions portal for the **Hen & Ink Society** — a st
 - Exhibition configuration (open/closed, deadline, event date) managed through site config
 - Non-members see the exhibition page but cannot submit — directed to contact officers if access is needed
 
+### Event signups (potlucks, tabling, workshops)
+- Reusable public signup system at `/events/[slug]` — first consumer is the Flock Party potluck
+- No Clerk auth required: any UDel student can sign up with a validated `@udel.edu` email
+- Hidden honeypot field + Zod server-side validation block bot submissions
+- One signup per email per event (enforced by a functional unique index on `lower(email)`)
+- Signups auto-close when `event_date` passes; officers can also manually pause/resume
+- Signup confirmation email (Resend, Hen & Ink branded) and Discord notification go out on submit
+- Officers manage signups at `/officers/events` and `/officers/events/[slug]/signups`: delete rows, toggle open/closed, export CSV
+- **Adding a new event:** copy the seed block in `drizzle/0028_add_events_and_signups.sql`, bump the migration number, and change `slug` / `name` / `description` / `event_date` / `location`. The `/events/[new-slug]` route picks it up automatically.
+
 ### Admin
 - Role and position management for all members
 - Email failure dashboard — failed notification attempts are persisted and visible for troubleshooting
@@ -97,6 +107,7 @@ cp .env.example .env.local
 | `CONTACT_FORM_RECIPIENTS`            | No       | Comma-separated emails for the contact form (can also be set via site config) |
 | `CRON_SECRET`                        | No       | Protects `/api/cron/*` endpoints (Vercel Cron)                     |
 | `DISCORD_WEBHOOK_URL`                | No       | Discord webhook for officer notifications/digests (can also be set via site config) |
+| `EVENT_SIGNUP_DISCORD_WEBHOOK_URL`   | No       | Separate Discord webhook for event signup notifications (can also be set via `event_signup_discord_webhook_url` site config key) |
 | `EMERGENCY_ADMIN_EMAIL`              | No       | Email address that should always be treated as an admin            |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL`      | No       | Clerk routes (matches `.env.example`; used by Clerk UI components) |
 | `NEXT_PUBLIC_CLERK_SIGN_UP_URL`      | No       | Clerk routes (matches `.env.example`; used by Clerk UI components) |
@@ -141,6 +152,7 @@ These paths are allowlisted in the middleware and are accessible without signing
 - `/login/*`, `/signup/*`
 - `/published/*` (public gallery)
 - `/issues/*` (zine issues)
+- `/events/*` (event signup pages — potlucks, tabling, workshops)
 - `/about/*`, `/contact/*`, `/privacy/*`, `/terms/*`
 - `POST /api/contact/*` (contact form endpoint)
 - `POST /api/webhooks/clerk/*` (Clerk webhook receiver)

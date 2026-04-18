@@ -20,6 +20,7 @@ const envSchema = z.object({
   ALLOWED_DOMAINS: z.string().optional(),
   CRON_SECRET: z.string().min(1).optional(),
   DISCORD_WEBHOOK_URL: z.string().url().optional(),
+  EVENT_SIGNUP_DISCORD_WEBHOOK_URL: z.string().url().optional(),
   EMERGENCY_ADMIN_EMAIL: z.string().email().optional(),
 });
 
@@ -41,6 +42,7 @@ const parsed = envSchema.safeParse({
   ALLOWED_DOMAINS: process.env.ALLOWED_DOMAINS,
   CRON_SECRET: process.env.CRON_SECRET,
   DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL,
+  EVENT_SIGNUP_DISCORD_WEBHOOK_URL: process.env.EVENT_SIGNUP_DISCORD_WEBHOOK_URL,
   EMERGENCY_ADMIN_EMAIL: process.env.EMERGENCY_ADMIN_EMAIL,
 });
 

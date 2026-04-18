@@ -1,5 +1,5 @@
 import { logNotificationFailure } from '@/lib/email';
-import { getDiscordWebhookUrl } from '@/lib/site-config';
+import { getDiscordWebhookUrl, getEventSignupDiscordWebhookUrl } from '@/lib/site-config';
 import { easternWallClockToDate } from '@/lib/utils';
 
 interface DiscordEmbed {
@@ -12,8 +12,11 @@ interface DiscordEmbed {
   timestamp?: string;
 }
 
-export async function sendDiscordEmbed(embed: DiscordEmbed): Promise<boolean> {
-  const webhookUrl = await getDiscordWebhookUrl();
+export async function sendDiscordEmbed(
+  embed: DiscordEmbed,
+  options: { webhookUrl?: string | null } = {},
+): Promise<boolean> {
+  const webhookUrl = options.webhookUrl ?? (await getDiscordWebhookUrl());
 
   if (!webhookUrl) {
     console.info('[discord] No webhook URL configured, skipping notification');
@@ -259,4 +262,38 @@ export async function notifyDiscordMeeting(
     footer: { text: `Proposed by ${authorName} • Mark availability at chickenscratch.me/officers` },
     url: OFFICERS_URL,
   });
+}
+
+const CATEGORY_LABEL: Record<string, string> = {
+  sweet: 'Sweet',
+  savory: 'Savory',
+  drink: 'Drink',
+  utensils: 'Utensils',
+  other: 'Other',
+};
+
+export async function notifyNewEventSignup(
+  signup: { name: string; item: string; category: string; notes: string | null },
+  event: { slug: string; name: string },
+): Promise<boolean> {
+  const webhookUrl = await getEventSignupDiscordWebhookUrl();
+  if (!webhookUrl) {
+    console.info('[discord] No event-signup webhook configured, skipping');
+    return true;
+  }
+  const categoryLabel = CATEGORY_LABEL[signup.category] ?? signup.category;
+  return sendDiscordEmbed(
+    {
+      title: `🐔 New signup for ${event.name}!`,
+      description: `**${signup.name}** is bringing **${signup.item}** _(${categoryLabel})_`,
+      color: BRAND_BLUE,
+      fields: signup.notes
+        ? [{ name: 'Notes', value: signup.notes.slice(0, 1024), inline: false }]
+        : [],
+      footer: { text: `chickenscratch.me/events/${event.slug}` },
+      url: `https://chickenscratch.me/events/${event.slug}`,
+      timestamp: new Date().toISOString(),
+    },
+    { webhookUrl },
+  );
 }

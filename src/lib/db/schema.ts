@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, integer, numeric, timestamp, jsonb, index, unique } from 'drizzle-orm/pg-core';
+import { pgTable, pgEnum, uuid, text, boolean, integer, numeric, timestamp, jsonb, index, unique } from 'drizzle-orm/pg-core';
 
 export const profiles = pgTable('profiles', {
   id: uuid('id').primaryKey(),
@@ -378,4 +378,40 @@ export const comments = pgTable('comments', {
 }, (table) => [
   index('comments_target_idx').on(table.target_type, table.target_id),
   index('comments_author_id_idx').on(table.author_id),
+]);
+
+export const events = pgTable('events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+  description: text('description'),
+  event_date: timestamp('event_date', { withTimezone: true }).notNull(),
+  location: text('location'),
+  signups_open: boolean('signups_open').notNull().default(true),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('events_event_date_idx').on(table.event_date),
+]);
+
+export const signupCategoryEnum = pgEnum('signup_category', [
+  'sweet',
+  'savory',
+  'drink',
+  'utensils',
+  'other',
+]);
+
+export const eventSignups = pgTable('event_signups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  event_id: uuid('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  item: text('item').notNull(),
+  category: signupCategoryEnum('category').notNull(),
+  notes: text('notes'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('event_signups_event_id_idx').on(table.event_id),
+  // Unique (event_id, lower(email)) added via raw SQL in migration 0028
 ]);

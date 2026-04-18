@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import { eq, gte, count, ne, and, arrayContains, arrayOverlaps, inArray, or, isNull } from 'drizzle-orm';
+import { PartyPopper } from 'lucide-react';
 
 import PageHeader from '@/components/shell/page-header';
 import { requireOfficerRole } from '@/lib/auth/guards';
@@ -153,6 +155,24 @@ export default async function OfficersPage() {
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
             <OfficerToolkits userPositions={userRole?.positions ?? undefined} />
           </div>
+
+          {/* Events */}
+          <Link
+            href="/officers/events"
+            className="block rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg transition-colors hover:bg-white/10"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-white/10 p-2">
+                <PartyPopper className="h-5 w-5 text-[var(--accent)]" aria-hidden="true" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-[var(--text)]">Events</h2>
+                <p className="text-sm text-slate-300">
+                  Manage potluck &amp; event signups (Flock Party, tabling, workshops).
+                </p>
+              </div>
+            </div>
+          </Link>
 
           {/* Admin Tools */}
           {hasAdminAccess && (
