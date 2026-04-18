@@ -13,6 +13,8 @@ import { CycleHeader } from '@/components/officers/toolkit/cycle-header';
 import { ThisWeekCard } from '@/components/officers/toolkit/this-week-card';
 import { SopTeaser } from '@/components/officers/toolkit/sops/sop-teaser';
 import { AttendanceTaker } from '@/components/officers/toolkit/secretary/attendance-taker';
+import { ContentCalendar } from '@/components/officers/toolkit/pr/content-calendar';
+import { buildCalendarSlots, getPrPostsForRange } from '@/lib/data/pr-post-queries';
 import {
   getMeetingsInAttendanceWindow,
   getActiveMembers,
@@ -91,6 +93,18 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
     for (const [id, records] of pairs) initialAttendance[id] = records;
   }
 
+  // PR-specific widgets
+  const isPr = slug === 'pr-chair';
+  let prSlots: string[] = [];
+  let prPostsRows: Awaited<ReturnType<typeof getPrPostsForRange>> = [];
+  if (isPr) {
+    const slotDates = buildCalendarSlots(new Date(), 3);
+    prSlots = slotDates.map((d) => d.toISOString());
+    const first = slotDates[0]!;
+    const last = new Date(slotDates[slotDates.length - 1]!.getTime() + 24 * 60 * 60 * 1000);
+    prPostsRows = await getPrPostsForRange(first, last);
+  }
+
   // Treasurer-specific widgets
   const isTreasurer = slug === 'treasurer';
   const [reimbursements, recentLedger, gobSummary, upcoming, receiptAlerts, cashAlerts] = isTreasurer
@@ -135,6 +149,8 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
           risks={risks}
         />
       )}
+
+      {isPr && <ContentCalendar slots={prSlots} posts={prPostsRows} />}
 
       {isTreasurer && gobSummary && (
         <>
