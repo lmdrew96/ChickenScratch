@@ -258,6 +258,18 @@ export const reimbursements = pgTable('reimbursements', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const meetingAttendance = pgTable('meeting_attendance', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meeting_id: uuid('meeting_id').notNull().references(() => meetingProposals.id, { onDelete: 'cascade' }),
+  member_id: uuid('member_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  status: text('status').notNull(),
+  recorded_at: timestamp('recorded_at', { withTimezone: true }).defaultNow().notNull(),
+  recorded_by: uuid('recorded_by').references(() => profiles.id),
+}, (table) => [
+  index('meeting_attendance_meeting_id_idx').on(table.meeting_id),
+  index('meeting_attendance_member_id_idx').on(table.member_id),
+]);
+
 export const sopArticles = pgTable('sop_articles', {
   id: uuid('id').primaryKey().defaultRandom(),
   role_slug: text('role_slug').notNull(),

@@ -12,6 +12,14 @@ import { RoleReference } from '@/components/officers/toolkit/role-reference';
 import { CycleHeader } from '@/components/officers/toolkit/cycle-header';
 import { ThisWeekCard } from '@/components/officers/toolkit/this-week-card';
 import { SopTeaser } from '@/components/officers/toolkit/sops/sop-teaser';
+import { AttendanceTaker } from '@/components/officers/toolkit/secretary/attendance-taker';
+import {
+  getMeetingsInAttendanceWindow,
+  getActiveMembers,
+  getAttendanceForMeeting,
+  getVotingRightsAtRisk,
+  type AttendanceRecord,
+} from '@/lib/data/attendance-queries';
 import { getThisWeek } from '@/lib/data/this-week';
 import { listSopsForRole } from '@/lib/data/sop-queries';
 import { ReimbursementPipeline } from '@/components/officers/toolkit/treasurer/reimbursement-pipeline';
@@ -66,6 +74,23 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
   const completedSet = await getCompletedTaskIds(profile.id, allTaskIds);
   const completedIds = Array.from(completedSet);
 
+  // Secretary-specific widgets
+  const isSecretary = slug === 'secretary';
+  const [meetingsToday, members, risks] = isSecretary
+    ? await Promise.all([
+        getMeetingsInAttendanceWindow(),
+        getActiveMembers(),
+        getVotingRightsAtRisk(),
+      ])
+    : [[], [], []];
+  const initialAttendance: Record<string, AttendanceRecord[]> = {};
+  if (isSecretary) {
+    const pairs = await Promise.all(
+      meetingsToday.map(async (m) => [m.id, await getAttendanceForMeeting(m.id)] as const),
+    );
+    for (const [id, records] of pairs) initialAttendance[id] = records;
+  }
+
   // Treasurer-specific widgets
   const isTreasurer = slug === 'treasurer';
   const [reimbursements, recentLedger, gobSummary, upcoming, receiptAlerts, cashAlerts] = isTreasurer
@@ -101,6 +126,15 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
       <ThisWeekCard roleLabel={toolkit.title} items={thisWeek} />
 
       <QuickActions actions={toolkit.quickActions} />
+
+      {isSecretary && (
+        <AttendanceTaker
+          meetings={meetingsToday}
+          members={members}
+          initialByMeeting={initialAttendance}
+          risks={risks}
+        />
+      )}
 
       {isTreasurer && gobSummary && (
         <>
