@@ -242,6 +242,16 @@ export const notifications = pgTable('notifications', {
   index('notifications_recipient_id_idx').on(table.recipient_id),
 ]);
 
+export const recurringTaskCompletions = pgTable('recurring_task_completions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  user_id: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  task_id: text('task_id').notNull(),
+  cycle_key: text('cycle_key').notNull(),
+  completed_at: timestamp('completed_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('recurring_task_completions_user_cycle_idx').on(table.user_id, table.cycle_key),
+]);
+
 export const comments = pgTable('comments', {
   id: uuid('id').primaryKey().defaultRandom(),
   author_id: uuid('author_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),

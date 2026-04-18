@@ -11,6 +11,16 @@ export type QuickAction = {
   description: string;
 };
 
+export type RecurringTaskItem = {
+  id: string;
+  label: string;
+};
+
+export type RecurringTaskGroup = {
+  cadence: string;
+  items: RecurringTaskItem[];
+};
+
 export type ToolkitRole = {
   slug: string;
   position: string;
@@ -18,10 +28,7 @@ export type ToolkitRole = {
   roleName: string;
   overview: string;
   responsibilities: string[];
-  recurringTasks: {
-    cadence: string;
-    tasks: string;
-  }[];
+  recurringTasks: RecurringTaskGroup[];
   handoffChecklist: string[];
   quickLinks: ToolkitLink[];
   quickActions: QuickAction[];
@@ -43,11 +50,39 @@ export const officerToolkits: ToolkitRole[] = [
       'Oversee Discord moderation'
     ],
     recurringTasks: [
-      { cadence: 'Weekly', tasks: 'Draft creative writing prompt (1 per week), run weekly creative writing meeting, run regular weekly meeting.' },
-      { cadence: 'Bi-weekly', tasks: 'Run officer meetings.' },
-      { cadence: 'Monthly', tasks: 'Check-in with faculty advisor.' },
-      { cadence: 'Per Semester', tasks: 'Lead elections (Spring), RSO re-registration.' },
-      { cadence: 'Annually', tasks: 'Constitution review.' }
+      {
+        cadence: 'Weekly',
+        items: [
+          { id: 'president-weekly-prompt', label: 'Draft creative writing prompt (1 per week)' },
+          { id: 'president-weekly-creative-meeting', label: 'Run weekly creative writing meeting' },
+          { id: 'president-weekly-meeting', label: 'Run regular weekly meeting' },
+        ],
+      },
+      {
+        cadence: 'Bi-weekly',
+        items: [
+          { id: 'president-biweekly-officer-meeting', label: 'Run officer meeting' },
+        ],
+      },
+      {
+        cadence: 'Monthly',
+        items: [
+          { id: 'president-monthly-advisor', label: 'Check in with faculty advisor' },
+        ],
+      },
+      {
+        cadence: 'Per Semester',
+        items: [
+          { id: 'president-semester-elections', label: 'Lead elections (Spring)' },
+          { id: 'president-semester-rso', label: 'RSO re-registration' },
+        ],
+      },
+      {
+        cadence: 'Annually',
+        items: [
+          { id: 'president-annual-constitution', label: 'Constitution review' },
+        ],
+      },
     ],
     handoffChecklist: [
       'Transfer ownership of Discord server',
@@ -82,10 +117,32 @@ export const officerToolkits: ToolkitRole[] = [
       'Manage Chicken Scratch advertising space'
     ],
     recurringTasks: [
-      { cadence: 'Per Meeting', tasks: 'Deliver announcements, collect dues/donations (Cash, check, or card only).' },
-      { cadence: 'Per Issue', tasks: 'Ad coordination and invoicing.' },
-      { cadence: 'Ongoing', tasks: 'Ledger reviews, process reimbursements.' },
-      { cadence: 'Per Semester', tasks: 'Submit budget requests to Allocation Board.' }
+      {
+        cadence: 'Per Meeting',
+        items: [
+          { id: 'treasurer-permeeting-announcements', label: 'Deliver announcements' },
+          { id: 'treasurer-permeeting-dues', label: 'Collect dues/donations (Cash, check, or card only)' },
+        ],
+      },
+      {
+        cadence: 'Per Issue',
+        items: [
+          { id: 'treasurer-perissue-ad-coord', label: 'Ad coordination and invoicing' },
+        ],
+      },
+      {
+        cadence: 'Ongoing',
+        items: [
+          { id: 'treasurer-ongoing-ledger', label: 'Ledger reviews' },
+          { id: 'treasurer-ongoing-reimbursements', label: 'Process reimbursements' },
+        ],
+      },
+      {
+        cadence: 'Per Semester',
+        items: [
+          { id: 'treasurer-semester-budget', label: 'Submit budget requests to Allocation Board' },
+        ],
+      },
     ],
     handoffChecklist: [
       'Complete Student Involvement financial transition forms.',
@@ -117,9 +174,27 @@ export const officerToolkits: ToolkitRole[] = [
       'Maintain "meeting-minutes" Discord channel'
     ],
     recurringTasks: [
-      { cadence: 'Per Meeting', tasks: 'Take minutes, track attendance, post minutes to Discord.' },
-      { cadence: 'Per Issue', tasks: 'Update digital & print archives.' },
-      { cadence: 'Ongoing', tasks: 'Membership list upkeep, respond to new member inquiries.' }
+      {
+        cadence: 'Per Meeting',
+        items: [
+          { id: 'secretary-permeeting-minutes', label: 'Take minutes' },
+          { id: 'secretary-permeeting-attendance', label: 'Track attendance' },
+          { id: 'secretary-permeeting-discord', label: 'Post minutes to Discord' },
+        ],
+      },
+      {
+        cadence: 'Per Issue',
+        items: [
+          { id: 'secretary-perissue-archives', label: 'Update digital & print archives' },
+        ],
+      },
+      {
+        cadence: 'Ongoing',
+        items: [
+          { id: 'secretary-ongoing-membership', label: 'Membership list upkeep' },
+          { id: 'secretary-ongoing-inquiries', label: 'Respond to new member inquiries' },
+        ],
+      },
     ],
     handoffChecklist: [
       'Transfer Google Drive / Notion ownership.',
@@ -152,9 +227,27 @@ export const officerToolkits: ToolkitRole[] = [
       'Handle media inquiries'
     ],
     recurringTasks: [
-      { cadence: 'Per Event', tasks: 'Create promotional materials, post to socials, print flyers.' },
-      { cadence: 'Per Issue', tasks: 'Orchestrate distribution strategy (campus drop-offs).' },
-      { cadence: 'Ongoing', tasks: 'Social media engagement, answer DMs.' }
+      {
+        cadence: 'Per Event',
+        items: [
+          { id: 'pr-perevent-promo', label: 'Create promotional materials' },
+          { id: 'pr-perevent-socials', label: 'Post to socials' },
+          { id: 'pr-perevent-flyers', label: 'Print flyers' },
+        ],
+      },
+      {
+        cadence: 'Per Issue',
+        items: [
+          { id: 'pr-perissue-distribution', label: 'Orchestrate distribution strategy (campus drop-offs)' },
+        ],
+      },
+      {
+        cadence: 'Ongoing',
+        items: [
+          { id: 'pr-ongoing-social', label: 'Social media engagement' },
+          { id: 'pr-ongoing-dms', label: 'Answer DMs' },
+        ],
+      },
     ],
     handoffChecklist: [
       'Pass over Instagram/Social credentials via secure password sharing.',

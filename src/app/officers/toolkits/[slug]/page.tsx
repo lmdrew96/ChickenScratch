@@ -15,8 +15,9 @@ import {
 import PageHeader from '@/components/shell/page-header';
 import { ToolkitDashboard } from '@/components/officers/toolkit/toolkit-dashboard';
 import { QuickActions } from '@/components/officers/toolkit/quick-actions';
-import { RecurringTimeline } from '@/components/officers/toolkit/recurring-timeline';
+import { StatefulRecurringTasks } from '@/components/officers/toolkit/stateful-recurring-tasks';
 import { RoleReference } from '@/components/officers/toolkit/role-reference';
+import { getCompletedTaskIds } from '@/lib/actions/recurring-tasks';
 
 export default async function ToolkitPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -55,6 +56,11 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
     })
   );
 
+  // Completed recurring-task IDs (current cycle only)
+  const allTaskIds = toolkit.recurringTasks.flatMap((g) => g.items.map((i) => i.id));
+  const completedSet = await getCompletedTaskIds(profile.id, allTaskIds);
+  const completedIds = Array.from(completedSet);
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -83,7 +89,7 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
 
       <QuickActions actions={toolkit.quickActions} />
 
-      <RecurringTimeline tasks={toolkit.recurringTasks} />
+      <StatefulRecurringTasks groups={toolkit.recurringTasks} completedIds={completedIds} />
 
       <RoleReference
         overview={toolkit.overview}
