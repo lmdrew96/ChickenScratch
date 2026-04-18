@@ -11,6 +11,7 @@ import {
 } from '@/lib/actions/ledger';
 import type { LedgerEntryRow } from '@/lib/data/ledger-queries';
 import { useRouter } from 'next/navigation';
+import { formatDateMedET } from '@/lib/format-date';
 
 const PRESETS: Array<{
   label: string;
@@ -68,9 +69,7 @@ function money(amount: string): string {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
-function formatDate(d: Date): string {
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
+const formatDate = formatDateMedET;
 
 function toDateInput(d: Date): string {
   // ISO "YYYY-MM-DD" matching the <input type="date"> format in local tz.

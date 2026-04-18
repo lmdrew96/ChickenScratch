@@ -7,7 +7,7 @@ function formatIssueLabel(state: IssueCycleState): string {
     return `Vol ${state.issueVolume} · Issue ${state.issueNumber}`;
   }
   if (state.publishDate) {
-    return state.publishDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) + ' Issue';
+    return state.publishDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'America/New_York' }) + ' Issue';
   }
   return 'Next Issue';
 }

@@ -6,6 +6,7 @@ import { CalendarCheck, Save, Eye } from 'lucide-react';
 import { saveAgenda } from '@/lib/actions/agenda';
 import { Markdown } from '@/components/ui/markdown';
 import type { NextMeetingForAgenda } from '@/lib/data/agenda-queries';
+import { formatTimeET, formatWeekdayET } from '@/lib/format-date';
 
 const DEFAULT_TEMPLATE = `# Agenda — [Meeting Date]
 
@@ -51,7 +52,7 @@ export function AgendaBuilder({ meeting }: Props) {
       startTransition(async () => {
         const result = await saveAgenda({ meeting_id: meeting.id, draft_md: draft });
         if (result.ok) {
-          setSavedAt(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
+          setSavedAt(formatTimeET(new Date()));
           setError(null);
         } else {
           setError(result.error);
@@ -76,13 +77,7 @@ export function AgendaBuilder({ meeting }: Props) {
     });
   };
 
-  const meetingLabel = meeting.finalized_date
-    ? new Date(meeting.finalized_date).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      })
-    : 'Unscheduled';
+  const meetingLabel = meeting.finalized_date ? formatWeekdayET(meeting.finalized_date) : 'Unscheduled';
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 shadow-lg">

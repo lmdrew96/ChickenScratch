@@ -9,6 +9,7 @@ import {
 } from '@/lib/actions/reimbursements';
 import type { ReimbursementRow, ReimbursementStage } from '@/lib/data/reimbursement-types';
 import { currentStage, stageTransitionDate } from '@/lib/data/reimbursement-types';
+import { formatDateShortET } from '@/lib/format-date';
 
 const STAGES: { key: ReimbursementStage; label: string }[] = [
   { key: 'submitted', label: 'Submitted' },
@@ -26,7 +27,7 @@ function daysAgo(d: Date): number {
 
 function formatDate(d: Date | null): string {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return formatDateShortET(d);
 }
 
 function money(amount: string): string {

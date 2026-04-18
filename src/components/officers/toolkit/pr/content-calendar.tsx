@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Megaphone, Trash2 } from 'lucide-react';
 import { upsertPrPost, deletePrPost } from '@/lib/actions/pr-posts';
 import type { PrPostRow, PrPostStatus } from '@/lib/data/pr-post-queries';
+import { formatWeekdayET } from '@/lib/format-date';
 
 const TEMPLATES = [
   {
@@ -76,9 +77,7 @@ const STATUS_TONES: Record<PrPostStatus, string> = {
   posted: 'border-emerald-400/30 bg-emerald-400/5 text-emerald-200',
 };
 
-function formatDay(d: Date): string {
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
+const formatDay = formatWeekdayET;
 
 type Props = {
   slots: string[]; // ISO strings

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ClipboardList, AlertTriangle, Check, X, Hand, Save } from 'lucide-react';
 import { recordAttendance } from '@/lib/actions/attendance';
+import { formatTimeET } from '@/lib/format-date';
 import type {
   AttendanceRecord,
   AttendanceStatus,
@@ -64,7 +65,7 @@ export function AttendanceTaker({ meetings, members, initialByMeeting, risks }: 
         setError(result.error);
         return;
       }
-      setSavedAt(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
+      setSavedAt(formatTimeET(new Date()));
       router.refresh();
     });
   };

@@ -9,6 +9,7 @@ import {
 } from '@/lib/actions/upcoming-expenses';
 import { useRouter } from 'next/navigation';
 import type { GobSummary, UpcomingExpenseRow } from '@/lib/data/ledger-queries';
+import { formatDateShortET } from '@/lib/format-date';
 
 function dollars(cents: number): string {
   return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -22,7 +23,7 @@ function money(amount: string): string {
 
 function formatDate(d: Date | null): string {
   if (!d) return 'No date';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return formatDateShortET(d);
 }
 
 type Props = {

@@ -10,12 +10,13 @@ import {
   deletePrompt,
 } from '@/lib/actions/agenda';
 import type { CreativePromptRow } from '@/lib/data/agenda-queries';
+import { formatDateMedET } from '@/lib/format-date';
 
 type Props = { prompts: CreativePromptRow[] };
 
 function formatDate(d: Date | null): string {
   if (!d) return 'Never';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return formatDateMedET(d);
 }
 
 export function PromptArchive({ prompts }: Props) {
