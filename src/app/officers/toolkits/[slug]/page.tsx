@@ -40,6 +40,8 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
     .limit(1);
 
   const isMyRole = userRoleResult[0]?.positions?.includes(toolkit.position) ?? false;
+  const adminPositions = ['Dictator-in-Chief', 'Scroll Gremlin'];
+  const isAdmin = userRoleResult[0]?.positions?.some((p: string) => adminPositions.includes(p)) ?? false;
 
   // Fetch live data in parallel
   const [myTasks, submissions, nextMeeting, stats, announcements, cycleState] = await Promise.all([
@@ -101,6 +103,7 @@ export default async function ToolkitPage({ params }: { params: Promise<{ slug: 
         responsibilities={toolkit.responsibilities}
         handoffChecklist={toolkit.handoffChecklist}
         quickLinks={linksWithUrls}
+        isAdmin={isAdmin}
       />
     </div>
   );

@@ -1,12 +1,14 @@
 'use client';
 
-import { BookOpen, ChevronDown, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
+import { BookOpen, ChevronDown, ExternalLink, Settings } from 'lucide-react';
 
 type RoleReferenceProps = {
   overview: string;
   responsibilities: string[];
   handoffChecklist: string[];
   quickLinks: { label: string; configKey: string; url: string | null }[];
+  isAdmin: boolean;
 };
 
 function Accordion({
@@ -32,7 +34,7 @@ function Accordion({
   );
 }
 
-export function RoleReference({ overview, responsibilities, handoffChecklist, quickLinks }: RoleReferenceProps) {
+export function RoleReference({ overview, responsibilities, handoffChecklist, quickLinks, isAdmin }: RoleReferenceProps) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
       <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -71,24 +73,44 @@ export function RoleReference({ overview, responsibilities, handoffChecklist, qu
 
         <Accordion title="Quick Links">
           <div className="space-y-2">
-            {quickLinks.map((link, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
-                <span className="text-sm font-medium text-white">{link.label}</span>
-                {link.url ? (
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-semibold px-3 py-1 rounded bg-[var(--accent)] text-white hover:opacity-90 transition-opacity inline-flex items-center gap-1"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Open
-                  </a>
-                ) : (
-                  <span className="text-xs text-slate-500 italic px-3 py-1">Not configured</span>
-                )}
-              </div>
-            ))}
+            {quickLinks.map((link, i) => {
+              const adminHref = '/admin#toolkit-links';
+              return (
+                <div
+                  key={i}
+                  className={`flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border ${
+                    link.url
+                      ? 'bg-white/5 border-white/10'
+                      : 'bg-amber-400/5 border-amber-400/30'
+                  }`}
+                >
+                  <span className="text-sm font-medium text-white">{link.label}</span>
+                  {link.url ? (
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-semibold px-3 py-1 rounded bg-[var(--accent)] text-white hover:opacity-90 transition-opacity inline-flex items-center gap-1 min-h-[32px]"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Open
+                    </a>
+                  ) : isAdmin ? (
+                    <Link
+                      href={adminHref}
+                      className="text-xs font-semibold px-3 py-1 rounded bg-amber-400/20 text-amber-200 hover:bg-amber-400/30 border border-amber-400/40 transition-colors inline-flex items-center gap-1 min-h-[32px]"
+                    >
+                      <Settings className="h-3 w-3" />
+                      Set URL
+                    </Link>
+                  ) : (
+                    <span className="text-xs text-amber-300/80 italic px-3 py-1">
+                      Not yet configured — ask an admin
+                    </span>
+                  )}
+                </div>
+              );
+            })}
             {quickLinks.length === 0 && (
               <p className="text-sm text-slate-400 italic">No quick links for this role.</p>
             )}

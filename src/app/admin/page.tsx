@@ -113,7 +113,9 @@ export default async function AdminPage() {
       )}
       <div className="space-y-6 mt-8">
         <SiteConfigEditor initialConfig={siteConfigData} />
-        <ToolkitLinksEditor initialConfig={siteConfigData} />
+        <div id="toolkit-links">
+          <ToolkitLinksEditor initialConfig={siteConfigData} />
+        </div>
       </div>
       <div className="mt-8">
         <StorageCleanup />
