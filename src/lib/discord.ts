@@ -297,3 +297,54 @@ export async function notifyNewEventSignup(
     { webhookUrl },
   );
 }
+
+const PERFORMANCE_KIND_LABEL: Record<string, string> = {
+  poetry: 'Poetry reading',
+  storytelling: 'Storytelling',
+  one_act_play: 'One-act play',
+};
+
+export async function notifyNewPerformanceSignup(
+  signup: {
+    name: string;
+    kind: string;
+    piece_title: string;
+    estimated_minutes: number;
+    content_warnings: string | null;
+    notes: string | null;
+  },
+  event: { slug: string; name: string },
+): Promise<boolean> {
+  const webhookUrl = await getEventSignupDiscordWebhookUrl();
+  if (!webhookUrl) {
+    console.info('[discord] No event-signup webhook configured, skipping');
+    return true;
+  }
+  const kindLabel = PERFORMANCE_KIND_LABEL[signup.kind] ?? signup.kind;
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    { name: 'Type', value: kindLabel, inline: true },
+    { name: 'Length', value: `${signup.estimated_minutes} min`, inline: true },
+  ];
+  if (signup.content_warnings) {
+    fields.push({
+      name: 'Content warnings',
+      value: signup.content_warnings.slice(0, 1024),
+      inline: false,
+    });
+  }
+  if (signup.notes) {
+    fields.push({ name: 'Notes', value: signup.notes.slice(0, 1024), inline: false });
+  }
+  return sendDiscordEmbed(
+    {
+      title: `🎤 New performance signup for ${event.name}!`,
+      description: `**${signup.name}** — _"${signup.piece_title}"_`,
+      color: ACCENT_GOLD,
+      fields,
+      footer: { text: `chickenscratch.me/events/${event.slug}` },
+      url: `https://chickenscratch.me/events/${event.slug}`,
+      timestamp: new Date().toISOString(),
+    },
+    { webhookUrl },
+  );
+}

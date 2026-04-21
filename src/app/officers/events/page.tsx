@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { desc, eq, count } from 'drizzle-orm';
-import { CalendarClock, ExternalLink, MapPin, Users } from 'lucide-react';
+import { CalendarClock, ExternalLink, MapPin, Mic, Users } from 'lucide-react';
 
 import PageHeader from '@/components/shell/page-header';
 import { requireOfficerRole } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { events, eventSignups } from '@/lib/db/schema';
+import { events, eventSignups, eventPerformanceSignups } from '@/lib/db/schema';
 
 function formatEventDateTime(date: Date): string {
   return date.toLocaleString('en-US', {
@@ -23,20 +23,39 @@ export default async function OfficerEventsPage() {
   await requireOfficerRole('/officers/events');
   const database = db();
 
-  const rows = await database
-    .select({
-      id: events.id,
-      slug: events.slug,
-      name: events.name,
-      event_date: events.event_date,
-      location: events.location,
-      signups_open: events.signups_open,
-      signup_count: count(eventSignups.id),
-    })
-    .from(events)
-    .leftJoin(eventSignups, eq(eventSignups.event_id, events.id))
-    .groupBy(events.id)
-    .orderBy(desc(events.event_date));
+  // Count separately to avoid join multiplication when an event has both kinds of signups.
+  const [eventRows, potluckCounts, performanceCounts] = await Promise.all([
+    database
+      .select({
+        id: events.id,
+        slug: events.slug,
+        name: events.name,
+        event_date: events.event_date,
+        location: events.location,
+        signups_open: events.signups_open,
+      })
+      .from(events)
+      .orderBy(desc(events.event_date)),
+    database
+      .select({ event_id: eventSignups.event_id, count: count() })
+      .from(eventSignups)
+      .groupBy(eventSignups.event_id),
+    database
+      .select({ event_id: eventPerformanceSignups.event_id, count: count() })
+      .from(eventPerformanceSignups)
+      .groupBy(eventPerformanceSignups.event_id),
+  ]);
+
+  const potluckCountByEvent = new Map(potluckCounts.map((r) => [r.event_id, Number(r.count)]));
+  const performanceCountByEvent = new Map(
+    performanceCounts.map((r) => [r.event_id, Number(r.count)]),
+  );
+
+  const rows = eventRows.map((r) => ({
+    ...r,
+    signup_count: potluckCountByEvent.get(r.id) ?? 0,
+    performance_count: performanceCountByEvent.get(r.id) ?? 0,
+  }));
 
   const now = Date.now();
 
@@ -85,7 +104,11 @@ export default async function OfficerEventsPage() {
                       )}
                       <span className="inline-flex items-center gap-1.5">
                         <Users className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
-                        {r.signup_count} signup{r.signup_count === 1 ? '' : 's'}
+                        {r.signup_count} potluck
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Mic className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
+                        {r.performance_count} performance{r.performance_count === 1 ? '' : 's'}
                       </span>
                     </div>
                   </div>

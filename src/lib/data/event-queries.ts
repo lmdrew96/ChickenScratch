@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { events, eventSignups } from '@/lib/db/schema';
+import { events, eventSignups, eventPerformanceSignups } from '@/lib/db/schema';
+import { PERFORMANCE_KINDS, type PerformanceKind } from '@/lib/validations/event-performance-signup';
 
 export type SignupCategory = 'sweet' | 'savory' | 'drink' | 'utensils' | 'other';
 
@@ -120,3 +121,56 @@ export function groupSignupsByCategory(signups: SignupRow[]): Record<SignupCateg
 export function isSignupsEffectivelyOpen(event: EventRow, now: Date = new Date()): boolean {
   return event.signups_open && event.event_date.getTime() > now.getTime();
 }
+
+export type PerformanceRow = {
+  id: string;
+  event_id: string;
+  name: string;
+  email: string;
+  kind: PerformanceKind;
+  piece_title: string;
+  estimated_minutes: number;
+  content_warnings: string | null;
+  notes: string | null;
+  created_at: Date;
+};
+
+export async function getPerformanceSignupsByEventId(eventId: string): Promise<PerformanceRow[]> {
+  const rows = await db()
+    .select()
+    .from(eventPerformanceSignups)
+    .where(eq(eventPerformanceSignups.event_id, eventId))
+    .orderBy(asc(eventPerformanceSignups.created_at));
+  return rows.map((r) => ({
+    id: r.id,
+    event_id: r.event_id,
+    name: r.name,
+    email: r.email,
+    kind: r.kind as PerformanceKind,
+    piece_title: r.piece_title,
+    estimated_minutes: r.estimated_minutes,
+    content_warnings: r.content_warnings,
+    notes: r.notes,
+    created_at: r.created_at,
+  }));
+}
+
+export function groupPerformancesByKind(
+  performances: PerformanceRow[],
+): Record<PerformanceKind, PerformanceRow[]> {
+  const grouped: Record<PerformanceKind, PerformanceRow[]> = {
+    poetry: [],
+    storytelling: [],
+    one_act_play: [],
+  };
+  for (const p of performances) {
+    grouped[p.kind].push(p);
+  }
+  return grouped;
+}
+
+export function totalPerformanceMinutes(performances: PerformanceRow[]): number {
+  return performances.reduce((sum, p) => sum + p.estimated_minutes, 0);
+}
+
+export { PERFORMANCE_KINDS };

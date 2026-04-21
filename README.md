@@ -37,11 +37,13 @@ Chicken Scratch is the submissions portal for the **Hen & Ink Society** — a st
 - Reusable public signup system at `/events/[slug]` — first consumer is the Flock Party potluck
 - No Clerk auth required: any UDel student can sign up with a validated `@udel.edu` email
 - Hidden honeypot field + Zod server-side validation block bot submissions
-- One signup per email per event (enforced by a functional unique index on `lower(email)`)
-- Signups auto-close when `event_date` passes; officers can also manually pause/resume
-- Signup confirmation email (Resend, Hen & Ink branded) and Discord notification go out on submit
-- Officers manage signups at `/officers/events` and `/officers/events/[slug]/signups`: delete rows, toggle open/closed, export CSV
-- **Adding a new event:** copy the seed block in `drizzle/0028_add_events_and_signups.sql`, bump the migration number, and change `slug` / `name` / `description` / `event_date` / `location`. The `/events/[new-slug]` route picks it up automatically.
+- Two signup tables per event, both attached to the same `events` row:
+  - **Potluck** (`event_signups`): one signup per email per event (functional unique index on `lower(email)`)
+  - **Live performances** (`event_performance_signups`): open-mic — multiple signups per email allowed (poetry / storytelling / one-act play, up to 15 minutes per slot)
+- Signups auto-close when `event_date` passes; officers can also manually pause/resume (the toggle gates both tables)
+- Signup confirmation email (Resend, Hen & Ink branded) and Discord notification go out on submit — separate templates for potluck vs. performance
+- Officers manage both rosters at `/officers/events/[slug]/signups`: delete rows, toggle open/closed, separate CSV exports for each
+- **Adding a new event:** copy the seed block in `drizzle/0028_add_events_and_signups.sql`, bump the migration number, and change `slug` / `name` / `description` / `event_date` / `location`. The `/events/[new-slug]` route picks it up automatically with both signup sections.
 
 ### Admin
 - Role and position management for all members

@@ -222,12 +222,13 @@ export default async function ExhibitionPage() {
             <span className="text-3xl" aria-hidden>🍕</span>
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
-                There&rsquo;s a potluck!
+                Potluck + open mic!
               </p>
-              <p className="font-bold text-white">Sign up to bring something to the Flock Party</p>
+              <p className="font-bold text-white">Sign up for the Flock Party</p>
               <p className="text-sm text-slate-300">
-                Food, drinks, utensils, or anything else — claim your spot so we don&rsquo;t end up with
-                fifteen bowls of hummus. Open to anyone with a <code className="rounded bg-white/10 px-1 py-0.5 text-xs">@udel.edu</code> email.
+                Bring a dish, drink, or utensils &mdash; or get on the bill to read a poem, tell a
+                story, or stage a one-act play. Open to anyone with a{' '}
+                <code className="rounded bg-white/10 px-1 py-0.5 text-xs">@udel.edu</code> email.
               </p>
             </div>
           </div>
@@ -236,7 +237,7 @@ export default async function ExhibitionPage() {
             className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-opacity hover:opacity-90 whitespace-nowrap"
             style={{ background: 'var(--accent)', color: '#003b72' }}
           >
-            Potluck signup <span aria-hidden>→</span>
+            Flock Party signup <span aria-hidden>→</span>
           </Link>
         </section>
 

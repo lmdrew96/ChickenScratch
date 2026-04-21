@@ -415,3 +415,24 @@ export const eventSignups = pgTable('event_signups', {
   index('event_signups_event_id_idx').on(table.event_id),
   // Unique (event_id, lower(email)) added via raw SQL in migration 0028
 ]);
+
+export const performanceKindEnum = pgEnum('performance_kind', [
+  'poetry',
+  'storytelling',
+  'one_act_play',
+]);
+
+export const eventPerformanceSignups = pgTable('event_performance_signups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  event_id: uuid('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  kind: performanceKindEnum('kind').notNull(),
+  piece_title: text('piece_title').notNull(),
+  estimated_minutes: integer('estimated_minutes').notNull(),
+  content_warnings: text('content_warnings'),
+  notes: text('notes'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('event_performance_signups_event_id_idx').on(table.event_id),
+]);
