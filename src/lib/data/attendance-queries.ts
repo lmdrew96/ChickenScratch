@@ -1,11 +1,13 @@
-import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, eq, gte, lt, lte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
+  groupMeetingCheckins,
   meetingAttendance,
   meetingProposals,
   profiles,
   userRoles,
 } from '@/lib/db/schema';
+import { easternMonthBounds, toEasternDateString } from '@/lib/utils';
 
 export type AttendanceStatus = 'present' | 'absent' | 'excused';
 
@@ -99,62 +101,119 @@ export async function getAttendanceForMeeting(meetingId: string): Promise<Attend
 export type VotingRisk = {
   member_id: string;
   name: string | null;
-  missedInMonth: number;
-  consecutivelyMissed: number;
+  checkinsThisMonth: number;
+  shortfall: number; // max(0, 3 - checkinsThisMonth)
+  consecutiveMonthsBelow: number; // consecutive recent months with <3 check-ins (current included if applicable)
 };
 
-export async function getVotingRightsAtRisk(now: Date = new Date()): Promise<VotingRisk[]> {
-  // Article VIII: 3 misses in a rolling calendar month => voting rights revoked.
-  // 2 consecutive months missing entirely => membership loss territory.
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+const REQUIRED_PER_MONTH = 3;
 
-  const rows = await db()
+export async function getVotingRightsAtRisk(now: Date = new Date()): Promise<VotingRisk[]> {
+  // Article VIII: ≥3 group meetings/month for voting rights; 2 consecutive
+  // months below the minimum triggers membership revocation. Counts come from
+  // `group_meeting_checkins` (self-service QR + officer manual overrides) —
+  // the officer-meeting `meeting_attendance` table is irrelevant here.
+
+  const todayEt = toEasternDateString(now);
+  const currentYear = Number(todayEt.slice(0, 4));
+  const currentMonth = Number(todayEt.slice(5, 7));
+  const todayDay = Number(todayEt.slice(8, 10));
+
+  // Build the three months we care about: current + 2 prior, oldest first.
+  type Bucket = { year: number; month: number; start: Date; end: Date };
+  const buckets: Bucket[] = [];
+  for (let i = 2; i >= 0; i -= 1) {
+    let m = currentMonth - i;
+    let y = currentYear;
+    while (m <= 0) {
+      m += 12;
+      y -= 1;
+    }
+    const { start, end } = easternMonthBounds(y, m);
+    buckets.push({ year: y, month: m, start, end });
+  }
+
+  const windowStart = buckets[0]!.start;
+  const windowEnd = buckets[buckets.length - 1]!.end;
+
+  // Pull all members + check-ins in the 3-month window.
+  const memberRows = await db()
     .select({
-      member_id: meetingAttendance.member_id,
-      status: meetingAttendance.status,
-      recorded_at: meetingAttendance.recorded_at,
-      meeting_date: meetingProposals.finalized_date,
+      id: profiles.id,
       name: profiles.name,
       full_name: profiles.full_name,
     })
-    .from(meetingAttendance)
-    .innerJoin(meetingProposals, eq(meetingAttendance.meeting_id, meetingProposals.id))
-    .leftJoin(profiles, eq(meetingAttendance.member_id, profiles.id))
-    .where(gte(meetingProposals.finalized_date, monthStart))
-    .orderBy(desc(meetingProposals.finalized_date));
+    .from(profiles)
+    .innerJoin(userRoles, eq(userRoles.user_id, profiles.id))
+    .where(eq(userRoles.is_member, true));
 
-  const byMember = new Map<string, { name: string | null; missed: number; consecutive: number }>();
-  const allByMember = new Map<string, Array<{ status: string; meeting_date: Date | null }>>();
+  const checkinRows = await db()
+    .select({
+      member_id: groupMeetingCheckins.member_id,
+      meeting_date: groupMeetingCheckins.meeting_date,
+    })
+    .from(groupMeetingCheckins)
+    .where(
+      and(
+        gte(groupMeetingCheckins.meeting_date, windowStart),
+        lt(groupMeetingCheckins.meeting_date, windowEnd),
+      ),
+    );
 
-  for (const row of rows) {
-    if (!allByMember.has(row.member_id)) allByMember.set(row.member_id, []);
-    allByMember.get(row.member_id)!.push({ status: row.status, meeting_date: row.meeting_date });
+  // Count check-ins per (member, bucket).
+  const counts = new Map<string, number[]>(); // member_id → [count_oldest, ..., count_current]
+  for (const m of memberRows) counts.set(m.id, [0, 0, 0]);
+  for (const row of checkinRows) {
+    const ts = row.meeting_date.getTime();
+    const idx = buckets.findIndex((b) => ts >= b.start.getTime() && ts < b.end.getTime());
+    if (idx === -1) continue;
+    const arr = counts.get(row.member_id);
+    if (!arr) continue;
+    arr[idx] = (arr[idx] ?? 0) + 1;
   }
 
-  for (const [memberId, records] of allByMember) {
-    records.sort((a, b) => (b.meeting_date?.getTime() ?? 0) - (a.meeting_date?.getTime() ?? 0));
-    const missed = records.filter((r) => r.status === 'absent').length;
+  // Daysleft used to decide whether the current month is "at risk" or just early.
+  const lastDayOfCurrentMonth = new Date(Date.UTC(currentYear, currentMonth, 0)).getUTCDate();
+  const daysRemaining = lastDayOfCurrentMonth - todayDay + 1;
+
+  const risks: VotingRisk[] = [];
+  for (const m of memberRows) {
+    const [twoMonthsAgo, oneMonthAgo, thisMonth] = counts.get(m.id) ?? [0, 0, 0];
+    const checkinsThisMonth = thisMonth ?? 0;
+    const shortfall = Math.max(0, REQUIRED_PER_MONTH - checkinsThisMonth);
+
+    // Walk backward from the most recent month, counting the contiguous run
+    // of below-threshold months. The current month only counts if recovery is
+    // no longer possible (days remaining < shortfall). Any gap stops the run.
     let consecutive = 0;
-    for (const r of records) {
-      if (r.status === 'absent') consecutive += 1;
-      else break;
+    const currentIsLockedBelow =
+      checkinsThisMonth < REQUIRED_PER_MONTH && daysRemaining < shortfall;
+    if (currentIsLockedBelow) consecutive += 1;
+    if ((oneMonthAgo ?? 0) < REQUIRED_PER_MONTH) {
+      consecutive += 1;
+      if ((twoMonthsAgo ?? 0) < REQUIRED_PER_MONTH) consecutive += 1;
     }
-    const sample = rows.find((r) => r.member_id === memberId);
-    byMember.set(memberId, {
-      name: sample?.name ?? sample?.full_name ?? null,
-      missed,
-      consecutive,
+
+    // Flag criteria: at risk this month (can't reach 3), already below for past
+    // month, or consecutive run that's hit the constitutional trigger.
+    const atRiskThisMonth = checkinsThisMonth < REQUIRED_PER_MONTH && daysRemaining < shortfall;
+    const flag = atRiskThisMonth || consecutive >= 1;
+    if (!flag) continue;
+
+    risks.push({
+      member_id: m.id,
+      name: m.name ?? m.full_name ?? null,
+      checkinsThisMonth,
+      shortfall,
+      consecutiveMonthsBelow: consecutive,
     });
   }
 
-  const at = Array.from(byMember.entries())
-    .filter(([, v]) => v.missed >= 2 || v.consecutive >= 2)
-    .map(([member_id, v]) => ({
-      member_id,
-      name: v.name,
-      missedInMonth: v.missed,
-      consecutivelyMissed: v.consecutive,
-    }));
-  at.sort((a, b) => b.missedInMonth - a.missedInMonth);
-  return at;
+  risks.sort((a, b) => {
+    if (b.consecutiveMonthsBelow !== a.consecutiveMonthsBelow) {
+      return b.consecutiveMonthsBelow - a.consecutiveMonthsBelow;
+    }
+    return b.shortfall - a.shortfall;
+  });
+  return risks;
 }

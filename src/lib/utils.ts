@@ -82,3 +82,19 @@ export function toEasternDateString(date: Date | string | number = new Date()): 
     day: '2-digit',
   }).format(d);
 }
+
+/**
+ * Return the half-open [start, end) UTC instants for a calendar month in
+ * America/New_York. Use for month-window queries on timestamps stored as ET
+ * start-of-day instants.
+ */
+export function easternMonthBounds(year: number, month: number): { start: Date; end: Date } {
+  const startStr = `${year}-${String(month).padStart(2, '0')}-01`;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const endStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+  return {
+    start: easternWallClockToDate(startStr, '00:00'),
+    end: easternWallClockToDate(endStr, '00:00'),
+  };
+}

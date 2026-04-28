@@ -1318,3 +1318,37 @@ textarea:disabled {
     flex-direction: column;
   }
 }
+
+/* QR check-in print mode: hide everything except the QR card and force a
+   readable, scannable size. */
+@media print {
+  body * { visibility: hidden !important; }
+  .qr-print-target, .qr-print-target * { visibility: visible !important; }
+  .qr-print-target {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    background: #fff !important;
+    color: #000 !important;
+    padding: 0.5in !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .qr-print-target .qr-print-canvas {
+    width: 4.5in !important;
+    height: 4.5in !important;
+    margin: 0.5in auto !important;
+    padding: 0.25in !important;
+    box-shadow: none !important;
+  }
+  .qr-print-target .qr-print-canvas canvas {
+    width: 4in !important;
+    height: 4in !important;
+  }
+  .qr-print-target .qr-print-caption {
+    color: #000 !important;
+    font-size: 12pt !important;
+    text-align: center !important;
+  }
+}

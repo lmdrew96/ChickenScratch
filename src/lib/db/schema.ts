@@ -307,6 +307,24 @@ export const meetingAttendance = pgTable('meeting_attendance', {
   unique('meeting_attendance_meeting_member_key').on(table.meeting_id, table.member_id),
 ]);
 
+// Self-service group meeting check-ins (QR code attendance flow).
+// Distinct from meeting_attendance, which tracks officer meeting attendance
+// against meeting_proposals. Group meetings have no meeting entity — Article
+// VIII voting-rights logic only cares about monthly check-in counts.
+// recorded_by: null = member self-checked-in via QR; uuid = officer override.
+export const groupMeetingCheckins = pgTable('group_meeting_checkins', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  member_id: uuid('member_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  meeting_date: timestamp('meeting_date', { withTimezone: true }).notNull(),
+  checked_in_at: timestamp('checked_in_at', { withTimezone: true }).defaultNow().notNull(),
+  recorded_by: uuid('recorded_by').references(() => profiles.id),
+  notes: text('notes'),
+}, (table) => [
+  index('group_checkins_member_id_idx').on(table.member_id),
+  index('group_checkins_meeting_date_idx').on(table.meeting_date),
+  unique('group_checkins_member_date_key').on(table.member_id, table.meeting_date),
+]);
+
 export const sopArticles = pgTable('sop_articles', {
   id: uuid('id').primaryKey().defaultRandom(),
   role_slug: text('role_slug').notNull(),

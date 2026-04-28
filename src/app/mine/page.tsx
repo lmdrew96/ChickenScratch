@@ -4,13 +4,20 @@ import { eq, desc, inArray } from 'drizzle-orm';
 import { PageHeader } from '@/components/navigation';
 import { EmptyState } from '@/components/ui';
 import { MineClient } from '@/components/mine/mine-client';
+import { MemberAttendanceSummary } from '@/components/attendance/member-attendance-summary';
 import { requireUser } from '@/lib/auth/guards';
+import { getCurrentUserRole } from '@/lib/actions/roles';
+import { getMemberAttendanceSummary } from '@/lib/actions/group-attendance';
 import { db } from '@/lib/db';
 import { submissions, profiles } from '@/lib/db/schema';
 import type { Submission } from '@/types/database';
 
 export default async function MinePage() {
   const { profile } = await requireUser('/mine');
+  const userRole = await getCurrentUserRole();
+  const attendanceSummary = userRole?.is_member
+    ? await getMemberAttendanceSummary()
+    : null;
 
   let userSubmissions: Submission[] = [];
   let loadIssue = false;
@@ -72,6 +79,12 @@ export default async function MinePage() {
           </Link>
         }
       />
+      {attendanceSummary && attendanceSummary.ok && (
+        <MemberAttendanceSummary
+          currentMonth={attendanceSummary.currentMonth}
+          recentMonths={attendanceSummary.recentMonths}
+        />
+      )}
       {userSubmissions.length === 0 && !loadIssue ? (
         <EmptyState
           variant="submissions"

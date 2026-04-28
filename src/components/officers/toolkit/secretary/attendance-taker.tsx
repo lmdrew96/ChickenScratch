@@ -129,7 +129,7 @@ export function AttendanceTaker({ meetings, members, initialByMeeting, risks }: 
                   {risk && (
                     <span className="inline-flex items-center gap-1 text-[10px] text-amber-300">
                       <AlertTriangle className="h-3 w-3" />
-                      voting at risk ({risk.missedInMonth} missed)
+                      voting at risk ({risk.checkinsThisMonth}/3 this month)
                     </span>
                   )}
                 </span>
@@ -190,8 +190,8 @@ function RisksPanel({ risks }: { risks: VotingRisk[] }) {
           <li key={r.member_id} className="flex flex-wrap items-center justify-between gap-2 text-amber-100">
             <span className="truncate">{r.name ?? 'Unnamed member'}</span>
             <span className="text-[11px] text-amber-200/80">
-              {r.missedInMonth} missed this month
-              {r.consecutivelyMissed >= 2 && ` · ${r.consecutivelyMissed} consecutive`}
+              {r.checkinsThisMonth}/3 group meetings this month
+              {r.consecutiveMonthsBelow >= 2 && ` · ${r.consecutiveMonthsBelow} months below`}
             </span>
           </li>
         ))}
