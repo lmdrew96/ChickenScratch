@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import { desc } from 'drizzle-orm'
 import { isAdmin, getAllUsersWithRoles } from '@/lib/actions/roles'
+import { getMonthlyAttendanceSummaryByMember } from '@/lib/data/attendance-queries'
 import { db } from '@/lib/db'
 import { notificationFailures, siteConfig } from '@/lib/db/schema'
 import Link from 'next/link'
@@ -56,11 +57,13 @@ export default async function AdminPage() {
   let users
   let failures: Awaited<ReturnType<typeof fetchFailures>> = []
   let siteConfigData: Record<string, string> = {}
+  let attendanceSummary: Awaited<ReturnType<typeof getMonthlyAttendanceSummaryByMember>> = {}
   try {
-    ;[users, failures, siteConfigData] = await Promise.all([
+    ;[users, failures, siteConfigData, attendanceSummary] = await Promise.all([
       getAllUsersWithRoles(),
       fetchFailures(),
       fetchSiteConfig(),
+      getMonthlyAttendanceSummaryByMember(),
     ])
   } catch (error) {
     console.error('Error fetching users:', error)
@@ -124,6 +127,7 @@ export default async function AdminPage() {
         <h2 className="text-2xl font-bold mb-4">Manage Member Roles</h2>
         <AdminPanel
           initialUsers={users}
+          attendanceSummary={attendanceSummary}
           officerPositions={
             siteConfigData.officer_positions
               ? (JSON.parse(siteConfigData.officer_positions) as string[])

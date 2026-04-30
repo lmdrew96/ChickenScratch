@@ -17,6 +17,27 @@ type UserWithRole = {
   positions?: Position[]
 }
 
+type AttendanceStatus = 'on_track' | 'at_risk'
+
+type AttendanceSummary = {
+  checkinsThisMonth: number
+  status: AttendanceStatus
+  consecutiveMonthsBelow: number
+  priorMonthsBelow: number
+}
+
+const REQUIRED_CHECKINS_PER_MONTH = 3
+
+const STATUS_LABEL: Record<AttendanceStatus, string> = {
+  on_track: 'On track',
+  at_risk: 'At risk',
+}
+
+const STATUS_PILL_CLASSES: Record<AttendanceStatus, string> = {
+  on_track: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30',
+  at_risk: 'bg-amber-500/15 text-amber-200 border border-amber-500/30',
+}
+
 const DEFAULT_OFFICER_POSITIONS: Position[] = [
   'BBEG',
   'Dictator-in-Chief',
@@ -34,10 +55,12 @@ type SortOption = 'name-asc' | 'name-desc' | 'email-asc' | 'date-newest' | 'date
 
 export default function AdminPanel({
   initialUsers,
+  attendanceSummary = {},
   officerPositions = DEFAULT_OFFICER_POSITIONS,
   committeePositions = DEFAULT_COMMITTEE_POSITIONS,
 }: {
   initialUsers: UserWithRole[]
+  attendanceSummary?: Record<string, AttendanceSummary>
   officerPositions?: Position[]
   committeePositions?: Position[]
 }) {
@@ -286,7 +309,8 @@ export default function AdminPanel({
           const userPositions = user.positions || []
           const isOfficer = userRoles.includes('officer')
           const isCommittee = userRoles.includes('committee')
-          
+          const attendance = user.is_member ? attendanceSummary[user.id] : undefined
+
           return (
             <div key={user.id} className="rounded-2xl border border-white/10 bg-white/5 p-6">
               <div className="flex items-start justify-between mb-4">
@@ -308,7 +332,34 @@ export default function AdminPanel({
                   <span className="text-sm font-medium">Delete</span>
                 </button>
               </div>
-              
+
+              {attendance && (
+                <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                  <span className="text-gray-300">
+                    Check-ins this month:{' '}
+                    <strong className="text-white">
+                      {attendance.checkinsThisMonth}/{REQUIRED_CHECKINS_PER_MONTH}
+                    </strong>
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_PILL_CLASSES[attendance.status]}`}
+                  >
+                    {STATUS_LABEL[attendance.status]}
+                  </span>
+                  {attendance.consecutiveMonthsBelow >= 2 ? (
+                    <span className="text-xs font-medium text-red-300">
+                      ⚠ {attendance.consecutiveMonthsBelow} consecutive months below — voting rights revocation triggered
+                    </span>
+                  ) : attendance.priorMonthsBelow >= 1 ? (
+                    <span className="text-xs text-amber-300">
+                      {attendance.priorMonthsBelow === 1
+                        ? '1 prior month below threshold'
+                        : `${attendance.priorMonthsBelow} prior months below threshold`}
+                    </span>
+                  ) : null}
+                </div>
+              )}
+
               <div className="space-y-4">
                 {/* Member / Alumni Status */}
                 <div className="flex flex-wrap gap-6">

@@ -9,6 +9,11 @@ import {
 } from '@/lib/db/schema';
 import { easternMonthBounds, toEasternDateString } from '@/lib/utils';
 
+// Status for a member's *current month* of group-meeting attendance. Past
+// months can be `below_threshold`, but `getMonthlyAttendanceSummaryByMember`
+// only reports the in-progress month, so this narrower union is sufficient.
+type CurrentMonthStatus = 'on_track' | 'at_risk';
+
 export type AttendanceStatus = 'present' | 'absent' | 'excused';
 
 export type MeetingToday = {
@@ -216,4 +221,108 @@ export async function getVotingRightsAtRisk(now: Date = new Date()): Promise<Vot
     return b.shortfall - a.shortfall;
   });
   return risks;
+}
+
+export type MemberAttendanceSummary = {
+  checkinsThisMonth: number;
+  status: CurrentMonthStatus;
+  consecutiveMonthsBelow: number;
+  priorMonthsBelow: number; // count of the prior 2 calendar months below the 3-checkin minimum
+};
+
+// Per-member attendance summary keyed by profile id. Includes only current
+// members (is_member = true); callers should treat a missing key as "not
+// applicable" rather than "zero check-ins". Uses the same Article VIII logic
+// as `getVotingRightsAtRisk` and the same status semantics as
+// `computeStatus()` in `lib/actions/group-attendance.ts`.
+export async function getMonthlyAttendanceSummaryByMember(
+  now: Date = new Date(),
+): Promise<Record<string, MemberAttendanceSummary>> {
+  const todayEt = toEasternDateString(now);
+  const currentYear = Number(todayEt.slice(0, 4));
+  const currentMonth = Number(todayEt.slice(5, 7));
+  const todayDay = Number(todayEt.slice(8, 10));
+
+  type Bucket = { start: Date; end: Date };
+  const buckets: Bucket[] = [];
+  for (let i = 2; i >= 0; i -= 1) {
+    let m = currentMonth - i;
+    let y = currentYear;
+    while (m <= 0) {
+      m += 12;
+      y -= 1;
+    }
+    buckets.push(easternMonthBounds(y, m));
+  }
+
+  const windowStart = buckets[0]!.start;
+  const windowEnd = buckets[buckets.length - 1]!.end;
+
+  const memberRows = await db()
+    .select({ id: profiles.id })
+    .from(profiles)
+    .innerJoin(userRoles, eq(userRoles.user_id, profiles.id))
+    .where(eq(userRoles.is_member, true));
+
+  const checkinRows = await db()
+    .select({
+      member_id: groupMeetingCheckins.member_id,
+      meeting_date: groupMeetingCheckins.meeting_date,
+    })
+    .from(groupMeetingCheckins)
+    .where(
+      and(
+        gte(groupMeetingCheckins.meeting_date, windowStart),
+        lt(groupMeetingCheckins.meeting_date, windowEnd),
+      ),
+    );
+
+  const counts = new Map<string, number[]>(); // [twoMonthsAgo, oneMonthAgo, thisMonth]
+  for (const m of memberRows) counts.set(m.id, [0, 0, 0]);
+  for (const row of checkinRows) {
+    const ts = row.meeting_date.getTime();
+    const idx = buckets.findIndex((b) => ts >= b.start.getTime() && ts < b.end.getTime());
+    if (idx === -1) continue;
+    const arr = counts.get(row.member_id);
+    if (!arr) continue;
+    arr[idx] = (arr[idx] ?? 0) + 1;
+  }
+
+  const lastDayOfCurrentMonth = new Date(Date.UTC(currentYear, currentMonth, 0)).getUTCDate();
+  const daysRemaining = lastDayOfCurrentMonth - todayDay + 1;
+
+  const summary: Record<string, MemberAttendanceSummary> = {};
+  for (const m of memberRows) {
+    const [twoMonthsAgo, oneMonthAgo, thisMonth] = counts.get(m.id) ?? [0, 0, 0];
+    const checkinsThisMonth = thisMonth ?? 0;
+    const shortfall = Math.max(0, REQUIRED_PER_MONTH - checkinsThisMonth);
+
+    let status: CurrentMonthStatus;
+    if (checkinsThisMonth >= REQUIRED_PER_MONTH) {
+      status = 'on_track';
+    } else if (daysRemaining >= shortfall) {
+      status = 'on_track';
+    } else {
+      status = 'at_risk';
+    }
+
+    let priorMonthsBelow = 0;
+    if ((oneMonthAgo ?? 0) < REQUIRED_PER_MONTH) {
+      priorMonthsBelow += 1;
+      if ((twoMonthsAgo ?? 0) < REQUIRED_PER_MONTH) priorMonthsBelow += 1;
+    }
+
+    const currentIsLockedBelow =
+      checkinsThisMonth < REQUIRED_PER_MONTH && daysRemaining < shortfall;
+    const consecutive = (currentIsLockedBelow ? 1 : 0) + priorMonthsBelow;
+
+    summary[m.id] = {
+      checkinsThisMonth,
+      status,
+      consecutiveMonthsBelow: consecutive,
+      priorMonthsBelow,
+    };
+  }
+
+  return summary;
 }
