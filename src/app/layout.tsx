@@ -1,6 +1,7 @@
 import './globals.css'
 import { Geist_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
+import { headers } from 'next/headers'
 import { ClerkProvider } from '@clerk/nextjs'
 import { auth } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
@@ -45,6 +46,20 @@ export const viewport = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const isMaintenance = (await headers()).get('x-maintenance-active') === '1';
+
+  if (isMaintenance) {
+    return (
+      <ClerkProvider>
+        <html lang="en">
+          <body className={`${raela.variable} ${geistMono.variable} ${guavine.variable}`}>
+            {children}
+          </body>
+        </html>
+      </ClerkProvider>
+    );
+  }
+
   const { userId } = await auth()
   const signedIn = !!userId
 
