@@ -27,7 +27,7 @@ const isMaintenanceBypass = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  if (process.env.MAINTENANCE_MODE === 'true' && !isMaintenanceBypass(req)) {
+  if (!isMaintenanceBypass(req)) {
     const url = req.nextUrl.clone();
     url.pathname = '/maintenance';
     const requestHeaders = new Headers(req.headers);
